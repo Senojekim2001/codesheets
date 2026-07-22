@@ -29,7 +29,7 @@ ${urls.map(u => `  <url>
   </url>`).join('\n')}
 </urlset>`
 
-fs.writeFileSync('./out/sitemap.xml', sitemap)
+fs.writeFileSync('./public/sitemap.xml', sitemap)
 console.log(`✓ sitemap.xml — ${urls.length} URLs`)
 
 // Also write robots.txt
@@ -38,5 +38,5 @@ Allow: /
 
 Sitemap: ${BASE_URL}/sitemap.xml`
 
-fs.writeFileSync('./out/robots.txt', robots)
+fs.writeFileSync('./public/robots.txt', robots)
 console.log('✓ robots.txt')

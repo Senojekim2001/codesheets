@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/generate-sheet-json.mjs",
     "build": "next build",
     "postbuild": "node scripts/generate-sitemap.js",
     "start": "next start",

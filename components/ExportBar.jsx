@@ -23,7 +23,7 @@ export default function ExportBar({ domain, sheetId, domainLabel, sheetLabel }) 
 
     try {
       // Fetch full sheet data on-demand (not baked into pageProps)
-      const res = await fetch(`/data/${domain}/${sheetId}.json`)
+      const res = await fetch(`/api/sheet?domain=${domain}&sheet=${sheetId}`)
       const sheetData = await res.json()
 
       // Lazy-import the specific exporter + helper

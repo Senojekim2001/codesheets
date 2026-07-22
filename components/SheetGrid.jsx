@@ -50,7 +50,7 @@ export default function SheetGrid({ sections, domain, sheetId }) {
     try {
       // Fetch the full sheet JSON once and cache it
       if (!fullSheetRef.current) {
-        const res = await fetch(`/data/${domain}/${sheetId}.json`)
+        const res = await fetch(`/api/sheet?domain=${domain}&sheet=${sheetId}`)
         fullSheetRef.current = await res.json()
       }
       const sheet = fullSheetRef.current
@@ -76,7 +76,7 @@ export default function SheetGrid({ sections, domain, sheetId }) {
     ;(async () => {
       try {
         if (!fullSheetRef.current) {
-          const res = await fetch(`/data/${domain}/${sheetId}.json`)
+          const res = await fetch(`/api/sheet?domain=${domain}&sheet=${sheetId}`)
           fullSheetRef.current = await res.json()
         }
         const sheet = fullSheetRef.current
