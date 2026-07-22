@@ -1,0 +1,972 @@
+export const meta = {
+  id: 'llm-ai',
+  label: 'LLMs & AI Engineering',
+  icon: '🤖',
+  description: 'LLM APIs, RAG pipelines, embeddings, vector databases, LangChain, agents, prompt engineering, and fine-tuning.',
+}
+
+export const sections = [
+  {
+    id: 'openai-api',
+    title: 'OpenAI API & LLM Providers',
+    entries: [
+      {
+        id: 'chat-completions',
+        fn: 'OpenAI Chat Completions — GPT-4, Structured Output & Streaming',
+        desc: 'Call GPT-4/o models with the OpenAI Python SDK: chat completions, system prompts, structured JSON output, streaming, and vision.',
+        category: 'LLM APIs',
+        subtitle: 'openai, ChatCompletion, system/user/assistant, response_format, streaming',
+        signature: 'client.chat.completions.create(model, messages)  |  response_format  |  stream=True',
+        descLong: 'The OpenAI Python SDK (v1+) provides a typed client for GPT-4, GPT-4o, o1, and other models. Chat completions take a list of messages with roles (system, user, assistant). Structured outputs use response_format with a Pydantic model or JSON schema to guarantee valid JSON. Streaming yields tokens as they are generated for real-time UIs. Vision models accept images in user messages. Function calling lets the model invoke your tools. Always handle rate limits, set timeouts, and use async for production.',
+        code: `import openai
+from openai import OpenAI
+from pydantic import BaseModel
+
+client = OpenAI()  # uses OPENAI_API_KEY env var
+
+# ── Basic chat completion ────────────────────────────
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "You are a helpful coding assistant."},
+        {"role": "user", "content": "Explain Python generators in 3 sentences."},
+    ],
+    temperature=0.7,
+    max_tokens=500,
+)
+print(response.choices[0].message.content)
+print(f"Tokens used: {response.usage.total_tokens}")
+
+# ── Structured output with Pydantic ──────────────────
+class CodeReview(BaseModel):
+    issues: list[str]
+    severity: str  # "low" | "medium" | "high"
+    suggestion: str
+
+response = client.beta.chat.completions.parse(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "Review this code and return structured feedback."},
+        {"role": "user", "content": "def add(a, b): return a + b"},
+    ],
+    response_format=CodeReview,
+)
+review = response.choices[0].message.parsed
+print(review.issues)      # []
+print(review.severity)    # "low"
+print(review.suggestion)  # "Add type hints..."
+
+# ── Streaming (real-time token output) ───────────────
+stream = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Write a haiku about Python."}],
+    stream=True,
+)
+for chunk in stream:
+    delta = chunk.choices[0].delta.content
+    if delta:
+        print(delta, end="", flush=True)
+
+# ── Async client (for production APIs) ───────────────
+from openai import AsyncOpenAI
+import asyncio
+
+async_client = AsyncOpenAI()
+
+async def ask(question: str) -> str:
+    response = await async_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": question}],
+    )
+    return response.choices[0].message.content
+
+# ── Vision (image understanding) ─────────────────────
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "What's in this image?"},
+            {"type": "image_url", "image_url": {
+                "url": "https://example.com/photo.jpg"
+            }},
+        ],
+    }],
+)
+
+# ── Multi-turn conversation ──────────────────────────
+messages = [
+    {"role": "system", "content": "You are a data science tutor."},
+]
+
+def chat(user_msg: str) -> str:
+    messages.append({"role": "user", "content": user_msg})
+    response = client.chat.completions.create(
+        model="gpt-4o", messages=messages
+    )
+    assistant_msg = response.choices[0].message.content
+    messages.append({"role": "assistant", "content": assistant_msg})
+    return assistant_msg`,
+        tips: [
+          'Use gpt-4o-mini for cost-sensitive tasks (10x cheaper than gpt-4o) — it handles summarization, classification, and extraction well.',
+          'Structured outputs with Pydantic models guarantee valid JSON — no more parsing failures or prompt engineering for format.',
+          'Always use async (AsyncOpenAI) in web APIs — synchronous calls block your server and kill throughput.',
+          'Set temperature=0 for deterministic/factual tasks, 0.7-1.0 for creative tasks. max_tokens limits cost.',
+        ],
+        mistake: 'Not handling rate limits or API errors — wrap calls in try/except with exponential backoff. Use tenacity or the built-in retry: client.with_options(max_retries=3).',
+        shorthand: {
+          verbose: `import requests
+response = requests.post(
+    "https://api.openai.com/v1/chat/completions",
+    json={"model": "gpt-4o", "messages": [...]},
+    headers={"Authorization": f"Bearer {key}"},
+)`,
+          concise: `from openai import OpenAI
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "..."}]
+)`
+        },
+      },
+      {
+        id: 'function-calling',
+        fn: 'Function Calling & Tool Use — Agentic LLMs',
+        desc: 'Let LLMs call your functions: tool definitions, parallel tool calls, and building agentic loops.',
+        category: 'LLM APIs',
+        subtitle: 'tools, function_call, tool_choice, parallel tool calls, agentic loop',
+        signature: 'tools=[{"type": "function", "function": {...}}]  |  tool_calls  |  tool_choice',
+        descLong: 'Function calling lets the LLM decide when and how to call your functions. Define tools with JSON schemas, and the model returns structured tool_call objects with arguments. Your code executes the function and returns results. This enables agents that can search the web, query databases, call APIs, run code, and take actions. Parallel tool calls let the model invoke multiple functions simultaneously. The agentic loop pattern repeats until the model responds without tool calls.',
+        code: `import json
+from openai import OpenAI
+
+client = OpenAI()
+
+# ── Define tools ─────────────────────────────────────
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get current weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string", "description": "City name"},
+                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                },
+                "required": ["city"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_database",
+            "description": "Search the product database",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "default": 10},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+]
+
+# Tool implementations
+def get_weather(city: str, unit: str = "celsius") -> dict:
+    # Real implementation would call weather API
+    return {"city": city, "temp": 22, "unit": unit, "condition": "sunny"}
+
+def search_database(query: str, limit: int = 10) -> list:
+    return [{"name": f"Product matching '{query}'", "price": 29.99}]
+
+tool_map = {
+    "get_weather": get_weather,
+    "search_database": search_database,
+}
+
+# ── Agentic loop — run until model stops calling tools ──
+messages = [
+    {"role": "user", "content": "What's the weather in Tokyo and find me umbrellas"}
+]
+
+while True:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        tools=tools,
+        tool_choice="auto",  # let model decide
+    )
+
+    msg = response.choices[0].message
+    messages.append(msg)
+
+    # If no tool calls, we're done
+    if not msg.tool_calls:
+        print(msg.content)
+        break
+
+    # Execute each tool call (may be parallel)
+    for tool_call in msg.tool_calls:
+        fn_name = tool_call.function.name
+        fn_args = json.loads(tool_call.function.arguments)
+        print(f"Calling {fn_name}({fn_args})")
+
+        result = tool_map[fn_name](**fn_args)
+
+        messages.append({
+            "role": "tool",
+            "tool_call_id": tool_call.id,
+            "content": json.dumps(result),
+        })
+    # Loop continues — model sees tool results and may call more tools`,
+        tips: [
+          'The agentic while-loop pattern (call → execute tools → feed results back) is the foundation of all AI agents.',
+          'Use tool_choice="required" to force the model to call a tool, "none" to prevent it, or {"type": "function", "function": {"name": "..."}} to force a specific tool.',
+          'GPT-4o supports parallel tool calls — it can call get_weather AND search_database in a single response.',
+          'Always validate tool arguments before execution — the model can hallucinate invalid parameters.',
+        ],
+        mistake: 'Not returning tool results back to the model — after calling a tool, you MUST append the result as a "tool" role message with the matching tool_call_id. Without this, the model cannot use the results.',
+        shorthand: {
+          verbose: `# Manual tool handling
+response = client.chat.completions.create(
+    model="gpt-4o", messages=messages, tools=tools
+)
+for tool_call in response.choices[0].message.tool_calls:
+    result = my_tools[tool_call.function.name](...)
+    messages.append({
+        "role": "tool",
+        "tool_call_id": tool_call.id,
+        "content": str(result)
+    })`,
+          concise: `# Agent loop pattern
+while True:
+    response = client.chat.completions.create(
+        model="gpt-4o", messages=messages, tools=tools
+    )
+    if not response.choices[0].message.tool_calls:
+        break`
+        },
+      },
+    ],
+  },
+  {
+    id: 'embeddings-vectors',
+    title: 'Embeddings & Vector Databases',
+    entries: [
+      {
+        id: 'embeddings',
+        fn: 'Text Embeddings — Semantic Search & Similarity',
+        desc: 'Generate embeddings with OpenAI, Sentence Transformers, and open-source models for semantic search, clustering, and RAG.',
+        category: 'Embeddings',
+        subtitle: 'text-embedding-3, sentence-transformers, cosine similarity, FAISS, batch embed',
+        signature: 'client.embeddings.create(input, model)  |  SentenceTransformer.encode()  |  cosine_similarity',
+        descLong: 'Embeddings convert text into dense numerical vectors that capture semantic meaning. Similar texts have similar vectors (high cosine similarity). Use cases: semantic search (find relevant documents), RAG retrieval, clustering, recommendations, deduplication, and anomaly detection. OpenAI text-embedding-3-small/large are the standard paid options. Sentence Transformers (all-MiniLM-L6-v2, gte-large) are free open-source alternatives. Always normalize embeddings and use cosine similarity for comparison.',
+        code: `from openai import OpenAI
+import numpy as np
+
+client = OpenAI()
+
+# ── OpenAI embeddings ────────────────────────────────
+def get_embeddings(texts: list[str], model="text-embedding-3-small") -> list:
+    response = client.embeddings.create(input=texts, model=model)
+    return [item.embedding for item in response.data]
+
+# Single embedding
+emb = get_embeddings(["What is machine learning?"])[0]
+print(f"Dimensions: {len(emb)}")  # 1536
+
+# Batch embeddings (more efficient)
+docs = [
+    "Python is a programming language",
+    "Machine learning uses statistical models",
+    "The weather is sunny today",
+]
+embeddings = get_embeddings(docs)
+
+# ── Cosine similarity ────────────────────────────────
+def cosine_similarity(a, b):
+    a, b = np.array(a), np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+query_emb = get_embeddings(["How does ML work?"])[0]
+for i, doc in enumerate(docs):
+    sim = cosine_similarity(query_emb, embeddings[i])
+    print(f"{sim:.3f} — {doc}")
+# 0.72 — Machine learning uses statistical models  ← most similar
+# 0.45 — Python is a programming language
+# 0.21 — The weather is sunny today
+
+# ── Open-source: Sentence Transformers ───────────────
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("all-MiniLM-L6-v2")  # free, 384 dims
+embeddings = model.encode(docs, normalize_embeddings=True)
+# Cosine similarity = dot product when normalized
+similarities = embeddings @ embeddings.T
+
+# ── FAISS for fast similarity search ─────────────────
+import faiss
+
+dimension = 1536
+index = faiss.IndexFlatIP(dimension)  # inner product (cosine for normalized)
+
+# Add document embeddings
+doc_vectors = np.array(embeddings, dtype="float32")
+faiss.normalize_L2(doc_vectors)  # normalize for cosine sim
+index.add(doc_vectors)
+
+# Search
+query_vec = np.array([query_emb], dtype="float32")
+faiss.normalize_L2(query_vec)
+scores, indices = index.search(query_vec, k=3)  # top 3
+
+for score, idx in zip(scores[0], indices[0]):
+    print(f"{score:.3f} — {docs[idx]}")`,
+        tips: [
+          'text-embedding-3-small (1536 dims) is the best price/performance. text-embedding-3-large (3072 dims) for max quality.',
+          'Always batch embedding requests — sending 100 texts in one call is much faster and cheaper than 100 individual calls.',
+          'Normalize embeddings (L2 norm) so cosine similarity = dot product — dot product is faster to compute.',
+          'For < 100K documents, FAISS IndexFlatIP is fine. For millions, use IndexIVFFlat or IndexHNSW for approximate nearest neighbors.',
+        ],
+        mistake: 'Re-embedding the same documents on every query — embeddings are deterministic. Compute once, store in a vector database, and only embed the query at search time.',
+        shorthand: {
+          verbose: `import requests
+response = requests.post(
+    "https://api.openai.com/v1/embeddings",
+    json={"input": ["text"], "model": "text-embedding-3-small"},
+    headers={"Authorization": f"Bearer {key}"},
+)`,
+          concise: `from openai import OpenAI
+client = OpenAI()
+response = client.embeddings.create(
+    input=["text"], model="text-embedding-3-small"
+)
+embeddings = [e.embedding for e in response.data]`
+        },
+      },
+      {
+        id: 'vector-databases',
+        fn: 'Vector Databases — Pinecone, Chroma, pgvector & Weaviate',
+        desc: 'Store and query embeddings at scale with purpose-built vector databases: CRUD, metadata filtering, and hybrid search.',
+        category: 'Vector DBs',
+        subtitle: 'Chroma, Pinecone, pgvector, Weaviate, Qdrant, upsert, query, metadata filter',
+        signature: 'collection.add(ids, embeddings, documents)  |  collection.query(query_embeddings, n_results)',
+        descLong: 'Vector databases store embeddings and enable fast similarity search at scale. Chroma is the easiest local/embedded option. Pinecone is the leading managed cloud service. pgvector adds vector search to PostgreSQL. Weaviate and Qdrant are open-source with cloud options. Key features: metadata filtering (filter by date, category before similarity search), hybrid search (combine vector + keyword), namespaces/collections for multi-tenant isolation, and automatic embedding generation.',
+        code: `# ── ChromaDB (local, easiest to start) ───────────────
+import chromadb
+
+client = chromadb.Client()  # in-memory
+# client = chromadb.PersistentClient(path="./chroma_db")  # persistent
+
+collection = client.create_collection(
+    name="docs",
+    metadata={"hnsw:space": "cosine"},  # distance metric
+)
+
+# Add documents (Chroma auto-embeds with default model)
+collection.add(
+    ids=["doc1", "doc2", "doc3"],
+    documents=[
+        "Python is great for data science",
+        "JavaScript runs in the browser",
+        "Machine learning predicts outcomes",
+    ],
+    metadatas=[
+        {"topic": "python", "year": 2024},
+        {"topic": "javascript", "year": 2024},
+        {"topic": "ml", "year": 2024},
+    ],
+)
+
+# Query with natural language
+results = collection.query(
+    query_texts=["How to do data analysis?"],
+    n_results=2,
+    where={"topic": {"$in": ["python", "ml"]}},  # metadata filter
+)
+print(results["documents"])  # most relevant docs
+print(results["distances"])  # similarity scores
+
+# ── Pinecone (managed cloud) ────────────────────────
+from pinecone import Pinecone
+
+pc = Pinecone(api_key="YOUR_KEY")
+index = pc.Index("my-index")
+
+# Upsert vectors with metadata
+index.upsert(vectors=[
+    {
+        "id": "doc1",
+        "values": embedding_vector,  # list of floats
+        "metadata": {"source": "docs", "topic": "python"},
+    },
+])
+
+# Query with metadata filter
+results = index.query(
+    vector=query_embedding,
+    top_k=5,
+    filter={"topic": {"$eq": "python"}},
+    include_metadata=True,
+)
+for match in results.matches:
+    print(f"{match.score:.3f} — {match.metadata}")
+
+# ── pgvector (PostgreSQL extension) ──────────────────
+# SQL: CREATE EXTENSION vector;
+# CREATE TABLE documents (
+#     id SERIAL PRIMARY KEY,
+#     content TEXT,
+#     embedding vector(1536)
+# );
+# CREATE INDEX ON documents USING ivfflat (embedding vector_cosine_ops);
+
+import psycopg2
+from pgvector.psycopg2 import register_vector
+
+conn = psycopg2.connect("postgresql://localhost/mydb")
+register_vector(conn)
+
+cur = conn.cursor()
+cur.execute(
+    "SELECT content, 1 - (embedding <=> %s) AS similarity "
+    "FROM documents ORDER BY embedding <=> %s LIMIT 5",
+    (query_embedding, query_embedding),
+)
+for content, similarity in cur.fetchall():
+    print(f"{similarity:.3f} — {content}")
+
+# ── Qdrant (open-source, high performance) ───────────
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct, VectorParams, Distance
+
+qclient = QdrantClient(":memory:")  # or url="http://localhost:6333"
+qclient.create_collection(
+    collection_name="docs",
+    vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+)
+
+qclient.upsert(
+    collection_name="docs",
+    points=[
+        PointStruct(id=1, vector=emb1, payload={"text": "..."}),
+        PointStruct(id=2, vector=emb2, payload={"text": "..."}),
+    ],
+)`,
+        tips: [
+          'ChromaDB for prototyping and small datasets (< 1M docs). Pinecone/Qdrant for production scale.',
+          'pgvector is ideal if you already use PostgreSQL — vector search alongside your relational data, no extra infrastructure.',
+          'Metadata filtering BEFORE vector search dramatically improves relevance — filter by date, category, or user first.',
+          'Use namespaces (Pinecone) or collections (Chroma/Qdrant) for multi-tenant isolation — each tenant gets their own search space.',
+        ],
+        mistake: 'Storing raw text without chunking — long documents should be split into 200-500 token chunks before embedding. Each chunk gets its own vector. Without chunking, embeddings lose specificity and retrieval quality drops.',
+        shorthand: {
+          verbose: `import chromadb
+client = chromadb.Client()
+collection = client.create_collection("documents")
+collection.add(
+    documents=["This is a document about cats", "This is about dogs"],
+    ids=["doc1", "doc2"]
+)
+results = collection.query(query_texts=["pets"], n_results=2)
+print(results['documents'])`,
+          concise: `collection = chromadb.Client().get_or_create_collection("docs")
+collection.upsert(documents=texts, ids=ids)
+results = collection.query(query_texts=["pets"], n_results=5)`
+        },
+      },
+    ],
+  },
+  {
+    id: 'rag-langchain',
+    title: 'RAG & LangChain',
+    entries: [
+      {
+        id: 'rag-pipeline',
+        fn: 'RAG — Retrieval-Augmented Generation Pipeline',
+        desc: 'Build RAG pipelines: document loading, chunking, embedding, vector storage, retrieval, and augmented generation.',
+        category: 'RAG',
+        subtitle: 'chunking, retrieval, context window, document QA, hybrid search',
+        signature: 'load → chunk → embed → store → retrieve → augment prompt → generate',
+        descLong: 'RAG (Retrieval-Augmented Generation) grounds LLM responses in your data. The pipeline: (1) load documents (PDF, HTML, Markdown), (2) split into chunks (200-500 tokens), (3) embed chunks into vectors, (4) store in vector DB, (5) at query time, embed the query, (6) retrieve top-K similar chunks, (7) inject chunks into the LLM prompt as context, (8) generate a grounded answer. RAG eliminates hallucination for domain-specific knowledge without fine-tuning. Key optimization: chunk size, overlap, retrieval strategy, and re-ranking.',
+        code: `from openai import OpenAI
+import chromadb
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+client = OpenAI()
+
+# ── Step 1: Load documents ───────────────────────────
+def load_documents(file_path: str) -> str:
+    with open(file_path) as f:
+        return f.read()
+
+raw_text = load_documents("knowledge_base.md")
+
+# ── Step 2: Chunk documents ──────────────────────────
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,        # ~500 chars per chunk
+    chunk_overlap=50,      # overlap for context continuity
+    separators=["\\n\\n", "\\n", ". ", " "],  # split at natural boundaries
+)
+chunks = splitter.split_text(raw_text)
+print(f"Created {len(chunks)} chunks")
+
+# ── Step 3-4: Embed and store ────────────────────────
+chroma = chromadb.PersistentClient(path="./rag_db")
+collection = chroma.get_or_create_collection("knowledge")
+
+# Batch embed with OpenAI
+def embed_texts(texts: list[str]) -> list:
+    resp = client.embeddings.create(
+        input=texts, model="text-embedding-3-small"
+    )
+    return [e.embedding for e in resp.data]
+
+# Store chunks with embeddings
+batch_size = 100
+for i in range(0, len(chunks), batch_size):
+    batch = chunks[i:i + batch_size]
+    embeddings = embed_texts(batch)
+    collection.add(
+        ids=[f"chunk_{i+j}" for j in range(len(batch))],
+        embeddings=embeddings,
+        documents=batch,
+    )
+
+# ── Step 5-8: Query pipeline ────────────────────────
+def rag_query(question: str, n_results: int = 5) -> str:
+    # Embed the question
+    query_emb = embed_texts([question])[0]
+
+    # Retrieve relevant chunks
+    results = collection.query(
+        query_embeddings=[query_emb],
+        n_results=n_results,
+    )
+    context = "\\n\\n---\\n\\n".join(results["documents"][0])
+
+    # Augmented generation
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Answer the question based ONLY on the following context. "
+                    "If the context doesn't contain the answer, say so.\\n\\n"
+                    f"Context:\\n{context}"
+                ),
+            },
+            {"role": "user", "content": question},
+        ],
+        temperature=0,
+    )
+    return response.choices[0].message.content
+
+answer = rag_query("What are the key features of our product?")
+print(answer)
+
+# ── Advanced: Re-ranking retrieved results ───────────
+# pip install cohere
+import cohere
+
+co = cohere.Client("COHERE_API_KEY")
+
+def rag_with_rerank(question: str) -> str:
+    # Retrieve more candidates than needed
+    results = collection.query(
+        query_embeddings=[embed_texts([question])[0]],
+        n_results=20,
+    )
+
+    # Re-rank with Cohere (or cross-encoder)
+    reranked = co.rerank(
+        query=question,
+        documents=results["documents"][0],
+        top_n=5,
+        model="rerank-english-v3.0",
+    )
+
+    context = "\\n\\n".join(
+        results["documents"][0][r.index] for r in reranked.results
+    )
+    # ... generate with context (same as above)`,
+        tips: [
+          'Chunk size 200-500 tokens with 50-100 token overlap is the sweet spot — too large loses specificity, too small loses context.',
+          'Re-ranking (Cohere Rerank, cross-encoders) dramatically improves retrieval quality — retrieve 20, re-rank to top 5.',
+          'Always include "Answer based ONLY on the context" in the system prompt — this prevents hallucination.',
+          'Hybrid search (vector + BM25 keyword) outperforms pure vector search — especially for exact terms, names, and codes.',
+        ],
+        mistake: 'Using huge chunk sizes (2000+ tokens) to fit more context — large chunks dilute the embedding signal. The embedding represents the average meaning of the chunk, so a 2000-token chunk about 5 topics retrieves poorly for any single topic.',
+        shorthand: {
+          verbose: `# Step-by-step RAG
+docs = load_documents(file_path)
+chunks = split_into_chunks(docs, size=2000)
+embeddings = embed_all_chunks(chunks)
+store_in_db(chunks, embeddings)
+query_emb = embed_query(user_query)
+retrieved = search_db(query_emb, top_k=5)
+context = format_context(retrieved)
+answer = llm(system_prompt + context + query)`,
+          concise: `# RAG chain (LangChain)
+rag_chain = (
+    {"context": retriever, "question": RunnablePassthrough()}
+    | rag_prompt | llm | StrOutputParser()
+)
+answer = rag_chain.invoke(user_query)`
+        },
+      },
+      {
+        id: 'langchain-agents',
+        fn: 'LangChain — Chains, Agents & Production Patterns',
+        desc: 'Build LLM applications with LangChain: prompt templates, chains, agents, memory, and LangSmith observability.',
+        category: 'LangChain',
+        subtitle: 'ChatPromptTemplate, RunnableSequence, AgentExecutor, LCEL, LangSmith',
+        signature: 'chain = prompt | llm | parser  |  AgentExecutor  |  RunnablePassthrough',
+        descLong: 'LangChain is the leading framework for building LLM applications. LCEL (LangChain Expression Language) composes chains with the pipe operator: prompt | llm | output_parser. Agents use LLMs to decide which tools to call. Memory systems maintain conversation state. LangSmith provides observability (tracing, evaluation, monitoring) for production. Key abstractions: ChatModels (LLM wrappers), PromptTemplates (dynamic prompts), OutputParsers (structured extraction), Retrievers (vector search), and Tools (agent capabilities).',
+        code: `from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+
+# ── Basic LCEL chain ─────────────────────────────────
+llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a {role}. Be concise."),
+    ("user", "{question}"),
+])
+
+chain = prompt | llm | StrOutputParser()
+
+result = chain.invoke({
+    "role": "Python tutor",
+    "question": "What are list comprehensions?",
+})
+print(result)
+
+# ── RAG chain with retriever ─────────────────────────
+from langchain_chroma import Chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
+
+# Load and chunk
+loader = PyPDFLoader("manual.pdf")
+docs = loader.load()
+splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+chunks = splitter.split_documents(docs)
+
+# Store in vector DB
+vectorstore = Chroma.from_documents(chunks, OpenAIEmbeddings())
+retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+
+# RAG chain
+rag_prompt = ChatPromptTemplate.from_template(
+    "Answer based on context:\\n{context}\\n\\nQuestion: {question}"
+)
+
+def format_docs(docs):
+    return "\\n\\n".join(doc.page_content for doc in docs)
+
+rag_chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | rag_prompt
+    | llm
+    | StrOutputParser()
+)
+
+answer = rag_chain.invoke("How do I configure the database?")
+
+# ── Agent with tools ─────────────────────────────────
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_core.tools import tool
+
+@tool
+def search_docs(query: str) -> str:
+    """Search the documentation for relevant information."""
+    docs = retriever.invoke(query)
+    return "\\n".join(d.page_content for d in docs)
+
+@tool
+def calculate(expression: str) -> str:
+    """Evaluate a math expression."""
+    return str(eval(expression))
+
+agent_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant with access to tools."),
+    ("placeholder", "{chat_history}"),
+    ("user", "{input}"),
+    ("placeholder", "{agent_scratchpad}"),
+])
+
+agent = create_tool_calling_agent(llm, [search_docs, calculate], agent_prompt)
+executor = AgentExecutor(agent=agent, tools=[search_docs, calculate])
+
+result = executor.invoke({"input": "What's our revenue formula and calculate it for 1000 units at $29.99?"})
+
+# ── Streaming ────────────────────────────────────────
+async for chunk in rag_chain.astream("How does auth work?"):
+    print(chunk, end="", flush=True)`,
+        tips: [
+          'LCEL pipe syntax (prompt | llm | parser) is the modern LangChain pattern — avoid the legacy LLMChain class.',
+          'Use @tool decorator for simple tools, BaseTool for complex ones with validation and async support.',
+          'Enable LangSmith tracing with LANGCHAIN_TRACING_V2=true — see every LLM call, retrieval, and tool use in production.',
+          'RunnablePassthrough() passes input through unchanged — use it to wire inputs to multiple chain branches.',
+        ],
+        mistake: 'Over-abstracting with LangChain when a simple OpenAI API call would suffice — LangChain adds value for complex pipelines (RAG, agents, multi-step). For a single LLM call, use the OpenAI SDK directly.',
+        shorthand: {
+          verbose: `from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+llm = ChatOpenAI(model="gpt-4o")
+prompt = ChatPromptTemplate.from_messages([...])
+parser = StrOutputParser()
+chain = prompt | llm | parser`,
+          concise: `# For a single call, just use OpenAI directly
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o", messages=[...]
+)`
+        },
+      },
+    ],
+  },
+  {
+    id: 'prompt-engineering',
+    title: 'Prompt Engineering & Fine-Tuning',
+    entries: [
+      {
+        id: 'prompt-patterns',
+        fn: 'Prompt Engineering — Patterns That Actually Work',
+        desc: 'Effective prompt patterns: few-shot, chain-of-thought, role prompting, self-consistency, and structured extraction.',
+        category: 'Prompting',
+        subtitle: 'few-shot, chain-of-thought, system prompt, self-consistency, tree-of-thought',
+        signature: 'system: role + constraints  |  user: task + format + examples',
+        descLong: 'Prompt engineering is the practice of crafting inputs to get optimal LLM outputs. Key patterns: (1) Role prompting — assign expertise in the system message. (2) Few-shot — provide 2-3 examples of input→output. (3) Chain-of-thought — ask the model to think step-by-step. (4) Structured output — specify exact format (JSON, markdown). (5) Self-consistency — generate multiple answers and pick the majority. These patterns compose: role + few-shot + CoT + structured output consistently produces the best results.',
+        code: `from openai import OpenAI
+client = OpenAI()
+
+# ── Few-shot prompting ───────────────────────────────
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "Classify customer support tickets."},
+        # Few-shot examples
+        {"role": "user", "content": "I can't log in to my account"},
+        {"role": "assistant", "content": '{"category": "auth", "priority": "high", "sentiment": "frustrated"}'},
+        {"role": "user", "content": "How do I export my data?"},
+        {"role": "assistant", "content": '{"category": "feature_question", "priority": "low", "sentiment": "neutral"}'},
+        {"role": "user", "content": "Your app crashed and I lost all my work!!"},
+        {"role": "assistant", "content": '{"category": "bug", "priority": "critical", "sentiment": "angry"}'},
+        # Actual input
+        {"role": "user", "content": "Can I change my subscription plan?"},
+    ],
+)
+# → {"category": "billing", "priority": "medium", "sentiment": "neutral"}
+
+# ── Chain-of-thought (step-by-step reasoning) ────────
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": (
+            "You are a data analyst. Think through problems step by step. "
+            "Show your reasoning before giving the final answer."
+        )},
+        {"role": "user", "content": (
+            "Our conversion rate was 3.2% last month with 50,000 visitors. "
+            "This month we have 62,000 visitors and 2,100 conversions. "
+            "Did our conversion rate improve? By how much?"
+        )},
+    ],
+)
+# Model shows: Step 1: Last month = 3.2%
+#              Step 2: This month = 2100/62000 = 3.387%
+#              Step 3: Improvement = +0.187 percentage points (+5.9%)
+
+# ── Structured system prompt (production pattern) ────
+SYSTEM_PROMPT = """You are a senior code reviewer at a tech company.
+
+## Your task
+Review the code and provide actionable feedback.
+
+## Rules
+- Focus on bugs, security issues, and performance problems
+- Ignore style/formatting issues
+- Rate severity: critical, warning, or info
+- Be specific — reference line numbers and suggest fixes
+
+## Output format
+Return a JSON array of issues:
+[{"line": int, "severity": "critical|warning|info", "issue": "...", "fix": "..."}]
+
+If no issues found, return an empty array: []"""
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": "Review this code:\\n\\n" + code_to_review},
+    ],
+    temperature=0,
+)
+
+# ── Prompt composition for complex tasks ─────────────
+def build_analysis_prompt(data_description, question, constraints=None):
+    parts = [
+        f"## Data\\n{data_description}",
+        f"## Question\\n{question}",
+    ]
+    if constraints:
+        parts.append(f"## Constraints\\n" + "\\n".join(f"- {c}" for c in constraints))
+    parts.append("## Instructions\\nThink step by step. Show calculations. Be precise.")
+    return "\\n\\n".join(parts)`,
+        tips: [
+          'System prompts with ## sections (task, rules, format) consistently outperform unstructured paragraphs.',
+          'Few-shot examples are the single most effective technique for classification, extraction, and formatting tasks.',
+          'Chain-of-thought ("think step by step") improves accuracy on math, logic, and multi-step reasoning by 10-40%.',
+          'temperature=0 for deterministic tasks (extraction, classification). temperature=0.7+ for creative tasks.',
+        ],
+        mistake: 'Writing vague prompts like "analyze this data" — be specific about the task, format, constraints, and expected output. The more structure in the prompt, the better and more consistent the results.',
+        shorthand: {
+          verbose: `"Analyze this data and tell me what you find."`,
+          concise: `"""Analyze sales data. Output: JSON with fields:
+peak_month (str), total_revenue (float), trend (up|down)""""`
+        },
+      },
+      {
+        id: 'fine-tuning',
+        fn: 'Fine-Tuning LLMs — When & How',
+        desc: 'Fine-tune models for specialized tasks: data preparation, training, evaluation, and when to fine-tune vs. prompt engineer.',
+        category: 'Fine-Tuning',
+        subtitle: 'JSONL, training data, LoRA, QLoRA, Hugging Face, evaluation',
+        signature: 'client.fine_tuning.jobs.create(training_file, model)  |  transformers.Trainer  |  LoRA',
+        descLong: 'Fine-tuning adapts a pre-trained model to your specific task by training on your data. OpenAI fine-tuning: prepare JSONL data, upload, and train via API. Open-source fine-tuning: Hugging Face Transformers + PEFT (LoRA/QLoRA) for efficient training on consumer GPUs. LoRA adds small trainable matrices (1-5% of parameters) instead of updating the full model. Fine-tune when: you need consistent format/style, domain-specific knowledge that prompting cannot capture, or latency/cost reduction (fine-tuned small model replaces large model). Do NOT fine-tune for: tasks solvable with better prompts, RAG, or few-shot examples.',
+        code: `# ── OpenAI fine-tuning ────────────────────────────────
+import json
+from openai import OpenAI
+
+client = OpenAI()
+
+# Step 1: Prepare training data (JSONL format)
+training_data = [
+    {
+        "messages": [
+            {"role": "system", "content": "You are a SQL query generator."},
+            {"role": "user", "content": "Show me all users who signed up last month"},
+            {"role": "assistant", "content": (
+                "SELECT * FROM users "
+                "WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') "
+                "AND created_at < DATE_TRUNC('month', CURRENT_DATE)"
+            )},
+        ]
+    },
+    # ... 50-100+ examples for good results
+]
+
+# Save as JSONL
+with open("training.jsonl", "w") as f:
+    for item in training_data:
+        f.write(json.dumps(item) + "\\n")
+
+# Step 2: Upload file
+file = client.files.create(
+    file=open("training.jsonl", "rb"),
+    purpose="fine-tune",
+)
+
+# Step 3: Create fine-tuning job
+job = client.fine_tuning.jobs.create(
+    training_file=file.id,
+    model="gpt-4o-mini-2024-07-18",
+    hyperparameters={"n_epochs": 3},
+)
+
+# Step 4: Monitor
+print(client.fine_tuning.jobs.retrieve(job.id).status)
+# → "running" → "succeeded"
+
+# Step 5: Use fine-tuned model
+response = client.chat.completions.create(
+    model="ft:gpt-4o-mini-2024-07-18:org::abc123",  # your model ID
+    messages=[
+        {"role": "system", "content": "You are a SQL query generator."},
+        {"role": "user", "content": "Find the top 10 customers by revenue"},
+    ],
+)
+
+# ── Open-source fine-tuning with LoRA ────────────────
+# pip install transformers peft datasets trl bitsandbytes
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import LoraConfig, get_peft_model
+from trl import SFTTrainer, SFTConfig
+
+# Load base model (4-bit quantized for memory efficiency)
+model_name = "meta-llama/Llama-3.1-8B-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    load_in_4bit=True,          # QLoRA: 4-bit quantization
+    device_map="auto",
+)
+
+# LoRA config (train only ~1% of parameters)
+lora_config = LoraConfig(
+    r=16,                       # rank (smaller = fewer params)
+    lora_alpha=32,
+    target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],
+    lora_dropout=0.05,
+    task_type="CAUSAL_LM",
+)
+
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+# trainable params: 13M || all params: 8B || trainable%: 0.16%
+
+# Train
+trainer = SFTTrainer(
+    model=model,
+    train_dataset=dataset,
+    args=SFTConfig(
+        output_dir="./fine_tuned",
+        num_train_epochs=3,
+        per_device_train_batch_size=4,
+        learning_rate=2e-4,
+        logging_steps=10,
+    ),
+    tokenizer=tokenizer,
+)
+trainer.train()
+model.save_pretrained("./fine_tuned")`,
+        tips: [
+          'Start with prompt engineering + RAG before fine-tuning — 80% of tasks are solved without fine-tuning.',
+          '50-100 high-quality examples is the minimum for OpenAI fine-tuning. 500+ examples for significant quality gains.',
+          'QLoRA (4-bit quantization + LoRA) fine-tunes a 7B model on a single 24GB GPU — no A100 needed.',
+          'Always hold out a test set (10-20%) and evaluate before/after fine-tuning to measure actual improvement.',
+        ],
+        mistake: 'Fine-tuning to inject knowledge (facts, docs) — fine-tuning teaches style and format, not facts. Use RAG for knowledge. Fine-tune for: consistent output format, domain-specific language, or replacing a large model with a specialized small one.',
+        shorthand: {
+          verbose: `training_data = [{"messages": [
+    {"role": "system", "content": "..."},
+    {"role": "user", "content": "..."},
+    {"role": "assistant", "content": "..."},
+]} for item in data_items]
+with open("training.jsonl", "w") as f:
+    for item in training_data:
+        f.write(json.dumps(item) + "\\n")`,
+          concise: `# Prepare JSONL with system/user/assistant messages
+# Then: client.fine_tuning.jobs.create(training_file=file_id, model="..."`
+        },
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

@@ -1,0 +1,1045 @@
+export const meta = {
+  title: 'Object-Oriented Python',
+  domain: 'python',
+  sheet: 'oop',
+  icon: '🧩',
+}
+
+export const sections = [
+
+  {
+    id: 'classes',
+    title: 'Classes & Instances',
+    entries: [
+      {
+        id: 'class-def', fn: 'class definition', desc: 'Define a class with __init__ and methods.',
+        category: 'Classes', subtitle: 'Blueprint for creating objects',
+        signature: 'class ClassName:\\n    def __init__(self, ...): ...',
+        descLong: 'A class is a blueprint for creating objects. __init__ is the constructor — it runs when an instance is created. self refers to the current instance. Instance variables are set on self; class variables are shared across all instances.',
+        code: `class Dog:
+    # Class variable — shared by all instances
+    species = "Canis lupus familiaris"
+    def __init__(self, name, age):
+        # Instance variables — unique per object
+        self.name = name
+        self.age = age
+    def bark(self):
+        return f"{self.name} says Woof!"
+    def __repr__(self):
+        return f"Dog(name={self.name!r}, age={self.age})"
+    def __str__(self):
+        return f"{self.name}, age {self.age}"
+# Create instances
+rex = Dog("Rex", 3)
+buddy = Dog("Buddy", 5)
+rex.bark()           # "Rex says Woof!"
+rex.name             # "Rex"
+Dog.species          # "Canis lupus familiaris"
+rex.species          # "Canis lupus familiaris" (found on class)
+print(rex)           # Rex, age 3  (uses __str__)
+repr(rex)            # Dog(name='Rex', age=3)  (uses __repr__)`,
+        tips: [
+          'Always define __repr__ — it makes debugging much easier',
+          '__str__ is for end users; __repr__ is for developers — when in doubt, define __repr__',
+          'Class variables are shared across all instances — mutating them affects every instance',
+          'Instance variables shadow class variables: rex.species = "wolf" only changes rex',
+        ],
+        mistake: 'Using a mutable class variable like class_list = []. All instances share the same list. Define mutable defaults in __init__: self.items = [].',
+        shorthand: {
+          verbose: `class Dog:
+# Class variable — shared by all instances
+species = "Canis lupus familiaris"
+def __init__(self, name, age):`,
+          concise: `repr(rex)            # Dog(name='Rex', age=3)  (uses __repr__)`
+        }
+      },
+      {
+        id: 'class-instance-vars', fn: 'Class vs instance variables', desc: 'Class variables are shared across instances; instance variables belong to each object.',
+        category: 'Classes', subtitle: 'Shared state vs per-object state — easy to confuse',
+        signature: 'class Foo: class_var = 0 | self.instance_var = val',
+        descLong: 'Class variables are defined at class level and shared by all instances. Instance variables are defined in __init__ with self and belong to each object. Assigning to an instance attribute with the same name as a class variable creates a new instance attribute that shadows the class variable.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+
+class Counter:
+    count = 0              # class variable — shared
+    def __init__(self, name):
+        Counter.count += 1
+        self.name = name   # instance variable — per object
+        self.id   = Counter.count
+c1 = Counter("first")
+c2 = Counter("second")
+Counter.count   # 2 — shared by all instances
+c1.count        # 2 — accesses class variable
+c2.count        # 2
+# Shadowing — assignment creates an INSTANCE variable:
+c1.count = 99   # creates c1.count (instance), does NOT change class var
+Counter.count   # still 2
+c2.count        # still 2 — accesses class variable
+# Mutable class variables — classic bug:
+class Bad:
+    items = []                   # SHARED list!
+    def add(self, item):
+        self.items.append(item)  # appends to the CLASS list
+b1, b2 = Bad(), Bad()
+b1.add(1)
+b2.items        # [1] — shared!
+# Correct — initialize in __init__:
+class Good:
+    def __init__(self):
+        self.items = []          # per-instance list`,
+        tips: [
+          'Class variables are ideal for constants and counters shared across all instances',
+          'Never use a mutable class variable (list, dict) as a default — it is shared by all instances',
+          'Modify class variables via `ClassName.var = val`, not `self.var = val` — assignment to self creates an instance variable',
+          '`self.__class__.count` is safer than `ClassName.count` in subclasses — uses the actual class',
+        ],
+        mistake: 'Using a mutable class variable as a per-instance default: `class Foo: items = []`. Every instance shares the same list — appending in one instance affects all others. Initialize in __init__ instead.',
+        shorthand: {
+          verbose: `from collections import Counter, defaultdict, deque, namedtuple
+class Counter:
+count = 0              # class variable — shared
+def __init__(self, name):`,
+          concise: `self.items = []          # per-instance list`
+        }
+      },
+      {
+        id: 'inheritance', fn: 'Inheritance', desc: 'Create subclasses that extend parent classes.',
+        category: 'Classes', subtitle: 'Extend and specialize existing classes',
+        signature: 'class Child(Parent):\\n    def __init__(self): super().__init__()',
+        descLong: 'Inheritance lets a subclass reuse and extend a parent class. Call super().__init__() to initialize the parent. Override methods to customize behavior. Python supports multiple inheritance.',
+        code: `class Animal:
+        self.name = name
+
+    def speak(self):
+        raise NotImplementedError("Subclass must implement speak()")
+    def __str__(self):
+        return f"{type(self).__name__}({self.name!r})"
+class Dog(Animal):
+        return f"{self.name} says Woof!"
+class Cat(Animal):
+    def __init__(self, name, indoor=True):
+        super().__init__(name)     # call parent __init__
+        self.indoor = indoor
+        return f"{self.name} says Meow!"
+# isinstance respects inheritance
+d = Dog("Rex")
+isinstance(d, Dog)    # True
+isinstance(d, Animal) # True — inherits!
+# Polymorphism
+animals = [Dog("Rex"), Cat("Whiskers"), Dog("Buddy")]
+for animal in animals:
+    print(animal.speak())   # calls correct speak()`,
+        tips: [
+          'Always call super().__init__() in child __init__ to initialize parent state',
+          'super() without arguments works in Python 3 — prefer it over super(ClassName, self)',
+          'Use ABC (abstract base classes) to enforce method implementation in subclasses',
+          'isinstance(obj, ParentClass) is True for instances of subclasses — use this for type checks',
+        ],
+        mistake: 'Forgetting super().__init__() in a subclass __init__. The parent\'s initialization code never runs, leaving the object in a broken state.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'super', fn: 'super()', desc: 'Delegate method calls to the parent class.',
+        category: 'Classes', subtitle: 'Call parent methods without hardcoding the class name',
+        signature: 'super().__init__() | super().method()',
+        descLong: 'super() returns a proxy that delegates method calls to the parent class in the MRO (Method Resolution Order). Always use super() instead of ParentClass.method(self) — it handles multiple inheritance correctly and does not hardcode the class name.',
+        code: `
+    def __init__(self, name: str):
+    def speak(self) -> str:
+        return f"{self.name} makes a sound"
+    def __init__(self, name: str, breed: str):
+        super().__init__(name)   # delegate to Animal.__init__
+        self.breed = breed
+        base = super().speak()   # call parent method
+        return f"{base}: Woof!"
+d = Dog("Rex", "Labrador")
+d.speak()    # "Rex makes a sound: Woof!"
+# super() in multiple inheritance:
+class A:
+    def greet(self): return "A"
+class B(A):
+    def greet(self):
+        return "B -> " + super().greet()
+
+class C(A):
+        return "C -> " + super().greet()
+class D(B, C):
+        return "D -> " + super().greet()
+D().greet()  # "D -> B -> C -> A"
+# MRO: D → B → C → A (C.__mro__)
+print(D.__mro__)`,
+        tips: [
+          'super().__init__() without arguments works in Python 3 — prefer over super(ClassName, self)',
+          'super() follows the MRO — in multiple inheritance it calls the next class in line, not just the direct parent',
+          'Always call super().__init__() first in __init__ — parent initializes state that subclass may depend on',
+          'super() works correctly even in diamond inheritance scenarios — hardcoding ParentClass.method() does not',
+        ],
+        mistake: 'Using ParentClass.__init__(self, ...) instead of super().__init__(...). This breaks in multiple inheritance because it bypasses MRO and calls only one parent directly.',
+        shorthand: {
+          verbose: `class Animal:
+def __init__(self, name: str):
+self.name = name
+def speak(self) -> str:`,
+          concise: `print(D.__mro__)`
+        }
+      },
+      {
+        id: 'mro', fn: 'Multiple inheritance / MRO', desc: 'Inherit from multiple parents — Method Resolution Order determines lookup.',
+        category: 'Classes', subtitle: 'C3 linearization determines which parent method gets called',
+        signature: 'class C(A, B): ... | C.__mro__ | isinstance(c, A)',
+        descLong: 'Python supports multiple inheritance. When a method is called, Python uses the C3 linearization algorithm (MRO) to determine which class to look in first. __mro__ shows the lookup order. Mixins are small classes designed specifically for multiple inheritance.',
+        code: `import json
+# Basic multiple inheritance:
+class Flyable:
+    def fly(self): return "flying"
+class Swimmable:
+    def swim(self): return "swimming"
+class Duck(Flyable, Swimmable):
+    def quack(self): return "quack"
+d = Duck()
+d.fly()    # "flying"
+d.swim()   # "swimming"
+# MRO — method resolution order:
+print(Duck.__mro__)
+# (<class 'Duck'>, <class 'Flyable'>, <class 'Swimmable'>, <class 'object'>)
+# Diamond inheritance — MRO resolves correctly:
+    def hello(self): return "A"
+    def hello(self): return "B"
+    def hello(self): return "C"
+class D(B, C):   # MRO: D → B → C → A
+    def hello(self):
+        return super().hello()
+D().hello()        # "B" — B comes first in MRO
+D.__mro__
+# Mixin pattern — reusable behavior:
+class JSONMixin:
+    def to_json(self):
+        import json
+        return json.dumps(self.__dict__)
+class LogMixin:
+    def log(self, msg):
+        print(f"[{type(self).__name__}] {msg}")
+class User(JSONMixin, LogMixin):
+    def __init__(self, name):
+        self.name = name
+u = User("Alice")
+u.to_json()        # '{"name": "Alice"}'
+u.log("created")   # [User] created`,
+        tips: [
+          'Left-to-right, depth-first: `class D(B, C)` checks B before C',
+          '`ClassName.__mro__` shows the exact lookup order — check it when behavior is unexpected',
+          'Mixins should not have __init__ and should not inherit from anything except object',
+          'super() in multiple inheritance follows the MRO — this is why you must always use super(), not hardcoded parent calls',
+        ],
+        mistake: 'Creating a class that inherits from two classes that both define __init__ without calling super(). The second parent\'s __init__ never runs. Use cooperative multiple inheritance with super() in every class in the chain.',
+        shorthand: {
+          verbose: `import json
+class Flyable:
+def fly(self): return "flying"
+class Swimmable:`,
+          concise: `u.log("created")   # [User] created`
+        }
+      },
+      {
+        id: 'mixin', fn: 'Mixin pattern', desc: 'Small reusable classes that add behavior via multiple inheritance.',
+        category: 'Classes', subtitle: 'Compose behavior without deep inheritance hierarchies',
+        signature: 'class MyClass(FeatureMixin, AnotherMixin, Base): ...',
+        descLong: 'A Mixin is a class designed to be mixed in via multiple inheritance. Mixins add specific behavior without being a standalone class. They typically have no __init__, inherit only from object, and do not depend on subclass state beyond what they define themselves.',
+        code: `import json
+from datetime import datetime
+
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__, default=str)
+    @classmethod
+    def from_json(cls, s: str):
+        return cls(**json.loads(s))
+class TimestampMixin:
+    def touch(self):
+        from datetime import datetime
+        self.updated_at = datetime.now()
+class ValidateMixin:
+    def validate(self) -> bool:
+        for field, value in self.__dict__.items():
+            if value is None:
+                raise ValueError(f"{field} cannot be None")
+        return True
+# Compose via multiple inheritance:
+class User(JSONMixin, TimestampMixin, ValidateMixin):
+    def __init__(self, name: str, email: str):
+        self.name  = name
+        self.email = email
+u = User("Alice", "alice@example.com")
+u.to_json()      # '{"name": "Alice", "email": "..."}'
+u.validate()     # True
+u.touch()        # sets updated_at
+# Ordering: list mixins before the base class
+class Service(LogMixin, CacheMixin, Base):
+# MRO: Service → LogMixin → CacheMixin → Base → object`,
+        tips: [
+          'Mixins should have no __init__ — rely on the final class to initialize all state',
+          'Keep mixins single-purpose — one concern per mixin (LogMixin, CacheMixin, etc.)',
+          'Name mixins with "Mixin" suffix — communicates intent clearly to other developers',
+          'List mixins before the base class — methods resolve left to right in MRO',
+        ],
+        mistake: 'Creating a Mixin that calls super().__init__(). If mixed into a class with a different parent, super() may route to an unexpected class. Mixins should not have __init__.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'metaclass', fn: 'Metaclasses', desc: 'Classes that control how other classes are created.',
+        category: 'Classes', subtitle: 'type is the default metaclass — custom metaclasses modify class creation',
+        signature: 'class Meta(type): def __new__(mcs, name, bases, ns): ...',
+        descLong: 'A metaclass is the class of a class — it controls how classes are created. type is the default metaclass. Custom metaclasses intercept class creation to add validation, auto-register subclasses, or modify class attributes. __init_subclass__ is the modern, simpler alternative for most use cases.',
+        code: `# type is the default metaclass:
+type(int)       # <class 'type'>
+type(list)      # <class 'type'>
+# Create a class dynamically with type():
+MyClass = type('MyClass', (object,), {
+    'x': 1,
+    'greet': lambda self: 'hello',
+})
+MyClass().greet()   # 'hello'
+# Custom metaclass — validate subclasses at class creation:
+class RequireDocstring(type):
+    def __new__(mcs, name, bases, namespace):
+        if bases and not namespace.get('__doc__'):
+            raise TypeError(f"{name} must have a docstring")
+        return super().__new__(mcs, name, bases, namespace)
+# Auto-register pattern — common in plugin systems:
+class PluginMeta(type):
+    registry = {}
+    def __init__(cls, name, bases, namespace):
+        super().__init__(name, bases, namespace)
+        if bases:   # skip the base class itself
+            PluginMeta.registry[name] = cls
+
+class Plugin(metaclass=PluginMeta):
+    def load(self): pass
+class CSVPlugin(Plugin):
+    def process(self): return "csv"
+class JSONPlugin(Plugin):
+    def process(self): return "json"
+PluginMeta.registry
+# {'CSVPlugin': <class CSVPlugin>, 'JSONPlugin': <class JSONPlugin>}
+# Modern alternative — __init_subclass__ (simpler):
+class Base:
+    subclasses = []
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Base.subclasses.append(cls)
+class Child(Base):
+    """Automatically registered via __init_subclass__"""
+Base.subclasses   # [<class Child>]`,
+        tips: [
+          'Most metaclass use cases are solved more simply with __init_subclass__ or class decorators',
+          '__init_subclass__ is called on the base class whenever a subclass is created — no metaclass needed',
+          'Metaclasses compose poorly — two metaclasses in the same hierarchy cause a conflict',
+          'Frameworks use metaclasses (Django ORM, SQLAlchemy) — understanding them helps when debugging those',
+        ],
+        mistake: 'Reaching for a metaclass when __init_subclass__ would work. __init_subclass__ handles 90% of metaclass use cases with far less complexity.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'dunder', fn: 'Dunder methods', desc: 'Magic methods for operator overloading and protocols.',
+        category: 'Classes', subtitle: 'Implement Python protocols with __dunder__ methods',
+        signature: '__len__ | __getitem__ | __add__ | __eq__ | __iter__',
+        descLong: 'Dunder (double-underscore) methods let your objects integrate with Python\'s built-in syntax and functions. Implement __len__ for len(), __add__ for +, __iter__ for for loops, and more.',
+        code: `class Vector:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+    def __repr__(self):
+        return f"Vector({self.x}, {self.y})"
+    def __add__(self, other):
+        return Vector(self.x + other.x, self.y + other.y)
+    def __mul__(self, scalar):
+        return Vector(self.x * scalar, self.y * scalar)
+    def __rmul__(self, scalar):    # scalar * vector
+        return self.__mul__(scalar)
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+    def __len__(self):
+        return 2
+
+    def __abs__(self):
+        return (self.x**2 + self.y**2) ** 0.5
+    def __iter__(self):             # makes it unpackable
+        yield self.x
+        yield self.y
+v1 = Vector(1, 2)
+v2 = Vector(3, 4)
+v1 + v2           # Vector(4, 6)
+v1 * 3            # Vector(3, 6)
+3 * v1            # Vector(3, 6)  via __rmul__
+abs(v1)           # 2.236...
+x, y = v1         # unpacking via __iter__`,
+        tips: [
+          'Define __repr__ first — it is used in debugging and logging automatically',
+          '__eq__ should also define __hash__ if objects will be used in sets/dicts',
+          '__enter__ and __exit__ make objects work as context managers (with statement)',
+          'If you define __eq__, Python sets __hash__ to None — define it explicitly if needed',
+        ],
+        mistake: 'Defining __eq__ without __hash__. Python sets __hash__ = None, making instances unhashable (cannot be put in sets or used as dict keys).',
+        shorthand: {
+          verbose: `class Vector:
+def __init__(self, x, y):
+self.x, self.y = x, y
+def __repr__(self):`,
+          concise: `x, y = v1         # unpacking via __iter__`
+        }
+      },
+      {
+        id: 'repr-str', fn: '__repr__ vs __str__', desc: 'Control how objects are displayed in the shell, print(), and format strings.',
+        category: 'Classes', subtitle: '__repr__ for developers, __str__ for end users',
+        signature: 'def __repr__(self) -> str: | def __str__(self) -> str:',
+        descLong: '__repr__ is the developer representation — shown in the REPL and used by repr(). It should ideally be a string that could recreate the object. __str__ is the user-facing string — used by print() and str(). If only __repr__ is defined, it is used as a fallback for __str__.',
+        code: `class Point:
+        self.x = x
+        self.y = y
+        # Should look like a constructor call when possible:
+        return f"Point({self.x!r}, {self.y!r})"
+    def __str__(self):
+        # User-friendly format:
+        return f"({self.x}, {self.y})"
+p = Point(3, 4)
+repr(p)     # "Point(3, 4)"  — __repr__
+str(p)      # "(3, 4)"       — __str__
+print(p)    # (3, 4)         — __str__
+f"{p}"      # "(3, 4)"       — __str__
+f"{p!r}"    # "Point(3, 4)"  — __repr__ (force repr)
+# In a list — __repr__ is used:
+[p]         # [Point(3, 4)]
+# If only __repr__ defined — used as fallback for __str__:
+class Simple:
+    def __repr__(self): return "Simple()"
+s = Simple()
+print(s)    # Simple() — falls back to __repr__
+# __format__ for f-string format specs:
+class Money:
+    def __init__(self, amount):
+        self.amount = amount
+    def __format__(self, spec):
+        if spec == 'usd': return f"\${self.amount:.2f}"
+        return str(self.amount)
+
+m = Money(42.5)
+f"{m:usd}"  # "$42.50"`,
+        tips: [
+          'Always define __repr__ — it is used in the REPL, logging, and debugging',
+          '__repr__ should produce a string that looks like a constructor call when possible: `ClassName(arg1, arg2)`',
+          'If you only have time to define one, define __repr__ — it serves as the fallback for __str__',
+          'Use !r in f-strings to force __repr__: `f"{obj!r}"` — useful in __repr__ to quote string fields',
+        ],
+        mistake: 'Only defining __str__ and forgetting __repr__. When objects appear in lists, dicts, or the REPL, Python uses __repr__ — you will see the unhelpful default <__main__.ClassName object at 0x...>.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+
+  {
+    id: 'properties',
+    title: 'Properties & Descriptors',
+    entries: [
+      {
+        id: 'property', fn: '@property', desc: 'Managed attributes with getters and setters.',
+        category: 'Properties', subtitle: 'Control attribute access with computed properties',
+        signature: '@property def name(self): return self._name',
+        descLong: '@property creates a method that is accessed like an attribute. Use @name.setter to validate or transform on assignment. This is Pythonic encapsulation — start with plain attributes and add properties only when you need logic.',
+        code: `class Temperature:
+    def __init__(self, celsius=0):
+        self._celsius = celsius     # leading _ = "private by convention"
+    @property
+    def celsius(self):
+        return self._celsius
+    @celsius.setter
+    def celsius(self, value):
+        if value < -273.15:
+            raise ValueError(f"Temperature below absolute zero: {value}")
+        self._celsius = value
+    def fahrenheit(self):          # computed, read-only
+        return self._celsius * 9/5 + 32
+    @fahrenheit.setter
+    def fahrenheit(self, value):
+        self.celsius = (value - 32) * 5/9
+t = Temperature(25)
+t.celsius              # 25 — looks like attribute, runs getter
+t.celsius = 100        # runs setter with validation
+t.fahrenheit           # 212.0 — computed on access
+t.celsius = -300       # ValueError!`,
+        tips: [
+          'Start with plain attributes — add @property only when you need getter/setter logic',
+          'Use _name convention for "private" attributes (Python has no true private)',
+          'Read-only properties: define @property but no setter',
+          '@cached_property (Python 3.8+) computes once and caches the result',
+        ],
+        mistake: 'Adding @property getters and setters for all attributes by default. This is Java-style over-engineering. Use plain attributes until you need validation or computation.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'descriptors', fn: 'Descriptors', desc: 'Reusable attribute access logic via __get__, __set__, __delete__.',
+        category: 'Properties', subtitle: 'The mechanism behind @property, @classmethod, and @staticmethod',
+        signature: 'class Validator:\n    def __get__(self, obj, cls): ...\n    def __set__(self, obj, val): ...',
+        descLong: 'A descriptor is any object that defines __get__, __set__, or __delete__. When assigned as a class attribute, Python calls these methods on attribute access. @property, @classmethod, and @staticmethod are all built-in descriptors. Custom descriptors enable reusable validation across classes.',
+        code: `# Custom descriptor — reusable validation:
+class Positive:
+    def __set_name__(self, owner, name):
+        self.name = name    # set when class is created
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self     # accessed on the class itself
+        return obj.__dict__.get(self.name)
+    def __set__(self, obj, value):
+        if value <= 0:
+            raise ValueError(f"{self.name} must be positive, got {value}")
+        obj.__dict__[self.name] = value
+# Reuse across any class:
+class Circle:
+    radius = Positive()
+    x      = Positive()
+    y      = Positive()
+
+    def __init__(self, radius, x, y):
+        self.radius = radius   # calls Positive.__set__
+        self.x = x
+        self.y = y
+c = Circle(5, 1, 2)
+c.radius = -1    # ValueError: radius must be positive
+# Lazy loading descriptor:
+class LazyProperty:
+    def __init__(self, func):
+        self.func = func
+        self.name = name
+        if obj is None: return self
+        value = self.func(obj)
+        obj.__dict__[self.name] = value  # cache — overrides descriptor
+        return value
+class Dataset:
+    @LazyProperty
+    def data(self):
+        print("Loading expensive data...")
+        return list(range(1000))
+d = Dataset()
+d.data   # prints "Loading..." then returns
+d.data   # returned from cache — no loading`,
+        tips: [
+          '__set_name__ is called at class creation time — gives the descriptor its attribute name automatically',
+          'Always check if obj is None in __get__ — this handles access through the class (not instance)',
+          'Store values in obj.__dict__[self.name] to bypass the descriptor on future reads',
+          'Data descriptor (has __set__) takes priority over instance __dict__; non-data descriptor (only __get__) does not',
+        ],
+        mistake: 'Storing the value on self (the descriptor) instead of obj. The descriptor is a class attribute shared by all instances — all would share the same value.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'classmethod', fn: '@classmethod', desc: 'Method that receives the class as its first argument — used for factory methods.',
+        category: 'Properties', subtitle: 'Alternative constructors that work correctly with subclasses',
+        signature: '@classmethod\\n    def from_x(cls, ...): return cls(...)',
+        descLong: '@classmethod receives cls (the class itself) instead of self. This enables factory methods and alternative constructors. Always use cls() not ClassName() inside — ensures subclasses get the right type back.',
+        code: `from datetime import datetime, timedelta
+class Date:
+    def __init__(self, year, month, day):
+        self.year, self.month, self.day = year, month, day
+
+    # classmethod — receives cls, not self
+    # Great for alternative constructors
+    @classmethod
+    def from_string(cls, date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return cls(year, month, day)   # cls() works in subclasses!
+    def today(cls):
+        import datetime
+        d = datetime.date.today()
+        return cls(d.year, d.month, d.day)
+    # staticmethod — no cls or self
+    # Utility logic that belongs conceptually in the class
+    @staticmethod
+    def is_valid(year, month, day):
+        return 1 <= month <= 12 and 1 <= day <= 31
+d = Date.from_string("2024-03-15")   # alternative constructor
+d2 = Date.today()
+Date.is_valid(2024, 13, 1)           # False`,
+        tips: [
+          'Always use cls() not ClassName() inside a classmethod — ensures subclasses get the right type',
+          'First argument is cls by convention — any name works but cls is universal',
+          'Call on the class: Date.today() or on an instance — both receive the class',
+          'classmethod is the standard pattern for alternative constructors like from_string(), from_dict()',
+        ],
+        mistake: 'Using ClassName() directly inside a classmethod instead of cls(). If someone subclasses, cls() returns the subclass instance; ClassName() always returns the base class.',
+        shorthand: {
+          verbose: `from datetime import datetime, timedelta
+class Date:
+def __init__(self, year, month, day):
+self.year, self.month, self.day = year, month, day`,
+          concise: `Date.is_valid(2024, 13, 1)           # False`
+        }
+      },
+      {
+        id: 'staticmethod', fn: '@staticmethod', desc: 'Method that receives neither self nor cls — a plain function in the class namespace.',
+        category: 'Properties', subtitle: 'Utility functions grouped with a class but needing no class or instance state',
+        signature: '@staticmethod\\n    def util_fn(args): ...',
+        descLong: '@staticmethod receives neither cls nor self. It is a regular function that lives in the class namespace for organizational purposes. Use it when the logic is related to the class but does not need access to the class or any instance.',
+        code: `class Validator:
+    def is_valid_email(email: str) -> bool:
+        return "@" in email and "." in email.split("@")[-1]
+    def is_valid_age(age: int) -> bool:
+        return 0 <= age <= 150
+    def slugify(text: str) -> str:
+        return text.lower().replace(" ", "-")
+# Call on the class — no instance needed:
+Validator.is_valid_email("alice@example.com")   # True
+Validator.is_valid_age(25)                       # True
+
+# Also callable on an instance:
+v = Validator()
+v.slugify("Hello World")   # "hello-world"
+# vs. @classmethod vs. regular method:
+class MyClass:
+    def static_fn():     # no self, no cls
+        return "static"
+    @classmethod
+    def class_fn(cls):   # cls, not self
+        return cls()
+    def instance_fn(self):  # self
+        return self`,
+        tips: [
+          'If a method does not use self or cls — make it @staticmethod to signal that clearly',
+          '@staticmethod is slightly faster than a regular method (no self/cls argument passed)',
+          'Consider a module-level function instead if the utility is not conceptually tied to the class',
+          '@staticmethod cannot be overridden meaningfully by subclasses — use @classmethod if subclass behavior might differ',
+        ],
+        mistake: 'Making every helper @staticmethod. If a method might later need cls for configuration or subclass support, leave it as a regular method or @classmethod.',
+        shorthand: {
+          verbose: `class Validator:
+@staticmethod
+def is_valid_email(email: str) -> bool:
+return "@" in email and "." in email.split("@")[-1]`,
+          concise: `return self`
+        }
+      },
+      {
+        id: 'protocol', fn: 'Protocol', desc: 'Define structural interfaces — duck typing with static type checking.',
+        category: 'Properties', subtitle: 'Any class with the right methods satisfies Protocol — no inheritance needed',
+        signature: 'from typing import Protocol\nclass Drawable(Protocol): def draw(self): ...',
+        descLong: 'Protocol (Python 3.8+) defines a structural interface — any class that has the required methods satisfies it without explicit inheritance. Duck typing made visible to type checkers. Unlike ABCs, there is no runtime enforcement unless @runtime_checkable is used.',
+        code: `from typing import Protocol, runtime_checkable
+import io
+class Drawable(Protocol):
+    def draw(self) -> None: ...
+class Resizable(Protocol):
+    def resize(self, factor: float) -> None: ...
+# Any class with draw() satisfies Drawable — no inheritance needed:
+class Circle:
+    def draw(self) -> None:
+        print("Drawing circle")
+class Square:
+        print("Drawing square")
+def render(item: Drawable) -> None:
+    item.draw()   # type checker accepts Circle and Square
+render(Circle())   # works
+render(Square())   # works
+# @runtime_checkable — enables isinstance():
+@runtime_checkable
+class Closeable(Protocol):
+    def close(self) -> None: ...
+isinstance(io.StringIO(), Closeable)   # True
+# Combine protocols:
+class DrawableResizable(Drawable, Resizable, Protocol):
+# Protocol vs ABC:
+# ABC      — enforces via inheritance, raises TypeError at instantiation
+# Protocol — structural (duck typing), checked by mypy/pyright only`,
+        tips: [
+          'Protocol expresses "anything with these methods" — the correct type for duck-typed code',
+          '@runtime_checkable enables isinstance() — plain Protocol does not support it',
+          'Protocol is enforced only by type checkers (mypy, pyright) — no runtime enforcement',
+          'For runtime enforcement, use ABC — for type-checker-only interfaces, use Protocol',
+        ],
+        mistake: 'Expecting Protocol to raise errors at runtime. Without @runtime_checkable and isinstance(), Protocol is purely type-checker documentation — it does not enforce anything when your code runs.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+    ],
+  },
+
+  {
+    id: 'dataclasses',
+    title: 'Modern Patterns',
+    entries: [
+      {
+        id: 'dataclass', fn: '@dataclass', desc: 'Auto-generate __init__, __repr__, __eq__ from fields.',
+        category: 'Modern', subtitle: 'Boilerplate-free data containers',
+        signature: 'from dataclasses import dataclass\\n@dataclass\\nclass Foo:',
+        descLong: '@dataclass (Python 3.7+) auto-generates __init__, __repr__, and __eq__ from class variable annotations. Use field() for defaults and configuration. frozen=True makes instances immutable and hashable.',
+        code: `from dataclasses import dataclass, field
+from typing import List
+@dataclass
+class Point:
+    x: float
+    y: float
+p = Point(1.0, 2.0)
+p.x          # 1.0
+repr(p)      # Point(x=1.0, y=2.0)   ← auto-generated
+p == Point(1.0, 2.0)   # True  ← auto __eq__
+# With defaults and field()
+class Employee:
+    name: str
+    department: str
+    salary: float = 50000.0
+    tags: List[str] = field(default_factory=list)  # mutable default
+# Immutable (frozen)
+@dataclass(frozen=True)
+class Coordinate:
+    lat: float
+    lon: float
+    # now hashable — can use in set or as dict key
+# Post-init validation
+class Circle:
+    radius: float
+    def __post_init__(self):
+        if self.radius < 0:
+            raise ValueError(f"Radius must be non-negative: {self.radius}")
+# Order comparison
+@dataclass(order=True)
+class Score:
+    value: int
+    name: str = field(compare=False)  # exclude from comparisons`,
+        tips: [
+          'Use field(default_factory=list) for mutable defaults — never default=[]',
+          'frozen=True makes the dataclass hashable and immutable',
+          '__post_init__ runs after __init__ — use it for validation and derived fields',
+          'For complex cases, consider attrs or Pydantic (adds validation and serialization)',
+        ],
+        mistake: 'Using a mutable default: @dataclass class C: items: list = []. Python raises TypeError. Use field(default_factory=list) instead.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'slots', fn: '__slots__', desc: 'Restrict instance attributes and reduce memory usage.',
+        category: 'Classes', subtitle: 'Faster access, lower memory — replaces __dict__ with fixed slots',
+        signature: 'class Foo:\n    __slots__ = ["x", "y"]',
+        descLong: 'By default Python objects store instance attributes in a __dict__. __slots__ replaces this with fixed slots — lower memory, faster attribute access, and prevents adding undeclared attributes. Most valuable when creating millions of small instances.',
+        code: `# Without __slots__:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+p = Point(1, 2)
+p.__dict__          # {'x': 1, 'y': 2}
+p.z = 3             # can add anything dynamically
+# With __slots__ — no __dict__, fixed attributes:
+class PointFast:
+    __slots__ = ['x', 'y']
+p = PointFast(1, 2)
+# p.z = 3           → AttributeError — z not in __slots__
+# p.__dict__        → AttributeError — no __dict__
+# Memory savings (1M instances):
+import sys
+sys.getsizeof(Point(1,2))      # ~48 bytes (dict overhead)
+sys.getsizeof(PointFast(1,2))  # ~32 bytes (slots only)
+# Inheritance with __slots__:
+class Point3D(PointFast):
+    __slots__ = ['z']   # only declare new slots
+    def __init__(self, x, y, z):
+        super().__init__(x, y)
+        self.z = z
+# If ANY class in chain omits __slots__, __dict__ returns:
+class Child(PointFast):
+    pass              # no __slots__ → __dict__ is back`,
+        tips: [
+          '__slots__ saves the most memory when creating millions of small instances',
+          'Every class in an inheritance chain must define __slots__ — any omission brings __dict__ back',
+          'Cannot pickle slotted objects by default without adding __getstate__/__setstate__',
+          'Benchmark before adding __slots__ — the savings may be negligible for most code',
+        ],
+        mistake: 'Adding __slots__ to a subclass while the parent has none. The parent still has __dict__, so no memory is saved — all instances still have __dict__ from the parent.',
+        shorthand: {
+          verbose: `class Point:
+def __init__(self, x, y):
+self.x = x
+self.y = y`,
+          concise: `pass              # no __slots__ → __dict__ is back`
+        }
+      },
+      {
+        id: 'enum', fn: 'Enum', desc: 'Define a set of named, immutable constants.',
+        category: 'Classes', subtitle: 'Named constants with identity comparison and iteration',
+        signature: 'from enum import Enum, auto\nclass Color(Enum): RED = 1',
+        descLong: 'Enum creates a class where each member is a named constant. Members have both a name and value, support identity comparison with is, can be iterated, and prevent accidental duplicate values. auto() assigns sequential values automatically.',
+        code: `from enum import Enum, auto, IntEnum, Flag
+class Color(Enum):
+    RED   = 1
+    GREEN = 2
+    BLUE  = 3
+Color.RED              # <Color.RED: 1>
+Color.RED.name         # 'RED'
+Color.RED.value        # 1
+Color['RED']           # lookup by name
+Color(1)               # lookup by value
+# Comparison:
+Color.RED is Color.RED    # True
+Color.RED == Color.RED    # True
+Color.RED == 1            # False — use IntEnum for this
+# Iteration:
+list(Color)    # [RED, GREEN, BLUE]
+# auto() — sequential values:
+class Direction(Enum):
+    NORTH = auto()   # 1
+    SOUTH = auto()   # 2
+    EAST  = auto()   # 3
+    WEST  = auto()   # 4
+
+# IntEnum — compares equal to ints:
+class Status(IntEnum):
+    ACTIVE   = 1
+    INACTIVE = 0
+Status.ACTIVE == 1   # True
+# Flag — bitwise operations:
+class Permission(Flag):
+    READ    = auto()   # 1
+    WRITE   = auto()   # 2
+    EXECUTE = auto()   # 4
+perm = Permission.READ | Permission.WRITE
+Permission.READ in perm   # True`,
+        tips: [
+          'Enums prevent magic numbers — Status.ACTIVE is clearer than checking status == 1',
+          'auto() assigns sequential values — use when the actual value does not matter',
+          'Use IntEnum when members must compare equal to integers (e.g. database status codes)',
+          'Use Flag for bitmask permissions — supports |, &, ~ operations naturally',
+        ],
+        mistake: 'Comparing enum members with == to raw integers: Color.RED == 1 is False with regular Enum. Use IntEnum if you need integer comparison, or compare .value: Color.RED.value == 1.',
+        shorthand: {
+          verbose: `from enum import Enum, auto, IntEnum, Flag
+class Color(Enum):
+RED   = 1
+GREEN = 2`,
+          concise: `Permission.READ in perm   # True`
+        }
+      },
+      {
+        id: 'context-manager', fn: 'Context managers', desc: 'Custom with-statement support using __enter__ / __exit__.',
+        category: 'Modern', subtitle: 'Manage resources safely with the with statement',
+        signature: 'def __enter__(self): | def __exit__(self, exc_type, exc_val, tb):',
+        descLong: 'Context managers guarantee cleanup code runs even if an exception occurs. Implement __enter__ and __exit__ for class-based managers. The @contextmanager decorator makes generator-based managers with yield.',
+        code: `# Class-based context manager
+class DatabaseConnection:
+    def __init__(self, url):
+        self.url = url
+    def __enter__(self):
+        self.conn = connect(self.url)
+        return self.conn          # assigned to 'as' target
+    def __exit__(self, exc_type, exc_val, traceback):
+        if exc_type:              # exception occurred
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        self.conn.close()
+        return False              # False = don't suppress exceptions
+with DatabaseConnection("postgresql://...") as conn:
+    conn.execute("INSERT ...")
+
+# Generator-based (simpler for many cases)
+from contextlib import contextmanager
+@contextmanager
+def managed_file(path):
+    f = open(path)
+    try:
+        yield f                   # value for 'as' target
+    finally:
+        f.close()                 # always runs
+with managed_file("data.txt") as f:
+    data = f.read()`,
+        tips: [
+          '__exit__ returning True suppresses exceptions — almost always return False',
+          'The @contextmanager decorator is easier for simple cases — try/yield/finally',
+          'contextlib.suppress(ExceptionType) creates a simple do-nothing context manager',
+          'contextlib.ExitStack manages a dynamic number of context managers',
+        ],
+        mistake: 'Returning True from __exit__ accidentally. This suppresses ALL exceptions, hiding errors silently. Only return True if suppression is intentional.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'dataclasses', fn: 'dataclasses (Data Classes)', desc: 'Auto-generate __init__, __repr__, __eq__ for data containers.',
+        category: 'OOP', subtitle: 'Less boilerplate than namedtuple or hand-written classes',
+        signature: 'from dataclasses import dataclass, field\n@dataclass\nclass Person: ...',
+        descLong: 'Dataclasses reduce boilerplate by auto-generating common methods. Define a class with type hints, and @dataclass adds __init__, __repr__, __eq__ automatically. Supports defaults, factories, and frozen (immutable) classes.',
+        code: `from datetime import datetime, timedelta
+from typing import Optional, Union, List, Dict, Callable, Tuple, Any
+from dataclasses import dataclass, field
+from typing import List, Optional
+from datetime import datetime
+# Basic dataclass
+@dataclass
+class Person:
+    name: str
+    age: int
+    email: str
+# Auto-generated __init__, __repr__, __eq__
+person = Person('Alice', 30, 'alice@example.com')
+print(person)  # Person(name='Alice', age=30, email='alice@example.com')
+print(person == Person('Alice', 30, 'alice@example.com'))  # True
+# With default values
+class Config:
+    host: str
+    port: int = 8080
+    debug: bool = False
+    timeout: int = 30
+config = Config('localhost')
+print(config)  # Config(host='localhost', port=8080, debug=False, timeout=30)
+config2 = Config('example.com', port=443, debug=True)
+print(config2)
+# Mutable defaults (field with default_factory)
+class Team:
+    members: List[str] = field(default_factory=list)
+    created: datetime = field(default_factory=datetime.now)
+team1 = Team('Python')
+team2 = Team('Rust')
+team1.members.append('Alice')
+print(team1.members)  # ['Alice']
+print(team2.members)  # [] (independent, not shared)
+# Frozen (immutable) dataclass
+@dataclass(frozen=True)
+class Point:
+    x: float
+    y: float
+point = Point(1.0, 2.0)
+# point.x = 5.0  # TypeError: frozen instance (immutable)
+# Dataclass with methods
+class Rectangle:
+    width: float
+    height: float
+    def area(self) -> float:
+        return self.width * self.height
+    def perimeter(self) -> float:
+        return 2 * (self.width + self.height)
+rect = Rectangle(10, 5)
+print(rect.area())       # 50
+print(rect.perimeter())  # 30
+# Optional fields (None default)
+class User:
+    id: int
+    email: Optional[str] = None
+    phone: Optional[str] = None
+user = User(1, 'Bob')
+print(user)  # User(id=1, name='Bob', email=None, phone=None)
+# Post-init processing
+class Product:
+    price: float
+    quantity: int = 1
+    def __post_init__(self):
+        # Called after __init__
+        if self.price < 0:
+            raise ValueError('Price cannot be negative')
+        self.total = self.price * self.quantity
+product = Product('Laptop', 999.99, 2)
+print(product.total)  # 1999.98
+# Inheritance with dataclasses
+class Animal:
+class Dog(Animal):
+    breed: str
+dog = Dog('Max', 5, 'Golden Retriever')
+print(dog)  # Dog(name='Max', age=5, breed='Golden Retriever')
+# Compare instances
+class Version:
+    major: int
+    minor: int
+    patch: int = 0
+v1 = Version(1, 0, 0)
+v2 = Version(1, 0, 0)
+v3 = Version(1, 1, 0)
+print(v1 == v2)  # True (auto-generated __eq__)
+print(v1 < v3)   # False (no __lt__ by default)
+# Export to dict (Python 3.10+: asdict)
+from dataclasses import asdict, astuple
+person = Person('Charlie', 28, 'charlie@example.com')
+person_dict = asdict(person)
+print(person_dict)  # {'name': 'Charlie', 'age': 28, 'email': 'charlie@example.com'}
+person_tuple = astuple(person)
+print(person_tuple)  # ('Charlie', 28, 'charlie@example.com')`,
+        tips: [
+          'Use field(default_factory=list) for mutable defaults — never use mutable as default= directly',
+          '@dataclass(frozen=True) creates immutable classes similar to namedtuple',
+          '__post_init__() runs after __init__ for computed fields or validation',
+          'asdict() and astuple() convert instances to dict/tuple for serialization',
+        ],
+        mistake: 'Using mutable default in @dataclass: age: List[int] = [] shares the list across instances. Use field(default_factory=list) instead.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

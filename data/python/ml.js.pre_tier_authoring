@@ -1,0 +1,1654 @@
+export const meta = {
+  id: 'ml',
+  label: 'Machine Learning',
+  icon: '🤖',
+  description: 'scikit-learn ML pipeline — preprocessing, models, evaluation, tuning.',
+}
+
+export const sections = [
+  {
+    id: 'preprocessing',
+    title: 'Data Preprocessing',
+    entries: [
+      {
+        id: 'train_test_split',
+        fn: 'train_test_split',
+        desc: 'Split data into train and test sets.',
+        category: 'Data Splitting',
+        subtitle: 'Essential train/test partitioning',
+        signature: 'train_test_split(X, y, test_size=0.2, random_state=42)',
+        descLong: 'Divides dataset into training and testing subsets to evaluate model performance on unseen data, preventing overfitting assessment.',
+        code: `from sklearn.model_selection import train_test_split
+import numpy as np
+# Create sample data
+X = np.array([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]])
+y = np.array([0, 1, 0, 1, 0])
+# Split 80/20 with random state for reproducibility
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+print(f'Train size: {X_train.shape[0]}, Test size: {X_test.shape[0]}')
+print(f'Train labels: {y_train}')
+print(f'Test labels: {y_test}')
+`,
+        tips: [
+          'Use test_size=0.2 for typical 80/20 split',
+          'Always set random_state for reproducible splits',
+          'For imbalanced data, use stratify=y to preserve class distribution',
+        ],
+        mistake: 'Forgetting to set random_state, causing non-reproducible results across runs.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'standard_scaler',
+        fn: 'StandardScaler',
+        desc: 'Standardize features to zero mean, unit variance.',
+        category: 'Feature Scaling',
+        subtitle: 'Normalization via z-score',
+        signature: 'StandardScaler().fit(X_train).transform(X_train)',
+        descLong: 'Rescales features to have mean 0 and standard deviation 1, essential for distance-based algorithms like KNN and SVM.',
+        code: `import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+# Create sample features with different scales
+X_train = np.array([[1, 100], [2, 200], [3, 300], [4, 400]])
+X_test = np.array([[5, 500]])
+# Fit on training data
+scaler = StandardScaler()
+scaler.fit(X_train)
+# Transform both train and test
+X_train_scaled = scaler.transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+print('Scaled train data:')
+print(X_train_scaled)
+print(f'Mean: {X_train_scaled.mean(axis=0)}')
+print(f'Std: {X_train_scaled.std(axis=0)}')
+`,
+        tips: [
+          'Always fit scaler on training data only, then transform test data',
+          'Use fit_transform() on train, transform() on test separately',
+          'Essential for algorithms with distance metrics (KNN, SVM, KMeans)',
+        ],
+        mistake: 'Fitting the scaler on the entire dataset before splitting, causing data leakage.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'minmax_scaler',
+        fn: 'MinMaxScaler',
+        desc: 'Scale features to a fixed range [0, 1].',
+        category: 'Feature Scaling',
+        subtitle: 'Bounds scaling to [0, 1]',
+        signature: 'MinMaxScaler(feature_range=(0, 1)).fit_transform(X)',
+        descLong: 'Rescales features to a fixed interval, commonly [0, 1], preserving the shape of the original distribution and outlier presence.',
+        code: `from sklearn.preprocessing import MinMaxScaler
+import numpy as np
+
+# Create sample data with varied ranges
+X = np.array([[1, 10], [5, 50], [10, 100], [15, 200]])
+# Apply MinMaxScaler
+scaler = MinMaxScaler(feature_range=(0, 1))
+X_scaled = scaler.fit_transform(X)
+print('Original data:')
+print(X)
+print('\\nScaled data [0, 1]:')
+print(X_scaled)
+print(f'\\nMin per feature: {X_scaled.min(axis=0)}')
+print(f'Max per feature: {X_scaled.max(axis=0)}')
+`,
+        tips: [
+          'Use MinMaxScaler when features need bounded ranges (e.g., neural networks)',
+          'Sensitive to outliers; consider clipping extreme values first',
+          'Preserves the original distribution shape better than StandardScaler',
+        ],
+        mistake: 'Using MinMaxScaler on data with extreme outliers without handling them first.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'label_encoder',
+        fn: 'LabelEncoder',
+        desc: 'Encode categorical labels as integers.',
+        category: 'Encoding',
+        subtitle: 'Convert labels 0, 1, 2...',
+        signature: 'LabelEncoder().fit(y).transform(y)',
+        descLong: 'Transforms categorical target variables into numeric labels (0, 1, 2...), useful for classification algorithms that require numeric inputs.',
+        code: `import numpy as np
+from sklearn.preprocessing import LabelEncoder
+# Create categorical labels
+y = np.array(['cat', 'dog', 'cat', 'bird', 'dog', 'bird'])
+
+# Initialize and fit encoder
+encoder = LabelEncoder()
+encoder.fit(y)
+# Transform labels
+y_encoded = encoder.transform(y)
+print(f'Original: {y}')
+print(f'Encoded: {y_encoded}')
+print(f'Classes: {encoder.classes_}')
+# Inverse transform back to original
+y_decoded = encoder.inverse_transform(y_encoded)
+print(f'Decoded: {y_decoded}')
+`,
+        tips: [
+          'Fit only on training labels, transform train and test separately',
+          'Use inverse_transform() to convert predictions back to original labels',
+          'For ordinal relationships, consider OrdinalEncoder instead',
+        ],
+        mistake: 'Using LabelEncoder on multiple features; use OneHotEncoder or ColumnTransformer instead.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'onehot_encoder',
+        fn: 'OneHotEncoder',
+        desc: 'Encode categorical features as binary vectors.',
+        subtitle: 'Multi-class binary encoding',
+        signature: 'OneHotEncoder(sparse_output=False).fit_transform(X)',
+        descLong: 'Converts categorical features into one-hot encoded binary vectors, creating binary columns for each category level to represent nominal features.',
+        code: `from sklearn.preprocessing import OneHotEncoder
+import numpy as np
+# Create categorical features
+X = np.array([['red'], ['blue'], ['green'], ['red'], ['blue']])
+# Apply OneHotEncoder
+encoder = OneHotEncoder(sparse_output=False)
+X_encoded = encoder.fit_transform(X)
+
+print('Original features:')
+print(X.flatten())
+print('\\nOne-hot encoded:')
+print(X_encoded)
+print(f'\\nFeature names: {encoder.get_feature_names_out()}')
+# Transform new data
+X_new = np.array([['green']])
+X_new_encoded = encoder.transform(X_new)
+print(f'\\nEncoded new sample: {X_new_encoded}')
+`,
+        tips: [
+          'Set sparse_output=False for dense arrays, True for sparse matrices (memory-efficient)',
+          'Use get_feature_names_out() to track feature names after encoding',
+          'Automatically handles unseen categories with handle_unknown parameter',
+        ],
+        mistake: 'Using OneHotEncoder on ordinal features where order matters; use OrdinalEncoder instead.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'simple_imputer',
+        fn: 'SimpleImputer',
+        desc: 'Impute missing values with strategy.',
+        category: 'Missing Values',
+        subtitle: 'Fill NaN with mean, median, mode',
+        signature: 'SimpleImputer(strategy=\'mean\').fit_transform(X)',
+        descLong: 'Handles missing values by replacing them with mean, median, most frequent value, or constant, enabling models to accept incomplete datasets.',
+        code: `from sklearn.impute import SimpleImputer
+import numpy as np
+# Create data with missing values
+X = np.array([
+    [1.0, 2.0],
+    [np.nan, 3.0],
+    [4.0, np.nan],
+    [5.0, 6.0]
+])
+
+# Apply mean imputation
+imputer = SimpleImputer(strategy='mean')
+X_imputed = imputer.fit_transform(X)
+print('Original data:')
+print(X)
+print('\\nImputed data (mean):')
+print(X_imputed)
+print(f'Imputed values: {imputer.statistics_}')
+`,
+        tips: [
+          'Use strategy="mean" for numeric, "median" for robust handling, "most_frequent" for categorical',
+          'Fit on training data only, transform train and test separately',
+          'Consider using KNNImputer or IterativeImputer for sophisticated imputation',
+        ],
+        mistake: 'Imputing before splitting data, causing information leakage from test set.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'column_transformer',
+        fn: 'ColumnTransformer',
+        desc: 'Apply different transformations to different columns.',
+        category: 'Feature Engineering',
+        subtitle: 'Selective column preprocessing',
+        signature: 'ColumnTransformer(transformers=[(\'numeric\', scaler, num_cols), (\'categorical\', encoder, cat_cols)])',
+        descLong: 'Applies different preprocessing pipelines to different column subsets, enabling simultaneous scaling of numeric and encoding of categorical features.',
+        code: `from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+# Mixed data: numeric and categorical
+    [25, 'A', 50000],
+    [30, 'B', 60000],
+    [35, 'A', 75000],
+numeric_cols = [0, 2]
+categorical_cols = [1]
+# Define transformer
+ct = ColumnTransformer([
+    ('numeric', StandardScaler(), numeric_cols),
+    ('categorical', OneHotEncoder(), categorical_cols)
+])
+
+X_transformed = ct.fit_transform(X)
+print('Original shape:', X.shape)
+print('Transformed shape:', X_transformed.shape)
+print('Transformed data:')
+print(X_transformed)`,
+        tips: [
+          'Specify column indices or names to apply transformations selectively',
+          'Use remainder="drop" to discard unused columns',
+          'Combine with Pipeline for end-to-end preprocessing and modeling',
+        ],
+        mistake: 'Not specifying remainder parameter, causing errors with uncovered columns.',
+        shorthand: {
+          verbose: `from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+import numpy as np
+X = np.array([`,
+          concise: `print(X_transformed)`
+        }
+      },
+      {
+        id: 'pipeline',
+        fn: 'Pipeline',
+        desc: 'Chain preprocessing and model steps together.',
+        category: 'Workflow',
+        subtitle: 'Automate train/test workflow',
+        signature: 'Pipeline(steps=[(\'scaler\', StandardScaler()), (\'model\', LogisticRegression())])',
+        descLong: 'Combines multiple preprocessing and modeling steps into a single object, automatically fitting transformers and then the model, preventing data leakage.',
+        code: `from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+import numpy as np
+# Create sample data
+X = np.array([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]])
+y = np.array([0, 1, 0, 1, 0])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+# Create pipeline
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('model', LogisticRegression())
+# Fit entire pipeline on training data
+pipeline.fit(X_train, y_train)
+# Score on test data
+score = pipeline.score(X_test, y_test)
+print(f'Test accuracy: {score:.3f}')
+# Make predictions
+y_pred = pipeline.predict(X_test)
+print(f'Predictions: {y_pred}')
+`,
+        tips: [
+          'Pipeline automatically applies fit_transform to transformers and fit to the final estimator',
+          'Use named_steps to access individual steps: pipeline.named_steps[\'scaler\']',
+          'Prevents accidental data leakage by fitting transformers only on training data',
+        ],
+        mistake: 'Fitting preprocessing separately before the pipeline, causing inconsistent transformations.',
+        shorthand: {
+          verbose: `from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split`,
+          concise: `print(f'Predictions: {y_pred}')`
+        }
+      },
+    ],
+  },
+  {
+    id: 'classification',
+    title: 'Classification Models',
+    entries: [
+      {
+        id: 'logistic_regression',
+        fn: 'LogisticRegression',
+        desc: 'Linear classification model for binary/multiclass.',
+        category: 'Linear Models',
+        subtitle: 'Probabilistic binary classifier',
+        signature: 'LogisticRegression(max_iter=1000, random_state=42)',
+        descLong: 'Linear classifier using logistic function to model probability of class membership, suitable for binary and multiclass classification with interpretable coefficients.',
+        code: `from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+import numpy as np
+
+# Create dataset
+X = np.array([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [2, 3]])
+y = np.array([0, 1, 1, 1, 0, 0])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+# Train model
+model = LogisticRegression(max_iter=1000, random_state=42)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy:.3f}')
+print(f'Coefficients: {model.coef_}')
+print(f'Intercept: {model.intercept_}')
+`,
+        tips: [
+          'Use C parameter to control regularization strength (lower C = more regularization)',
+          'Access class probabilities with predict_proba() for confidence scores',
+          'Interpretable coefficients show feature importance direction',
+        ],
+        mistake: 'Not scaling features before LogisticRegression, affecting convergence and coefficient magnitudes.',
+        shorthand: {
+          verbose: `from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+import numpy as np`,
+          concise: `print(f'Intercept: {model.intercept_}')`
+        }
+      },
+      {
+        id: 'decision_tree_classifier',
+        fn: 'DecisionTreeClassifier',
+        desc: 'Tree-based classifier with interpretable splits.',
+        category: 'Tree Models',
+        subtitle: 'Hierarchical decision rules',
+        signature: 'DecisionTreeClassifier(max_depth=5, random_state=42)',
+        descLong: 'Creates decision trees through recursive partitioning based on feature thresholds, providing interpretable models with feature importance without scaling requirements.',
+        code: `from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import numpy as np
+
+# Create dataset
+X = np.array([[1, 2], [2, 3], [3, 1], [4, 3], [5, 2], [6, 4]])
+y = np.array([0, 0, 0, 1, 1, 1])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+# Train model
+model = DecisionTreeClassifier(max_depth=3, random_state=42)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy:.3f}')
+print(f'Feature importances: {model.feature_importances_}')
+print(f'Tree depth: {model.get_depth()}')
+`,
+        tips: [
+          'Limit max_depth to prevent overfitting; start with 3-5',
+          'Use min_samples_split to require minimum samples for splits',
+          'No scaling required; handles categorical features well',
+        ],
+        mistake: 'Using deep trees without constraints, causing overfitting on training data.',
+        shorthand: {
+          verbose: `from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import numpy as np`,
+          concise: `print(f'Tree depth: {model.get_depth()}')`
+        }
+      },
+      {
+        id: 'random_forest_classifier',
+        fn: 'RandomForestClassifier',
+        desc: 'Ensemble of decision trees with bagging.',
+        category: 'Ensemble Models',
+        subtitle: 'Robust ensemble of trees',
+        signature: 'RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)',
+        descLong: 'Combines multiple decision trees with bootstrap sampling and feature randomness, reducing overfitting and providing robust predictions with feature importance.',
+        code: `from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+import numpy as np
+
+# Create dataset
+X = np.array([[1, 2], [2, 3], [3, 1], [4, 3], [5, 2], [6, 4], [1, 4], [2, 1]])
+y = np.array([0, 0, 0, 1, 1, 1, 0, 0])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+# Train model
+model = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy:.3f}')
+print(f'Feature importances: {model.feature_importances_}')
+print('Classification Report:')
+print(classification_report(y_test, y_pred))
+`,
+        tips: [
+          'Start with n_estimators=100; more trees = better generalization (diminishing returns)',
+          'Feature importances help identify most predictive variables',
+          'Set n_jobs=-1 to parallelize tree training across all cores',
+        ],
+        mistake: 'Using too few estimators (n_estimators=10) for stable predictions.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'svm_classifier',
+        fn: 'SVC (Support Vector Classifier)',
+        desc: 'Support Vector Machine for classification.',
+        category: 'Kernel Methods',
+        subtitle: 'Margin-based classifier',
+        signature: 'SVC(kernel=\'rbf\', C=1.0, gamma=\'scale\', random_state=42)',
+        descLong: 'Finds maximum-margin hyperplane separating classes using kernel methods, effective for high-dimensional data and complex non-linear boundaries.',
+        code: `from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+# Scale features (critical for SVM)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+model = SVC(kernel=\'rbf\', C=1.0, random_state=42)
+print(f'Number of support vectors: {len(model.support_vectors_)}')`,
+        tips: [
+          'Always scale features before SVM; use StandardScaler or MinMaxScaler',
+          'Tune C parameter: higher C = stricter margins, lower = more tolerance',
+          'Use kernel=\'rbf\' for non-linear problems, kernel=\'linear\' for linear separability',
+        ],
+        mistake: 'Not scaling features, leading to slow training and poor performance.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'knn_classifier',
+        fn: 'KNeighborsClassifier',
+        desc: 'Lazy learner using k-nearest neighbors.',
+        category: 'Instance-based',
+        subtitle: 'Distance-based voting',
+        signature: 'KNeighborsClassifier(n_neighbors=5)',
+        descLong: 'Classifies samples by majority vote of k nearest neighbors in feature space, non-parametric and suitable for non-linear decision boundaries.',
+        code: `from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+import numpy as np
+# Create dataset
+X = np.array([[1, 2], [2, 3], [3, 1], [4, 3], [5, 2], [6, 4], [1, 4], [2, 1]])
+y = np.array([0, 0, 0, 1, 1, 1, 0, 0])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+# Scale features (important for KNN)
+# Train model
+model = KNeighborsClassifier(n_neighbors=3)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy:.3f}')
+print(f'Predictions: {y_pred}')
+`,
+        tips: [
+          'Choose n_neighbors via cross-validation; typical range 3-10',
+          'Scale features because KNN is distance-based',
+          'Use weights="distance" to weight neighbors by inverse distance',
+        ],
+        mistake: 'Using k=1 or k too large without validation; both extremes harm generalization.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'gradient_boosting_classifier',
+        fn: 'GradientBoostingClassifier',
+        desc: 'Sequential boosting with gradient optimization.',
+        category: 'Boosting Models',
+        subtitle: 'Iterative error correction',
+        signature: 'GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, max_depth=3, random_state=42)',
+        descLong: 'Iteratively builds trees to correct prediction errors using gradient descent, achieving high accuracy by combining weak learners into a strong ensemble.',
+        code: `import numpy as np
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import accuracy_score, classification_report
+
+X = np.array([[1, 2], [2, 3], [3, 1], [4, 3], [5, 2], [6, 4], [1, 4], [2, 1], [3, 4], [4, 1]])
+y = np.array([0, 0, 0, 1, 1, 1, 0, 0, 1, 0])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+model = GradientBoostingClassifier(n_estimators=50, learning_rate=0.1, max_depth=3, random_state=42)
+print(f'Feature importances: {model.feature_importances_}')
+print('Classification Report:')
+print(classification_report(y_test, y_pred))`,
+        tips: [
+          'learning_rate (shrinkage) 0.01-0.1 prevents overfitting; lower = slower but better',
+          'Monitor validation scores to detect early stopping opportunity',
+          'Subsample parameter helps prevent overfitting by using random subsets',
+        ],
+        mistake: 'Using high learning_rate without sufficient validation, causing unstable training.',
+        shorthand: {
+          verbose: `from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+import numpy as np`,
+          concise: `print(classification_report(y_test, y_pred))`
+        }
+      },
+    ],
+  },
+  {
+    id: 'regression',
+    title: 'Regression Models',
+    entries: [
+      {
+        id: 'linear_regression',
+        fn: 'LinearRegression',
+        desc: 'Simple linear regression model.',
+        category: 'Linear Models',
+        subtitle: 'Least squares fitting',
+        signature: 'LinearRegression().fit(X_train, y_train)',
+        descLong: 'Fits a linear relationship between features and target by minimizing sum of squared residuals, providing interpretable coefficients and baseline comparisons.',
+        code: `from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+# Create dataset
+X = np.array([[1], [2], [3], [4], [5], [6]])
+y = np.array([2, 4, 5, 4, 6, 7])
+# Train model
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Evaluate
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+print(f'MSE: {mse:.3f}')
+print(f'R² Score: {r2:.3f}')
+print(f'Coefficient: {model.coef_[0]:.3f}')
+print(f'Intercept: {model.intercept_:.3f}')
+`,
+        tips: [
+          'Interpret coefficients as change in y per unit change in each feature',
+          'Check for multicollinearity among features using correlation matrix',
+          'Use for baseline comparisons; more complex models should exceed this performance',
+        ],
+        mistake: 'Not checking linear assumptions; LinearRegression requires approximately linear relationship.',
+        shorthand: {
+          verbose: `from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np`,
+          concise: `print(f'Intercept: {model.intercept_:.3f}')`
+        }
+      },
+      {
+        id: 'ridge_regression',
+        fn: 'Ridge',
+        desc: 'L2 regularized linear regression.',
+        category: 'Linear Models',
+        subtitle: 'Regularized with L2 penalty',
+        signature: 'Ridge(alpha=1.0, random_state=42)',
+        descLong: 'Adds L2 penalty to coefficients reducing their magnitude, mitigating multicollinearity effects and preventing overfitting with shrinkage regularization.',
+        code: `from sklearn.linear_model import Ridge
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+# Create dataset with potential multicollinearity
+X = np.array([[1, 1], [2, 2.1], [3, 3], [4, 4.2], [5, 5], [6, 6.1]])
+y = np.array([2, 4, 5, 4, 6, 7])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Train Ridge model
+model = Ridge(alpha=1.0)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+print(f'R² Score: {r2:.3f}')
+print(f'Coefficients: {model.coef_}')
+print(f'Sum of squared coefficients: {(model.coef_**2).sum():.3f}')
+`,
+        tips: [
+          'Higher alpha increases regularization strength; tune via cross-validation',
+          'All coefficients are shrunk proportionally; none forced to zero',
+          'Better than LinearRegression when multicollinearity is present',
+        ],
+        mistake: 'Not scaling features before Ridge; affects regularization penalty magnitude.',
+        shorthand: {
+          verbose: `from sklearn.linear_model import Ridge
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np`,
+          concise: `print(f'Sum of squared coefficients: {(model.coef_**2).sum():.3f}')`
+        }
+      },
+      {
+        id: 'lasso_regression',
+        fn: 'Lasso',
+        desc: 'L1 regularized linear regression.',
+        category: 'Linear Models',
+        subtitle: 'Regularized with L1 penalty',
+        signature: 'Lasso(alpha=0.1, random_state=42)',
+        descLong: 'Adds L1 penalty to coefficients, performing automatic feature selection by forcing some coefficients to exactly zero.',
+        code: `from sklearn.linear_model import Lasso
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+# Create dataset
+X = np.array([[1, 1, 1], [2, 2, 1], [3, 3, 1], [4, 4, 1], [5, 5, 1], [6, 6, 1]])
+y = np.array([2, 4, 5, 4, 6, 7])
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+# Train Lasso model
+model = Lasso(alpha=0.1)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+print(f'R² Score: {r2:.3f}')
+print(f'Coefficients: {model.coef_}')
+print(f'Non-zero coefficients: {np.sum(model.coef_ != 0)}')
+`,
+        tips: [
+          'Lasso performs feature selection; some coefficients become exactly zero',
+          'Higher alpha increases sparsity; tune via cross-validation',
+          'Use for interpretability; identifies most important features automatically',
+        ],
+        mistake: 'Using Lasso without scaling; affects which features are penalized.',
+        shorthand: {
+          verbose: `from sklearn.linear_model import Lasso
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np`,
+          concise: `print(f'Non-zero coefficients: {np.sum(model.coef_ != 0)}')`
+        }
+      },
+      {
+        id: 'elasticnet_regression',
+        fn: 'ElasticNet',
+        desc: 'Combined L1 and L2 regularization.',
+        category: 'Linear Models',
+        subtitle: 'Hybrid L1/L2 penalty',
+        signature: 'ElasticNet(alpha=0.1, l1_ratio=0.5, random_state=42)',
+        descLong: 'Combines Ridge (L2) and Lasso (L1) penalties, providing both feature selection and coefficient shrinkage for balanced regularization.',
+        code: `from sklearn.linear_model import ElasticNet
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+# Create dataset
+X = np.array([[1, 1, 1], [2, 2, 1], [3, 3, 1], [4, 4, 1], [5, 5, 1], [6, 6, 1]])
+y = np.array([2, 4, 5, 4, 6, 7])
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+# Train ElasticNet model
+model = ElasticNet(alpha=0.1, l1_ratio=0.5)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+print(f'R² Score: {r2:.3f}')
+print(f'Coefficients: {model.coef_}')
+print(f'Non-zero coefficients: {np.sum(model.coef_ != 0)}')
+`,
+        tips: [
+          'l1_ratio=0 becomes Ridge, l1_ratio=1 becomes Lasso; 0.5 balances both',
+          'Better than Lasso when many correlated features exist',
+          'Tune both alpha and l1_ratio via cross-validation',
+        ],
+        mistake: 'Not tuning l1_ratio; default 0.5 may not be optimal for your data.',
+        shorthand: {
+          verbose: `from sklearn.linear_model import ElasticNet
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np`,
+          concise: `print(f'Non-zero coefficients: {np.sum(model.coef_ != 0)}')`
+        }
+      },
+      {
+        id: 'decision_tree_regressor',
+        fn: 'DecisionTreeRegressor',
+        desc: 'Tree-based regression model.',
+        category: 'Tree Models',
+        subtitle: 'Hierarchical regression rules',
+        signature: 'DecisionTreeRegressor(max_depth=5, random_state=42)',
+        descLong: 'Recursively partitions feature space to minimize mean squared error, providing non-linear relationships without feature scaling requirements.',
+        code: `from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+# Create dataset
+X = np.array([[1], [2], [3], [4], [5], [6], [7], [8]])
+y = np.array([2, 4, 5, 4, 6, 7, 8, 7.5])
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+# Train model
+model = DecisionTreeRegressor(max_depth=3, random_state=42)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+print(f'MSE: {mse:.3f}')
+print(f'R² Score: {r2:.3f}')
+print(f'Feature importances: {model.feature_importances_}')
+`,
+        tips: [
+          'Limit max_depth to prevent overfitting; typical range 3-5',
+          'Use min_samples_leaf to ensure minimum samples per leaf node',
+          'No scaling required; handles non-linear relationships naturally',
+        ],
+        mistake: 'Using unlimited depth without validation; leads to overfitting.',
+        shorthand: {
+          verbose: `from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np`,
+          concise: `print(f'Feature importances: {model.feature_importances_}')`
+        }
+      },
+      {
+        id: 'random_forest_regressor',
+        fn: 'RandomForestRegressor',
+        desc: 'Ensemble of regression trees with bagging.',
+        category: 'Ensemble Models',
+        subtitle: 'Robust tree ensemble',
+        signature: 'RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)',
+        descLong: 'Combines multiple decision trees with bootstrap sampling, reducing variance and overfitting while maintaining interpretability through feature importance.',
+        code: `from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+import numpy as np
+# Create dataset
+X = np.array([[1], [2], [3], [4], [5], [6], [7], [8], [9], [10]])
+y = np.array([2, 4, 5, 4, 6, 7, 8, 7.5, 9, 10])
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+# Train model
+model = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42)
+model.fit(X_train, y_train)
+# Evaluate
+y_pred = model.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'R² Score: {r2:.3f}')
+print(f'MAE: {mae:.3f}')
+print(f'Feature importances: {model.feature_importances_}')
+`,
+        tips: [
+          'Increase n_estimators for better generalization; diminishing returns after 100',
+          'Feature importances show which variables drive predictions',
+          'Set n_jobs=-1 for parallel training on multi-core systems',
+        ],
+        mistake: 'Using too few trees (n_estimators=10) for unstable predictions.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'svr_regressor',
+        fn: 'SVR (Support Vector Regressor)',
+        desc: 'Support Vector Regression for continuous targets.',
+        category: 'Kernel Methods',
+        subtitle: 'Margin-based regression',
+        signature: 'SVR(kernel=\'rbf\', C=1.0, gamma=\'scale\')',
+        descLong: 'Uses support vector machines for regression with kernel methods, effective for non-linear relationships with epsilon-tube loss function.',
+        code: `import numpy as np
+from sklearn.svm import SVR
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error, r2_score
+X = np.array([[1], [2], [3], [4], [5], [6], [7], [8]])
+y = np.array([2, 4, 5, 4, 6, 7, 8, 7.5])
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+# Scale features (critical for SVR)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+model = SVR(kernel=\'rbf\', C=1.0)
+mse = mean_squared_error(y_test, y_pred)
+print(f'MSE: {mse:.3f}')
+print(f'Support vectors: {len(model.support_vectors_)}')`,
+        tips: [
+          'Always scale features before SVR; StandardScaler is essential',
+          'Tune C parameter: higher C fits training data more closely',
+          'Epsilon controls tube width around decision function',
+        ],
+        mistake: 'Not scaling features, causing poor convergence and weak predictions.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+    ],
+  },
+  {
+    id: 'evaluation',
+    title: 'Model Evaluation',
+    entries: [
+      {
+        id: 'accuracy_score',
+        fn: 'accuracy_score',
+        desc: 'Fraction of correct predictions.',
+        category: 'Classification Metrics',
+        subtitle: 'Overall correctness',
+        signature: 'accuracy_score(y_true, y_pred)',
+        descLong: 'Computes the proportion of correct predictions out of total samples, simple and intuitive but misleading for imbalanced datasets.',
+        code: `from sklearn.metrics import accuracy_score
+import numpy as np
+
+# Predictions vs true labels
+y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1])
+y_pred = np.array([0, 1, 1, 0, 0, 0, 1, 0])
+# Calculate accuracy
+accuracy = accuracy_score(y_true, y_pred)
+print(f'Accuracy: {accuracy:.3f}')
+print(f'Correct predictions: {np.sum(y_true == y_pred)} / {len(y_true)}')
+# Also available as model method
+from sklearn.tree import DecisionTreeClassifier
+X = np.random.rand(20, 3)
+y = np.random.randint(0, 2, 20)
+model = DecisionTreeClassifier()
+model.fit(X, y)
+model_accuracy = model.score(X, y)
+print(f'Model accuracy: {model_accuracy:.3f}')
+`,
+        tips: [
+          'Use accuracy only on balanced datasets; misleading on imbalanced data',
+          'Combine with precision, recall, or F1-score for comprehensive evaluation',
+          'Baseline: compare to random classifier or majority class predictor',
+        ],
+        mistake: 'Using accuracy as sole metric on imbalanced dataset; precision/recall more informative.',
+        shorthand: {
+          verbose: `from sklearn.metrics import accuracy_score
+import numpy as np
+y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1])
+y_pred = np.array([0, 1, 1, 0, 0, 0, 1, 0])`,
+          concise: `print(f'Model accuracy: {model_accuracy:.3f}')`
+        }
+      },
+      {
+        id: 'precision_recall_f1',
+        fn: 'precision_score, recall_score, f1_score',
+        desc: 'Detailed classification metrics for class performance.',
+        subtitle: 'Precision, recall, F1-score',
+        signature: 'precision_score(y_true, y_pred), recall_score(y_true, y_pred), f1_score(y_true, y_pred)',
+        descLong: 'Precision measures false positive rate, recall measures false negative rate, and F1-score harmonizes both; essential for imbalanced and cost-sensitive problems.',
+        code: `import numpy as np
+from sklearn.metrics import precision_score, recall_score, f1_score
+y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1, 0, 0])
+y_pred = np.array([0, 1, 1, 0, 0, 0, 1, 0, 0, 0])
+# Calculate metrics
+precision = precision_score(y_true, y_pred)
+recall = recall_score(y_true, y_pred)
+f1 = f1_score(y_true, y_pred)
+
+print(f'Precision: {precision:.3f}')
+print(f'Recall: {recall:.3f}')
+print(f'F1-Score: {f1:.3f}')
+# For multiclass, use average parameter
+y_true_multi = np.array([0, 1, 2, 0, 1, 2])
+y_pred_multi = np.array([0, 1, 1, 0, 2, 2])
+f1_macro = f1_score(y_true_multi, y_pred_multi, average=\'macro\')
+f1_weighted = f1_score(y_true_multi, y_pred_multi, average=\'weighted\')
+print(f'\\nF1 Macro: {f1_macro:.3f}')
+print(f'F1 Weighted: {f1_weighted:.3f}')`,
+        tips: [
+          'Precision: "of positive predictions, how many correct?" (TP / (TP + FP))',
+          'Recall: "of actual positives, how many found?" (TP / (TP + FN))',
+          'F1-score: harmonic mean balancing precision and recall',
+        ],
+        mistake: 'Optimizing only precision or only recall; F1-score or Precision-Recall curve better.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'confusion_matrix',
+        fn: 'confusion_matrix',
+        desc: 'Matrix of true positives, false positives, etc.',
+        category: 'Classification Metrics',
+        subtitle: 'TP, TN, FP, FN breakdown',
+        signature: 'confusion_matrix(y_true, y_pred)',
+        descLong: 'Tabulates true positives, true negatives, false positives, and false negatives, enabling detailed analysis of misclassification patterns.',
+        code: `from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import numpy as np
+import matplotlib.pyplot as plt
+# Calculate confusion matrix
+cm = confusion_matrix(y_true, y_pred)
+print('Confusion Matrix:')
+print(cm)
+print(f'\\nTrue Negatives: {cm[0, 0]}')
+print(f'False Positives: {cm[0, 1]}')
+print(f'False Negatives: {cm[1, 0]}')
+print(f'True Positives: {cm[1, 1]}')
+
+# Calculate metrics from confusion matrix
+tn, fp, fn, tp = cm.ravel()
+specificity = tn / (tn + fp)
+sensitivity = tp / (tp + fn)
+print(f'\\nSpecificity: {specificity:.3f}')
+print(f'Sensitivity (Recall): {sensitivity:.3f}')
+`,
+        tips: [
+          'Visualize with ConfusionMatrixDisplay for better understanding',
+          'Analyze which classes are confused with each other',
+          'Calculate custom metrics from TP, TN, FP, FN components',
+        ],
+        mistake: 'Not examining confusion matrix; may miss systematic misclassification patterns.',
+        shorthand: {
+          verbose: `from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import numpy as np
+import matplotlib.pyplot as plt
+y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1, 0, 0])`,
+          concise: `print(f'Sensitivity (Recall): {sensitivity:.3f}')`
+        }
+      },
+      {
+        id: 'classification_report',
+        fn: 'classification_report',
+        desc: 'Summary of precision, recall, F1 per class.',
+        category: 'Classification Metrics',
+        subtitle: 'Per-class metrics summary',
+        signature: 'classification_report(y_true, y_pred)',
+        descLong: 'Provides precision, recall, F1-score, and support for each class, ideal for multiclass problems and comprehensive model evaluation.',
+        code: `from sklearn.metrics import classification_report
+import numpy as np
+y_true = np.array([0, 1, 2, 0, 1, 2, 0, 1, 2, 0])
+y_pred = np.array([0, 1, 1, 0, 2, 2, 0, 1, 2, 0])
+
+# Generate classification report
+report = classification_report(y_true, y_pred, target_names=[\'Class 0\', \'Class 1\', \'Class 2\'])
+print(report)
+# Get report as dictionary
+report_dict = classification_report(y_true, y_pred, output_dict=True)
+print(f'\\nClass 1 F1-score: {report_dict["1"]["f1-score"]:.3f}')
+print(f'Weighted average F1: {report_dict["weighted avg"]["f1-score"]:.3f}')
+`,
+        tips: [
+          'Support shows number of samples for each class',
+          'Weighted average accounts for class imbalance',
+          'Use output_dict=True for programmatic access to metrics',
+        ],
+        mistake: 'Not using target_names; output harder to interpret.',
+        shorthand: {
+          verbose: `from sklearn.metrics import classification_report
+import numpy as np
+y_true = np.array([0, 1, 2, 0, 1, 2, 0, 1, 2, 0])
+y_pred = np.array([0, 1, 1, 0, 2, 2, 0, 1, 2, 0])`,
+          concise: `print(f'Weighted average F1: {report_dict["weighted avg"]["f1-score"]:.3f}')`
+        }
+      },
+      {
+        id: 'cross_val_score',
+        fn: 'cross_val_score',
+        desc: 'Evaluate model with k-fold cross-validation.',
+        category: 'Model Validation',
+        subtitle: 'k-fold CV scoring',
+        signature: 'cross_val_score(model, X, y, cv=5, scoring=\'accuracy\')',
+        descLong: 'Performs k-fold cross-validation to estimate model generalization performance, reducing variance of single train-test split evaluation.',
+        code: `import numpy as np
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+# Create dataset
+X = np.random.rand(100, 5)
+y = np.random.randint(0, 2, 100)
+# Define model
+model = RandomForestClassifier(n_estimators=50, random_state=42)
+# Perform 5-fold cross-validation
+cv_scores = cross_val_score(model, X, y, cv=5, scoring=\'accuracy\')
+print(f'CV scores: {cv_scores}')
+print(f'Mean: {cv_scores.mean():.3f}')
+print(f'Std Dev: {cv_scores.std():.3f}')
+
+# Use different scoring metrics
+cv_f1 = cross_val_score(model, X, y, cv=5, scoring=\'f1_weighted\')
+print(f'\\nF1-weighted CV scores: {cv_f1}')
+`,
+        tips: [
+          'cv=5 is standard; use cv=10 for smaller datasets',
+          'stratifiedKFold maintains class balance in each fold',
+          'Try multiple scoring metrics: accuracy, f1, roc_auc, precision, recall',
+        ],
+        mistake: 'Using single train-test split instead of cross-validation for variance estimation.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'roc_auc_score',
+        fn: 'roc_auc_score, roc_curve',
+        desc: 'ROC AUC for binary classification performance.',
+        category: 'Classification Metrics',
+        subtitle: 'Area under ROC curve',
+        signature: 'roc_auc_score(y_true, y_score), roc_curve(y_true, y_score)',
+        descLong: 'Measures classification performance across all thresholds via ROC curve (true positive vs false positive rates), robust to class imbalance.',
+        code: `from sklearn.metrics import roc_auc_score, roc_curve
+import numpy as np
+# True labels and predicted probabilities
+y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1, 0, 0])
+y_scores = np.array([0.1, 0.8, 0.9, 0.2, 0.7, 0.3, 0.85, 0.75, 0.15, 0.25])
+# Calculate ROC AUC
+roc_auc = roc_auc_score(y_true, y_scores)
+print(f'ROC AUC: {roc_auc:.3f}')
+# Get ROC curve points
+fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+print(f'\\nFalse Positive Rates: {fpr}')
+print(f'True Positive Rates: {tpr}')
+print(f'Thresholds: {thresholds}')
+
+# Find optimal threshold
+optimal_idx = np.argmax(tpr - fpr)
+optimal_threshold = thresholds[optimal_idx]
+print(f'\\nOptimal threshold: {optimal_threshold:.3f}')
+`,
+        tips: [
+          'ROC AUC of 0.5 = random, 1.0 = perfect classification',
+          'Robust to class imbalance unlike accuracy',
+          'Use predict_proba() output as y_score, not hard predictions',
+        ],
+        mistake: 'Using hard predictions instead of probabilities for roc_auc_score.',
+        shorthand: {
+          verbose: `from sklearn.metrics import roc_auc_score, roc_curve
+import numpy as np
+y_true = np.array([0, 1, 1, 0, 1, 0, 1, 1, 0, 0])
+y_scores = np.array([0.1, 0.8, 0.9, 0.2, 0.7, 0.3, 0.85, 0.75, 0.15, 0.25])`,
+          concise: `print(f'\\nOptimal threshold: {optimal_threshold:.3f}')`
+        }
+      },
+      {
+        id: 'mean_squared_error',
+        fn: 'mean_squared_error',
+        desc: 'Average squared prediction error.',
+        category: 'Regression Metrics',
+        subtitle: 'MSE and RMSE',
+        signature: 'mean_squared_error(y_true, y_pred, squared=False)',
+        descLong: 'Calculates average of squared differences between predictions and actuals, penalizing large errors; RMSE when squared=False.',
+        code: `from sklearn.metrics import mean_squared_error, mean_absolute_error
+import numpy as np
+y_true = np.array([3.0, -0.5, 2.0, 7.0])
+y_pred = np.array([2.5, 0.0, 2.0, 8.0])
+# MSE and RMSE
+mse = mean_squared_error(y_true, y_pred)
+rmse = mean_squared_error(y_true, y_pred, squared=False)
+mae = mean_absolute_error(y_true, y_pred)
+print(f'MSE: {mse:.3f}')
+print(f'RMSE: {rmse:.3f}')
+print(f'MAE: {mae:.3f}')
+
+# Calculate manually
+manual_mse = np.mean((y_true - y_pred) ** 2)
+print(f'\\nManual MSE: {manual_mse:.3f}')
+`,
+        tips: [
+          'MSE penalizes large errors more; RMSE in original units',
+          'MAE more interpretable; less sensitive to outliers',
+          'Lower is better; compare to baseline (e.g., mean of y_true)',
+        ],
+        mistake: 'Using MSE alone; combine with MAE or RMSE for better understanding.',
+        shorthand: {
+          verbose: `from sklearn.metrics import mean_squared_error, mean_absolute_error
+import numpy as np
+y_true = np.array([3.0, -0.5, 2.0, 7.0])
+y_pred = np.array([2.5, 0.0, 2.0, 8.0])`,
+          concise: `print(f'\\nManual MSE: {manual_mse:.3f}')`
+        }
+      },
+      {
+        id: 'r2_score',
+        fn: 'r2_score',
+        desc: 'Coefficient of determination (R²).',
+        subtitle: 'Variance explained',
+        signature: 'r2_score(y_true, y_pred)',
+        descLong: 'Measures proportion of variance explained by model (0-1); 1.0 is perfect, 0.0 means no better than mean baseline, negative means worse.',
+        code: `import numpy as np
+from sklearn.metrics import r2_score
+y_true = np.array([3.0, -0.5, 2.0, 7.0, 4.5])
+y_pred = np.array([2.5, 0.0, 2.0, 8.0, 4.0])
+# Calculate R² score
+r2 = r2_score(y_true, y_pred)
+print(f'R² Score: {r2:.3f}')
+# R² interpretation
+mean_y = np.mean(y_true)
+ss_tot = np.sum((y_true - mean_y) ** 2)
+ss_res = np.sum((y_true - y_pred) ** 2)
+manual_r2 = 1 - (ss_res / ss_tot)
+print(f'Manual R²: {manual_r2:.3f}')
+# Baseline (mean predictor)
+baseline_pred = np.ones_like(y_true) * mean_y
+baseline_r2 = r2_score(y_true, baseline_pred)
+print(f'\\nBaseline (mean) R²: {baseline_r2:.3f}')`,
+        tips: [
+          'R² = 1 perfect, 0 no improvement over mean baseline, <0 worse than mean',
+          'Not scale-invariant; difficult to compare across datasets',
+          'Adjusted R² penalizes additional features for multivariate comparison',
+        ],
+        mistake: 'Comparing R² scores across different datasets; use adjusted R² or RMSE instead.',
+        shorthand: {
+          verbose: `from sklearn.metrics import r2_score
+import numpy as np
+y_true = np.array([3.0, -0.5, 2.0, 7.0, 4.5])
+y_pred = np.array([2.5, 0.0, 2.0, 8.0, 4.0])`,
+          concise: `print(f'\\nBaseline (mean) R²: {baseline_r2:.3f}')`
+        }
+      },
+    ],
+  },
+  {
+    id: 'tuning',
+    title: 'Hyperparameter Tuning',
+    entries: [
+      {
+        id: 'grid_search_cv',
+        fn: 'GridSearchCV',
+        desc: 'Exhaustive search over parameter grid.',
+        category: 'Hyperparameter Search',
+        subtitle: 'Brute-force grid search',
+        signature: 'GridSearchCV(estimator, param_grid, cv=5, scoring=\'accuracy\')',
+        descLong: 'Tests all combinations of hyperparameters in a specified grid with cross-validation, identifying the best parameters but computationally expensive.',
+        code: `import pandas as pd
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
+import numpy as np
+
+# Create dataset
+X = np.random.rand(100, 5)
+y = np.random.randint(0, 2, 100)
+# Define parameter grid
+param_grid = {
+    \'n_estimators\': [50, 100, 200],
+    \'max_depth\': [3, 5, 10],
+    \'min_samples_split\': [2, 5, 10]
+}
+# GridSearchCV
+grid_search = GridSearchCV(
+    RandomForestClassifier(random_state=42),
+    param_grid,
+    cv=5,
+    scoring=\'accuracy\',
+    n_jobs=-1
+)
+grid_search.fit(X, y)
+print(f'Best parameters: {grid_search.best_params_}')
+print(f'Best CV score: {grid_search.best_score_:.3f}')
+print(f'Best estimator: {grid_search.best_estimator_}')
+# Get results as DataFrame
+results_df = pd.DataFrame(grid_search.cv_results_)
+print(f'\\nTop 3 combinations:')
+print(results_df[["param_n_estimators", "param_max_depth", "mean_test_score"]].head(3))`,
+        tips: [
+          'Use n_jobs=-1 for parallel computation on all cores',
+          'Start with coarse grid, refine around best values',
+          'Set cv=10 for smaller datasets, cv=5 for larger',
+        ],
+        mistake: 'Searching too broad parameter space; narrows to reasonable ranges first.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'randomized_search_cv',
+        fn: 'RandomizedSearchCV',
+        desc: 'Random sample of parameter space.',
+        category: 'Hyperparameter Search',
+        subtitle: 'Random parameter sampling',
+        signature: 'RandomizedSearchCV(estimator, param_distributions, n_iter=10, cv=5)',
+        descLong: 'Randomly samples hyperparameters from distributions, more efficient than GridSearchCV for large parameter spaces.',
+        code: `from sklearn.model_selection import RandomizedSearchCV
+from sklearn.ensemble import RandomForestClassifier
+from scipy.stats import randint
+import numpy as np
+
+# Create dataset
+X = np.random.rand(100, 5)
+y = np.random.randint(0, 2, 100)
+# Define parameter distributions
+param_dist = {
+    \'n_estimators\': randint(50, 300),
+    \'max_depth\': [3, 5, 10, None],
+    \'min_samples_split\': randint(2, 20),
+    \'max_features\': [\'sqrt\', \'log2\']
+}
+# RandomizedSearchCV
+random_search = RandomizedSearchCV(
+    RandomForestClassifier(random_state=42),
+    param_dist,
+    n_iter=20,
+    cv=5,
+    scoring=\'accuracy\',
+    n_jobs=-1,
+    random_state=42
+)
+random_search.fit(X, y)
+print(f'Best parameters: {random_search.best_params_}')
+print(f'Best CV score: {random_search.best_score_:.3f}')
+`,
+        tips: [
+          'More efficient than GridSearchCV for large spaces',
+          'Use scipy.stats distributions (randint, uniform, expon) for parameter ranges',
+          'Set n_iter based on computational budget',
+        ],
+        mistake: 'Using only 5-10 iterations; typically need 20-50 for good coverage.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'learning_curve',
+        fn: 'learning_curve',
+        desc: 'Plot training and validation scores vs dataset size.',
+        category: 'Diagnostic Curves',
+        subtitle: 'Training size impact',
+        signature: 'learning_curve(estimator, X, y, cv=5, train_sizes=np.linspace(0.1, 1.0, 10))',
+        descLong: 'Analyzes model performance as training set size increases, diagnosing bias (underfitting) vs variance (overfitting) problems.',
+        code: `from sklearn.model_selection import learning_curve
+from sklearn.ensemble import RandomForestClassifier
+import numpy as np
+
+# Create dataset
+X = np.random.rand(200, 5)
+y = np.random.randint(0, 2, 200)
+# Compute learning curve
+train_sizes, train_scores, val_scores = learning_curve(
+    RandomForestClassifier(n_estimators=50, random_state=42),
+    X, y,
+    train_sizes=np.linspace(0.1, 1.0, 10),
+    n_jobs=-1
+# Calculate means and stds
+train_mean = np.mean(train_scores, axis=1)
+train_std = np.std(train_scores, axis=1)
+val_mean = np.mean(val_scores, axis=1)
+val_std = np.std(val_scores, axis=1)
+print(f'Train sizes: {train_sizes}')
+print(f'Train scores: {train_mean}')
+print(f'Val scores: {val_mean}')
+# Diagnose: large gap = overfitting, low both = underfitting
+gap = train_mean - val_mean
+print(f'\\nTrain-val gap: {gap}')`,
+        tips: [
+          'Large gap between train and val = overfitting; use regularization',
+          'Low training score = underfitting; increase model complexity',
+          'Converging curves suggest sufficient data',
+        ],
+        mistake: 'Not plotting curves; hard to diagnose bias-variance tradeoff visually.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'validation_curve',
+        fn: 'validation_curve',
+        desc: 'Plot scores vs single hyperparameter.',
+        subtitle: 'Hyperparameter impact',
+        signature: 'validation_curve(estimator, X, y, param_name, param_range, cv=5)',
+        descLong: 'Shows how train and validation scores change with one hyperparameter, identifying optimal value and overfitting region.',
+        code: `import numpy as np
+from sklearn.model_selection import validation_curve
+X = np.random.rand(100, 5)
+y = np.random.randint(0, 2, 100)
+# Plot validation curve for max_depth
+param_range = np.arange(1, 15)
+train_scores, val_scores = validation_curve(
+    param_name=\'max_depth\',
+    param_range=param_range,
+    cv=5,
+    scoring=\'accuracy\'
+)
+print(f\'Max depths: {param_range}\')
+print(f\'Train scores: {train_mean}\')
+print(f\'Val scores: {val_mean}\')
+
+# Find optimal value
+optimal_idx = np.argmax(val_mean)
+optimal_depth = param_range[optimal_idx]
+print(f\'\\nOptimal max_depth: {optimal_depth}\')
+`,
+        tips: [
+          'Inspect where gap widens (increasing overfitting)',
+          'Look for "sweet spot" where validation score peaks',
+          'Repeat for each hyperparameter to find interactions',
+        ],
+        mistake: 'Tuning only from final validation score; visualize full curve for insights.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'feature_importances',
+        fn: 'feature_importances_',
+        desc: 'Importance of each feature for predictions.',
+        category: 'Feature Analysis',
+        subtitle: 'Feature relevance ranking',
+        signature: 'model.feature_importances_ (for tree-based models)',
+        descLong: 'Ranks features by their contribution to model predictions, useful for feature selection and understanding model behavior.',
+        code: `from sklearn.ensemble import RandomForestClassifier
+import numpy as np
+# Create dataset
+X = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [2, 3, 4], [5, 6, 7], [8, 9, 10]])
+y = np.array([0, 1, 1, 0, 1, 1])
+feature_names = [\'Feature A\', \'Feature B\', \'Feature C\']
+# Train model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X, y)
+# Get feature importances
+importances = model.feature_importances_
+indices = np.argsort(importances)[::-1]
+print(f\'Feature importances:
+for i in range(X.shape[1]):
+    print(f\'{i+1}. {feature_names[indices[i]]}: {importances[indices[i]]:.3f}\')
+# Cumulative importance
+cumsum = np.cumsum(importances[indices])
+print(f\'\\nCumulative importance:
+    print(f\'{feature_names[indices[i]]}: {cumsum[i]:.3f}\')`,
+        tips: [
+          'Use for feature selection; drop low-importance features',
+          'Feature importances sum to 1.0',
+          'Different models compute importance differently (MDI, permutation, SHAP)',
+        ],
+        mistake: 'Dropping features based on single model; use multiple methods for validation.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'clustering',
+    title: 'Clustering & Unsupervised Learning',
+    entries: [
+      {
+        id: 'kmeans',
+        fn: 'KMeans',
+        desc: 'Partition data into k clusters via centroids.',
+        category: 'Clustering',
+        subtitle: 'Centroid-based clustering',
+        signature: 'KMeans(n_clusters=3, n_init=10, random_state=42)',
+        descLong: 'Assigns samples to k clusters by minimizing within-cluster variance, requiring pre-specified number of clusters via Lloyd\'s algorithm.',
+        code: `from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+
+# Create dataset
+X = np.array([[1, 2], [1.5, 1.8], [5, 8], [8, 8], [1, 0.6], [9, 11]])
+# Scale features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+# Fit KMeans
+kmeans = KMeans(n_clusters=2, n_init=10, random_state=42)
+labels = kmeans.fit_predict(X_scaled)
+print(f\'Cluster labels: {labels}\')
+print(f\'Cluster centers:\\n{kmeans.cluster_centers_}\')
+print(f\'Inertia (SSE): {kmeans.inertia_:.3f}\')
+# Predict new data
+X_new = np.array([[1.2, 1.5], [8.5, 8.5]])
+X_new_scaled = scaler.transform(X_new)
+new_labels = kmeans.predict(X_new_scaled)
+print(f\'\\nNew predictions: {new_labels}\')
+`,
+        tips: [
+          'Always scale features before KMeans',
+          'Use elbow method to find optimal k (plot inertia vs k)',
+          'Initialize with n_init=10 to avoid poor local optima',
+        ],
+        mistake: 'Not scaling features; leads to distance dominance by high-variance features.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'dbscan',
+        fn: 'DBSCAN',
+        desc: 'Density-based clustering without specifying k.',
+        category: 'Clustering',
+        subtitle: 'Density-based partitioning',
+        signature: 'DBSCAN(eps=0.3, min_samples=5)',
+        descLong: 'Groups nearby samples and marks outliers as noise based on density, naturally finding arbitrary cluster shapes without pre-specifying count.',
+        code: `from sklearn.cluster import DBSCAN
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+
+# Create dataset
+X = np.array([[1, 2], [1.5, 1.8], [5, 8], [8, 8], [1, 0.6], [9, 11], [9, 9.5]])
+# Scale features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+# Fit DBSCAN
+dbscan = DBSCAN(eps=1.0, min_samples=2)
+labels = dbscan.fit_predict(X_scaled)
+print(f\'Cluster labels: {labels}\')
+print(f\'Number of clusters: {len(set(labels)) - (1 if -1 in labels else 0)}\')
+print(f\'Number of noise points: {list(labels).count(-1)}\')
+# Identify core samples
+core_samples = dbscan.core_sample_indices_
+print(f\'Core sample indices: {core_samples}\')
+`,
+        tips: [
+          'eps controls neighborhood distance; use k-distance graph to select',
+          'min_samples defines minimum neighbors to form core sample',
+          'No need to pre-specify number of clusters',
+        ],
+        mistake: 'Not tuning eps and min_samples; uses heuristics or domain knowledge.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'pca',
+        fn: 'PCA (Principal Component Analysis)',
+        desc: 'Reduce dimensionality via linear transformation.',
+        category: 'Dimensionality Reduction',
+        subtitle: 'Linear variance maximization',
+        signature: 'PCA(n_components=2).fit_transform(X)',
+        descLong: 'Transforms data to orthogonal principal components maximizing variance, enabling visualization and noise reduction while preserving information.',
+        code: `import numpy as np
+from sklearn.decomposition import PCA
+X = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [2, 3, 4], [5, 6, 7], [8, 9, 10]])
+# Fit PCA
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_scaled)
+
+print(f\'Explained variance ratio: {pca.explained_variance_ratio_}\')
+print(f\'Cumulative variance: {np.cumsum(pca.explained_variance_ratio_)}\')
+print(f\'PCA components shape: {X_pca.shape}\')
+# Select components to retain 95% variance
+pca_95 = PCA(n_components=0.95)
+X_pca_95 = pca_95.fit_transform(X_scaled)
+print(f\'\\nComponents for 95% variance: {pca_95.n_components_}\')`,
+        tips: [
+          'Always scale features before PCA',
+          'Use n_components=0.95 to retain 95% of variance',
+          'Interpret PCs via loadings to understand feature contributions',
+        ],
+        mistake: 'Not scaling features; variance dominated by high-scale variables.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'tsne',
+        fn: 't-SNE (t-Distributed Stochastic Neighbor Embedding)',
+        desc: 'Non-linear dimensionality reduction for visualization.',
+        subtitle: 'Non-linear neighborhood preservation',
+        signature: 't-SNE(n_components=2, perplexity=30, n_iter=1000)',
+        descLong: 'Projects high-dimensional data to 2D/3D preserving local neighbor relationships, excellent for visualization but not suitable for downstream models.',
+        code: `from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+# Create dataset
+X = np.random.rand(50, 10)
+# Scale features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+# Fit t-SNE (slower, but produces better visualizations)
+tsne = TSNE(n_components=2, perplexity=30, n_iter=1000, random_state=42)
+X_tsne = tsne.fit_transform(X_scaled)
+print(f\'Original shape: {X.shape}\')
+print(f\'t-SNE shape: {X_tsne.shape}\')
+print(f\'t-SNE output range:\')
+print(f\'  Min: {X_tsne.min(axis=0)}\')
+print(f\'  Max: {X_tsne.max(axis=0)}\')
+`,
+        tips: [
+          'Use for visualization only; not for downstream ML tasks',
+          'Tune perplexity (typically 5-50) based on dataset size',
+          'Set n_iter >= 1000 for convergence',
+        ],
+        mistake: 'Using t-SNE output as features for models; use PCA or other transformations instead.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'silhouette_score',
+        fn: 'silhouette_score',
+        desc: 'Measure clustering quality via cohesion and separation.',
+        category: 'Clustering Evaluation',
+        subtitle: 'Silhouette coefficient',
+        signature: 'silhouette_score(X, labels)',
+        descLong: 'Calculates average silhouette coefficient measuring cluster cohesion (similarity within cluster) and separation (dissimilarity with other clusters).',
+        code: `import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score, silhouette_samples
+
+X = np.array([[1, 2], [1.5, 1.8], [5, 8], [8, 8], [1, 0.6], [9, 11]])
+# Test different k values
+silhouette_scores = []
+k_range = range(2, 5)
+for k in k_range:
+    kmeans = KMeans(n_clusters=k, n_init=10, random_state=42)
+    labels = kmeans.fit_predict(X_scaled)
+    score = silhouette_score(X_scaled, labels)
+    silhouette_scores.append(score)
+    print(f\'k={k}: Silhouette Score = {score:.3f}\')
+# Get per-sample scores
+optimal_k = k_range[np.argmax(silhouette_scores)]
+kmeans_opt = KMeans(n_clusters=optimal_k, n_init=10, random_state=42)
+labels_opt = kmeans_opt.fit_predict(X_scaled)
+sample_scores = silhouette_samples(X_scaled, labels_opt)
+print(f\'\\nOptimal k={optimal_k}\')
+print(f\'Per-sample scores: {sample_scores}\')`,
+        tips: [
+          'Range [-1, 1]; higher is better; >0.5 generally good',
+          'Use to find optimal cluster count for KMeans',
+          'silhouette_samples() shows per-sample scores for inspection',
+        ],
+        mistake: 'Relying only on silhouette score; combine with domain knowledge.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'agglomerative_clustering',
+        fn: 'AgglomerativeClustering',
+        desc: 'Hierarchical clustering by merging clusters.',
+        category: 'Clustering',
+        subtitle: 'Hierarchical agglomerative',
+        signature: 'AgglomerativeClustering(n_clusters=3, linkage=\'ward\')',
+        descLong: 'Builds hierarchical cluster tree by iteratively merging closest samples/clusters, producing dendrogram without pre-specifying cluster count.',
+        code: `import pandas as pd
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+# Create dataset
+# Scale features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+# Hierarchical clustering
+agg = AgglomerativeClustering(n_clusters=2, linkage=\'ward\')
+labels = agg.fit_predict(X_scaled)
+
+print(f\'Cluster labels: {labels}\')
+# Dendrogram via linkage (for visualization)
+Z = linkage(X_scaled, method=\'ward\')
+print(f\'\\nDendrogram (linkage matrix):')
+print(Z)
+# Test different linkages
+for linkage_type in [\'ward\', \'complete\', \'average\']:
+    agg_link = AgglomerativeClustering(n_clusters=2, linkage=linkage_type)
+    labels_link = agg_link.fit_predict(X_scaled)
+    print(f\'\\n{linkage_type} linkage labels: {labels_link}\')`,
+        tips: [
+          'linkage="ward" minimizes variance (similar to KMeans)',
+          'linkage="complete" uses maximum distance (conservative)',
+          'linkage="average" uses mean distance (balanced)',
+        ],
+        mistake: 'Not tuning linkage type; impacts cluster shapes and results.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

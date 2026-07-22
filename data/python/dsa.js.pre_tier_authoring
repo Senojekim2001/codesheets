@@ -1,0 +1,980 @@
+/**
+ * data/python/dsa.js
+ * Data Structures & Algorithms in Python
+ * One subject per entry.
+ */
+
+export const meta = {
+  title: 'Data Structures & Algorithms',
+  domain: 'python',
+  sheet: 'dsa',
+  icon: '🌲',
+}
+
+export const sections = [
+  {
+    id: 'structures',
+    title: 'Core Data Structures & Sorting',
+    entries: [
+      {
+        id: 'stack',
+        fn: 'Stack',
+        desc: 'Last-In, First-Out sequential container.',
+        category: 'Structures',
+        subtitle: 'Use a list — append() pushes, pop() pops from the top',
+        signature: 'stack.append(x) | stack.pop() | stack[-1]',
+        descLong: 'A stack follows LIFO order. Python lists work perfectly as stacks — append() pushes, pop() removes from the top. For thread safety use queue.LifoQueue.',
+        code: `stack = []
+stack.append(1)    # push
+stack.append(2)
+stack.append(3)
+stack[-1]          # 3 — peek (no removal)
+stack.pop()        # 3 — pop from top
+bool(stack)        # False if empty
+# Classic use: balanced parentheses
+def is_balanced(s):
+    stack = []
+    pairs = {')': '(', ']': '[', '}': '{'}
+    for ch in s:
+        if ch in "([{":
+            stack.append(ch)
+        elif ch in ")]}":
+            if not stack or stack[-1] != pairs[ch]:
+                return False
+            stack.pop()
+    return len(stack) == 0
+is_balanced("([{}])")   # True
+is_balanced("([)]")     # False
+# Evaluate postfix expression: "2 3 + 4 *" → 20
+def eval_postfix(expr):
+    for token in expr.split():
+        if token.lstrip("-").isdigit():
+            stack.append(int(token))
+        else:
+            b, a = stack.pop(), stack.pop()
+            stack.append({"+":a+b,"-":a-b,"*":a*b,"/":a//b}[token])
+    return stack[0]`,
+        tips: [
+          'Python list as stack is O(1) amortized for both append and pop',
+          '`stack[-1]` peeks the top without removing — no separate peek method needed',
+          'For thread-safe stacks use `queue.LifoQueue`',
+          'Stacks power: function call frames, undo operations, DFS, expression parsing',
+        ],
+        mistake: 'Using `list.pop(0)` thinking it pops from the "top". `pop(0)` is O(n) and removes from the front (bottom). A stack pops from the back (top): `list.pop()`.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'queue',
+        fn: 'Queue',
+        desc: 'First-In, First-Out container with O(1) operations at both ends.',
+        subtitle: 'Use collections.deque — never list.pop(0)',
+        signature: 'from collections import deque; q.append(x); q.popleft()',
+        descLong: 'Use collections.deque for queues — it has O(1) append and popleft from both ends. A plain list has O(n) pop(0) because it shifts every element. For thread-safe producer/consumer patterns use queue.Queue.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+from collections import deque
+
+q = deque()
+q.append(1)         # enqueue right
+q.append(2)
+q.append(3)
+q.popleft()         # 1 — dequeue left (FIFO)
+q[0]                # peek front without removing
+bool(q)             # False if empty
+# BFS uses a queue:
+def bfs(graph, start):
+    visited = {start}
+    q = deque([start])
+    order = []
+    while q:
+        node = q.popleft()
+        order.append(node)
+        for neighbor in graph[node]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                q.append(neighbor)
+    return order
+graph = {0:[1,2], 1:[3], 2:[3], 3:[]}
+bfs(graph, 0)   # [0,1,2,3]
+# Thread-safe queue (producer/consumer):
+from queue import Queue
+q = Queue()
+q.put(item)         # thread-safe enqueue
+q.get()             # thread-safe dequeue (blocks until item available)
+q.task_done()       # signal task complete`,
+        tips: [
+          '`deque.popleft()` is O(1); `list.pop(0)` is O(n) — always use deque for queues',
+          '`queue.Queue` is thread-safe; `collections.deque` is not — use the right one for your context',
+          'Deque supports both ends: `appendleft` / `popleft` on the left, `append` / `pop` on the right',
+          'BFS always uses a queue; DFS always uses a stack (or recursion)',
+        ],
+        mistake: 'Using `list.pop(0)` for a queue. This is O(n) — it physically shifts every remaining element. Use `deque.popleft()` for O(1).',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'deque',
+        fn: 'Deque',
+        desc: 'Double-ended queue — O(1) operations at both ends.',
+        category: 'Structures',
+        subtitle: 'Sliding window buffer, undo/redo, BFS, and more',
+        signature: 'deque(maxlen=n) | appendleft() | popleft() | rotate()',
+        descLong: 'collections.deque is a doubly linked list with O(1) access at both ends. maxlen= creates a fixed-size circular buffer — old items drop off the other end automatically. rotate() shifts all elements.',
+        code: `
+# Double-ended access:
+d = deque([1, 2, 3])
+d.appendleft(0)     # [0,1,2,3]
+d.append(4)         # [0,1,2,3,4]
+d.popleft()         # 0
+d.pop()             # 4
+# maxlen — fixed-size circular buffer:
+window = deque(maxlen=3)
+for x in [1, 2, 3, 4, 5]:
+    window.append(x)
+    print(list(window))
+# [1], [1,2], [1,2,3], [2,3,4], [3,4,5]
+
+# rotate — shift all elements:
+d = deque([1, 2, 3, 4, 5])
+d.rotate(2)         # [4,5,1,2,3] — rotate right by 2
+d.rotate(-1)        # [5,1,2,3,4] — rotate left by 1
+# Sliding window maximum:
+from collections import deque
+def max_sliding_window(nums, k):
+    q = deque()   # stores indices, descending order of values
+    result = []
+    for i, n in enumerate(nums):
+        while q and nums[q[-1]] < n:
+            q.pop()
+        q.append(i)
+        if q[0] == i - k:   # outside window
+            q.popleft()
+        if i >= k - 1:
+            result.append(nums[q[0]])
+    return result`,
+        tips: [
+          '`deque(maxlen=n)` is the cleanest fixed-size sliding window — old items auto-drop',
+          '`rotate(n)` rotates right for positive n, left for negative — in O(n) time',
+          'Deque is O(n) for random access by index — use list if you need frequent middle access',
+          'Works as both stack and queue — call the right end for the right behavior',
+        ],
+        mistake: 'Using deque for random index access: `d[i]`. Unlike lists, deque is O(n) for middle access. If you need frequent indexed access, use a list instead.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'heap',
+        fn: 'Heap',
+        desc: 'Partially sorted tree — O(log n) insert, O(1) min access.',
+        category: 'Structures',
+        subtitle: 'Min-heap via heapq — negate values for max-heap',
+        signature: 'heapq.heappush(h, x) | heapq.heappop(h) | h[0] to peek',
+        descLong: 'Python\'s heapq module implements a min-heap. The smallest element is always at h[0]. For a max-heap, negate values. For complex objects, store (priority, item) tuples — they compare lexicographically.',
+        code: `import pandas as pd
+import heapq
+h = []
+heapq.heappush(h, 5)
+heapq.heappush(h, 1)
+heapq.heappush(h, 3)
+h[0]                   # 1 — peek min without popping
+heapq.heappop(h)       # 1 — pop smallest
+# Heapify existing list in O(n):
+nums = [3, 1, 4, 1, 5, 9]
+heapq.heapify(nums)
+heapq.heappop(nums)    # 1
+
+# Max-heap — negate values:
+max_heap = []
+for n in [3, 1, 4, 1, 5]:
+    heapq.heappush(max_heap, -n)
+-heapq.heappop(max_heap)   # 5 (max)
+# n smallest / largest (faster than sort when k << n):
+heapq.nlargest(3, nums)    # [9, 5, 4]
+heapq.nsmallest(3, nums)   # [1, 1, 3]
+# K closest points to origin:
+def k_closest(points, k):
+    return heapq.nsmallest(k, points,
+        key=lambda p: p[0]**2 + p[1]**2)
+# Merge k sorted lists in O(n log k):
+lists = [[1,4,7],[2,5,8],[3,6,9]]
+list(heapq.merge(*lists))   # [1,2,3,4,5,6,7,8,9]`,
+        tips: [
+          'Python heapq is a MIN-heap — smallest element is always at index 0',
+          'For max-heap, negate values: `heappush(h, -val)`, then `-heappop(h)` to get the true max',
+          '`heapq.nlargest(k, data, key=fn)` is O(n log k) — faster than `sorted()` when k is small',
+          '`heapq.merge(*sorted_lists)` merges k sorted iterables in O(n log k) without loading all into memory',
+        ],
+        mistake: 'Indexing heap for second-smallest: `h[1]`. A heap only guarantees `h[0]` is minimum — other positions are not sorted.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'priority-queue',
+        fn: 'Priority Queue',
+        desc: 'Process items by priority, not insertion order.',
+        subtitle: 'Store (priority, item) tuples — lowest priority number first',
+        signature: 'heapq.heappush(h, (priority, item)) | heapq.heappop(h)',
+        descLong: 'A priority queue processes the highest-priority item first. In Python, implement with heapq using (priority, item) tuples. Lowest number = highest priority (min-heap). For equal priorities, add a tie-breaking counter to avoid comparing items.',
+        code: `from typing import Optional, Union, List, Dict, Callable, Tuple, Any
+from dataclasses import dataclass, field
+from typing import Any
+# (priority, item) tuples:
+tasks = []
+heapq.heappush(tasks, (1, "low priority"))
+heapq.heappush(tasks, (0, "urgent"))
+heapq.heappush(tasks, (2, "optional"))
+priority, task = heapq.heappop(tasks)   # (0, "urgent")
+# Tie-breaking counter (avoids comparing items directly):
+counter = 0
+def push(heap, priority, item):
+    global counter
+    heapq.heappush(heap, (priority, counter, item))
+    counter += 1
+def pop(heap):
+    priority, _, item = heapq.heappop(heap)
+    return priority, item
+# Dijkstra's algorithm (priority queue for shortest path):
+def dijkstra(graph, start):
+    dist = {start: 0}
+    pq   = [(0, start)]  # (distance, node)
+    while pq:
+        d, node = heapq.heappop(pq)
+        if d > dist.get(node, float("inf")):
+            continue     # stale entry
+        for neighbor, weight in graph[node]:
+            new_dist = d + weight
+            if new_dist < dist.get(neighbor, float("inf")):
+                dist[neighbor] = new_dist
+                heapq.heappush(pq, (new_dist, neighbor))
+    return dist`,
+        tips: [
+          'Always add a tie-breaking counter as the middle element: `(priority, counter, item)` — prevents errors when items are not comparable',
+          'For max-priority-queue (highest number first), negate the priority: `heappush(h, (-priority, item))`',
+          'Mark stale entries with a tombstone or check `d > dist[node]` rather than removing — heapq has no efficient decrease-key',
+          'Use `queue.PriorityQueue` for thread-safe priority queues in concurrent code',
+        ],
+        mistake: 'Storing `(priority, item)` where item is a non-comparable object (like a custom class without `__lt__`). When two priorities are equal, Python tries to compare the items and raises TypeError. Always add a unique counter as the tiebreaker.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'hashmap',
+        fn: 'HashMap',
+        desc: 'O(1) average key-value lookup — the most-used data structure.',
+        category: 'Structures',
+        subtitle: 'dict, defaultdict, Counter — all backed by hash tables',
+        signature: 'd.get(key, default) | defaultdict(list) | Counter(iterable)',
+        descLong: 'Python dict is a hash map with O(1) average case for get/set/delete. Common patterns: frequency counting with Counter, grouping with defaultdict, two-sum style index lookup, and memoization.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+
+# Two-sum: find indices of pair that sum to target
+def two_sum(nums, target):
+    seen = {}
+    for i, n in enumerate(nums):
+        complement = target - n
+        if complement in seen:
+            return [seen[complement], i]
+        seen[n] = i
+    return []
+two_sum([2,7,11,15], 9)   # [0,1]
+# Frequency count with Counter:
+from collections import Counter
+words = "the quick brown fox the fox".split()
+c = Counter(words)
+c.most_common(2)    # [('the',2),('fox',2)]
+c["the"]            # 2
+c["missing"]        # 0 — no KeyError!
+# Groupby with defaultdict:
+from collections import defaultdict
+groups = defaultdict(list)
+for item in items:
+    groups[item.category].append(item)
+# Count with defaultdict:
+freq = defaultdict(int)
+for word in words:
+    freq[word] += 1
+# Memoization (manual):
+cache = {}
+def fib(n):
+    if n in cache: return cache[n]
+    if n <= 1: return n
+    cache[n] = fib(n-1) + fib(n-2)
+    return cache[n]
+# Or use @lru_cache:
+from functools import lru_cache
+@lru_cache(None)
+    return n if n <= 1 else fib(n-1) + fib(n-2)`,
+        tips: [
+          'dict is the most versatile data structure — frequency counting, grouping, memoization, index lookup',
+          '`Counter` never raises KeyError for missing keys — returns 0',
+          '`defaultdict(list)` is the cleanest groupby pattern — no need to check if key exists before appending',
+          'Check `if key in d` before `d[key]`, or use `d.get(key, default)` — never rely on KeyError for control flow',
+        ],
+        mistake: 'Checking `if key in d` then accessing `d[key]` separately — two lookups. Use `d.get(key, default)` for one lookup, or `try/except KeyError`.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'linked-list',
+        fn: 'Linked List',
+        desc: 'Node-based linear structure — O(1) insert/delete at head.',
+        subtitle: 'Singly linked list — common in interview problems',
+        signature: 'class ListNode: val; next = None',
+        descLong: 'Python does not have a built-in linked list (deque is backed by a doubly linked list, but its nodes are not exposed). In interviews you typically receive a ListNode class. Key patterns: traverse, reverse, detect cycle, find middle.',
+        code: `class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val  = val
+        self.next = next
+# Build: 1 → 2 → 3 → None
+def build(vals):
+    dummy = ListNode(0)
+    cur = dummy
+    for v in vals:
+        cur.next = ListNode(v)
+        cur = cur.next
+    return dummy.next
+def to_list(head):
+    result = []
+    while head:
+        result.append(head.val)
+        head = head.next
+    return result
+
+# Traverse:
+cur = head
+while cur:
+    print(cur.val)
+    cur = cur.next
+# Reverse in-place (O(n) time, O(1) space):
+def reverse(head):
+    prev, cur = None, head
+    while cur:
+        nxt      = cur.next
+        cur.next = prev
+        prev     = cur
+        cur      = nxt
+    return prev  # new head
+# Find middle (fast/slow pointers):
+def middle(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow = slow.next
+        fast = fast.next.next
+    return slow
+# Detect cycle (Floyd's algorithm):
+def has_cycle(head):
+        if slow is fast:
+            return True
+    return False`,
+        tips: [
+          'Always use a dummy head node for insertion/deletion — eliminates edge cases at the true head',
+          'Fast/slow pointers (Floyd\'s) solve: cycle detection, middle finding, nth-from-end in O(1) space',
+          'Draw the pointer moves on paper before coding — visualizing node reassignment prevents bugs',
+          'In Python interviews, linked list problems often test pointer manipulation, not the language itself',
+        ],
+        mistake: 'Losing the rest of the list during reversal. Save `nxt = cur.next` before overwriting `cur.next = prev`. Failing to save `nxt` first is the most common reversal bug.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'graph',
+        fn: 'Graph',
+        desc: 'Nodes connected by edges — represented as adjacency list.',
+        category: 'Structures',
+        subtitle: 'BFS for shortest path, DFS for connectivity and cycles',
+        signature: 'graph = defaultdict(list) | bfs(graph, start) | dfs(graph, start)',
+        descLong: 'Graphs are represented in Python as adjacency lists — a dict mapping each node to its list of neighbors. BFS (breadth-first) finds shortest paths in unweighted graphs. DFS (depth-first) detects connectivity, cycles, and topological order.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+from collections import defaultdict, deque
+# Build adjacency list:
+graph = defaultdict(list)
+for u, v in [(0,1),(0,2),(1,3),(2,3)]:
+    graph[u].append(v)
+    graph[v].append(u)  # undirected
+# BFS — shortest path (unweighted):
+def bfs(graph, start, end=None):
+    visited = {start}
+    q = deque([(start, [start])])
+    while q:
+        node, path = q.popleft()
+        if node == end:
+            return path          # shortest path found
+        for nb in graph[node]:
+            if nb not in visited:
+                visited.add(nb)
+                q.append((nb, path + [nb]))
+    return None
+# DFS — iterative:
+def dfs(graph, start):
+    visited = set()
+    stack   = [start]
+    order   = []
+    while stack:
+        node = stack.pop()
+        if node not in visited:
+            visited.add(node)
+            order.append(node)
+            stack.extend(graph[node])
+    return order
+
+# DFS — recursive (cleaner for tree-shaped graphs):
+def dfs_recursive(graph, node, visited=None):
+    if visited is None: visited = set()
+    visited.add(node)
+    for neighbor in graph[node]:
+        if neighbor not in visited:
+            dfs_recursive(graph, neighbor, visited)
+    return visited
+# Count connected components:
+def count_components(n, edges):
+    g = defaultdict(list)
+    for u, v in edges:
+        g[u].append(v); g[v].append(u)
+    count = 0
+    for node in range(n):
+            dfs_recursive(g, node, visited)
+            count += 1
+    return count`,
+        tips: [
+          'BFS = queue, DFS = stack (or recursion) — this is the single most important graph rule',
+          'Always track `visited` before adding to the queue/stack, not after popping — prevents revisiting',
+          'For directed graphs, do not add the reverse edge when building the adjacency list',
+          'BFS gives the shortest path in unweighted graphs — for weighted graphs, use Dijkstra',
+        ],
+        mistake: 'Adding a node to `visited` when *popping* from the queue instead of when *pushing*. This allows the same node to be added to the queue multiple times, causing O(n²) work.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'trie',
+        fn: 'Trie',
+        desc: 'Prefix tree for O(L) word insert, search, and prefix matching.',
+        subtitle: 'Efficient prefix search — autocomplete, spell check, IP routing',
+        signature: 'class TrieNode: children={}; is_end=False',
+        descLong: 'A Trie (prefix tree) stores strings character by character, sharing common prefixes. Insert and search are O(L) where L is the word length. Used for autocomplete, spell checking, and IP routing. Can be implemented with nested dicts or TrieNode objects.',
+        code: `# Implementation 1: nested dicts (concise):
+class Trie:
+    def __init__(self):
+        self.root = {}
+    
+    def insert(self, word: str) -> None:
+        node = self.root
+        for ch in word:
+            node = node.setdefault(ch, {})
+        node["#"] = True           # end-of-word marker
+    def search(self, word: str) -> bool:
+            if ch not in node:
+                return False
+            node = node[ch]
+        return "#" in node
+    def starts_with(self, prefix: str) -> bool:
+        for ch in prefix:
+        return True
+# Implementation 2: TrieNode class:
+class TrieNode:
+        self.children: dict[str, "TrieNode"] = {}
+        self.is_end = False
+trie = Trie()
+trie.insert("apple")
+trie.insert("app")
+trie.insert("application")
+trie.search("app")          # True
+trie.search("ap")           # False
+trie.starts_with("app")     # True
+# Autocomplete — find all words with prefix:
+def autocomplete(trie, prefix):
+    node = trie.root
+    for ch in prefix:
+        if ch not in node:
+            return []
+        node = node[ch]
+    results = []
+    def dfs(node, path):
+        if "#" in node:
+            results.append(prefix[:-len(path)] + path)
+        for ch, child in node.items():
+            if ch != "#":
+                dfs(child, path + ch)
+    dfs(node, "")
+    return results`,
+        tips: [
+          'The dict-based trie is simpler to write in interviews — nested dicts with a `"#"` end marker',
+          'Tries beat hash sets for prefix queries: `starts_with()` is O(L) regardless of dictionary size',
+          'Space trade-off: tries use more memory than hash sets but enable prefix operations',
+          '`node.setdefault(ch, {})` is the cleanest insert idiom — creates child if absent, returns it',
+        ],
+        mistake: 'Storing full words at every node instead of building the character-by-character tree. This defeats the purpose — shared prefixes should share nodes.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'binary-search',
+        fn: 'Binary search',
+        desc: 'O(log n) search on sorted arrays.',
+        category: 'Search',
+        subtitle: 'Use bisect module — or implement with lo/hi/mid pattern',
+        signature: 'bisect.bisect_left(a, x) | bisect.bisect_right(a, x)',
+        descLong: 'Binary search finds a value in O(log n) by halving the search space each step. Python\'s bisect module provides production-ready binary search. Implement manually only to understand the lo/hi/mid pattern.',
+        code: `import bisect
+
+a = [1, 3, 5, 7, 9]
+# bisect_left — index where x would be inserted (leftmost):
+bisect.bisect_left(a, 5)    # 2 (5 is at index 2)
+bisect.bisect_left(a, 4)    # 2 (4 would go at index 2)
+# bisect_right — rightmost insertion point:
+bisect.bisect_right(a, 5)   # 3
+# Insert while keeping sorted:
+bisect.insort(a, 4)         # a = [1,3,4,5,7,9]
+bisect.insort_left(a, 4)    # insert before existing 4s
+# Count elements in [lo, hi]:
+def count_range(a, lo, hi):
+    return bisect.bisect_right(a, hi) - bisect.bisect_left(a, lo)
+# Implement manually:
+def binary_search(arr, target):
+    lo, hi = 0, len(arr) - 1
+    while lo <= hi:
+        mid = lo + (hi - lo) // 2   # avoids overflow in other langs
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1   # not found
+# Binary search on the answer — search space is a range, not an array:
+def min_days_to_bloom(flowers, k):
+    def can_bloom(days):
+        bouquets = blooms = 0
+        for bloom_day in flowers:
+            blooms = blooms + 1 if bloom_day <= days else 0
+            if blooms == k:
+                bouquets += 1; blooms = 0
+        return bouquets >= 1
+    lo, hi = min(flowers), max(flowers)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if can_bloom(mid): hi = mid
+        else:              lo = mid + 1
+    return lo`,
+        tips: [
+          'Use `bisect` module in production — no need to implement binary search from scratch',
+          '`bisect_left` gives the index of the first occurrence; `bisect_right` gives one past the last',
+          '"Binary search on the answer" — when the search space is a range of values, not an array',
+          '`lo + (hi - lo) // 2` avoids integer overflow in other languages — fine in Python but good habit',
+        ],
+        mistake: 'Using `lo <= hi` with `mid = (lo + hi) // 2` but not handling the termination correctly. For "find first/last occurrence" the boundary conditions differ — use bisect_left/right instead.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'sorting-patterns',
+        fn: 'Sorting patterns',
+        desc: 'Custom sort keys, stable sort, and partial sort with heapq.',
+        category: 'Search',
+        subtitle: 'key=, reverse=, stability, and when to use heapq instead',
+        signature: 'sorted(it, key=fn, reverse=True) | heapq.nlargest(k, data)',
+        descLong: 'Python\'s sort is Timsort — O(n log n), stable, and highly optimized. Use key= for custom ordering. Stability means equal-key elements preserve their original order — this enables multi-key sorts with multiple sort passes.',
+        code: `import pandas as pd
+
+# Sort by multiple criteria:
+students = [("Alice",90), ("Bob",85), ("Carol",90)]
+students.sort(key=lambda s: (-s[1], s[0]))
+# [('Alice',90), ('Carol',90), ('Bob',85)]
+# Sort objects by attribute:
+from operator import attrgetter, itemgetter
+employees.sort(key=attrgetter("salary"))
+records.sort(key=itemgetter("age"))
+# Stable sort — multi-pass:
+data.sort(key=lambda x: x.name)   # secondary key first
+data.sort(key=lambda x: x.dept)   # primary key second
+# Name order preserved within same dept (stability)
+# Custom comparator with functools.cmp_to_key:
+import functools
+def cmp(a, b):
+    return int(a+b) - int(b+a)    # larger concatenation first
+nums = ["10","2","3"]
+sorted(nums, key=functools.cmp_to_key(cmp))  # ["3","2","10"]
+# Top-k without full sort:
+import heapq
+heapq.nlargest(3, nums)     # O(n log k) — faster when k << n
+heapq.nsmallest(3, nums)
+# sorted() vs list.sort():
+new_lst = sorted(lst, key=len)   # returns new list, original unchanged
+lst.sort(key=len)                # in-place, returns None`,
+        tips: [
+          'Python sort is stable — equal elements keep their original relative order',
+          'Multi-key sort with two passes works because of stability: sort secondary first, then primary',
+          '`operator.itemgetter` is faster than `lambda x: x[i]` for dict/tuple access',
+          'For top-k: `heapq.nlargest(k, data)` beats `sorted()[-k:]` when k is much smaller than n',
+        ],
+        mistake: '`lst = lst.sort()` assigns `None` to `lst`. `list.sort()` sorts in-place and returns `None`. Use `lst.sort()` without assignment, or `new = sorted(lst)`.',
+        shorthand: {
+          verbose: `import pandas as pd
+students = [("Alice",90), ("Bob",85), ("Carol",90)]
+students.sort(key=lambda s: (-s[1], s[0]))
+from operator import attrgetter, itemgetter`,
+          concise: `lst.sort(key=len)                # in-place, returns None`
+        }
+      },
+    ],
+  },
+  {
+    id: 'algorithms',
+    title: 'Algorithm Patterns & Complexity',
+    entries: [
+      {
+        id: 'two-pointers',
+        fn: 'Two Pointers',
+        desc: 'O(n) pattern for pair-finding on sorted arrays.',
+        category: 'Patterns',
+        subtitle: 'Start at both ends and move inward — requires sorted input',
+        signature: 'lo, hi = 0, len(arr)-1; while lo < hi: ...',
+        descLong: 'Two pointers solve many array problems in O(n) instead of O(n²). One pointer starts at each end and they move toward each other based on the comparison. Requires sorted input for pair-sum problems.',
+        code: `# Two-sum on sorted array:
+def two_sum_sorted(nums, target):
+    lo, hi = 0, len(nums) - 1
+    while lo < hi:
+        s = nums[lo] + nums[hi]
+        if s == target:   return [lo, hi]
+        elif s < target:  lo += 1
+        else:             hi -= 1
+    return []
+
+# Remove duplicates from sorted array in-place:
+def remove_duplicates(nums):
+    if not nums: return 0
+    slow = 0
+    for fast in range(1, len(nums)):
+        if nums[fast] != nums[slow]:
+            slow += 1
+            nums[slow] = nums[fast]
+    return slow + 1
+# Palindrome check:
+def is_palindrome(s):
+    lo, hi = 0, len(s) - 1
+        if s[lo] != s[hi]: return False
+        lo += 1; hi -= 1
+    return True
+# Reverse array in-place:
+def reverse(arr):
+    lo, hi = 0, len(arr) - 1
+        arr[lo], arr[hi] = arr[hi], arr[lo]
+# Fast/slow pointers — find cycle:
+def has_cycle(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow = slow.next
+        fast = fast.next.next
+        if slow is fast:
+            return True
+    return False`,
+        tips: [
+          'Two pointers require sorted input (or at least structured/partitioned data)',
+          'Fast/slow pointers detect cycles and find midpoints in O(1) extra space',
+          'Sliding window is a variant where both pointers move in the same direction',
+          'For three-sum: sort first, then fix one element and use two pointers for the remaining pair',
+        ],
+        mistake: 'Applying two-pointer directly to an unsorted array for pair-sum problems. Sort first (O(n log n)), then two-pointer (O(n)), giving O(n log n) total.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'sliding-window',
+        fn: 'Sliding Window',
+        desc: 'O(n) pattern for subarray and substring problems.',
+        category: 'Patterns',
+        subtitle: 'Expand right, shrink left — maintain a running state',
+        signature: 'left = 0; for right in range(len(arr)): ...',
+        descLong: 'Sliding window solves subarray/substring problems in O(n) by maintaining a window of elements. Expand the right pointer to include more; shrink the left pointer when the window violates a constraint. Maintain a running state rather than recomputing from scratch each step.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+# Fixed window — max sum subarray of size k:
+def max_sum_k(nums, k):
+    window = sum(nums[:k])
+    best   = window
+    for i in range(k, len(nums)):
+        window += nums[i] - nums[i-k]
+        best    = max(best, window)
+    return best
+
+# Variable window — longest substring without repeating chars:
+def longest_no_repeat(s):
+    seen  = {}
+    left  = best = 0
+    for right, ch in enumerate(s):
+        if ch in seen and seen[ch] >= left:
+            left = seen[ch] + 1
+        seen[ch] = right
+        best = max(best, right - left + 1)
+# Variable window — minimum window containing all of t:
+from collections import Counter
+def min_window(s, t):
+    need    = Counter(t)
+    missing = len(t)
+    lo = best_lo = best_hi = 0
+    for hi, ch in enumerate(s, 1):
+        if need[ch] > 0: missing -= 1
+        need[ch] -= 1
+        if missing == 0:
+            while need[s[lo]] < 0:
+                need[s[lo]] += 1; lo += 1
+            if not best_hi or hi - lo < best_hi - best_lo:
+                best_lo, best_hi = lo, hi
+            need[s[lo]] += 1; missing += 1; lo += 1
+    return s[best_lo:best_hi]`,
+        tips: [
+          'Fixed window: slide by adding the new right element and removing the outgoing left element',
+          'Variable window: expand until the constraint is violated, then shrink left until it is satisfied again',
+          'Track a running counter or sum — never recompute the window from scratch on each step',
+          'Common constraints: at most k distinct chars, sum equals target, all chars of t present',
+        ],
+        mistake: 'Recomputing the window result from scratch each step — O(n·k) instead of O(n). Track a running total and update incrementally: `window += nums[right] - nums[right-k]`.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'recursion',
+        fn: 'Recursion',
+        desc: 'Solve problems by reducing to smaller instances of the same problem.',
+        subtitle: 'Base case + recursive case — watch stack depth and memoization',
+        signature: 'def fn(n): if base_case: return val; return fn(n-1)',
+        descLong: 'Recursion breaks a problem into a base case (trivially solved) and a recursive case (reduces toward the base). Python\'s default recursion limit is 1000 — use sys.setrecursionlimit() or convert to iteration for deep recursion.',
+        code: `import sys
+sys.setrecursionlimit(10000)  # increase if needed
+# Tree traversal (recursion fits naturally):
+class TreeNode:
+    def __init__(self, val, left=None, right=None):
+        self.val   = val
+        self.left  = left
+        self.right = right
+def inorder(node):
+    if not node: return []
+    return inorder(node.left) + [node.val] + inorder(node.right)
+def max_depth(node):
+    if not node: return 0
+    return 1 + max(max_depth(node.left), max_depth(node.right))
+# Subsets (power set):
+def subsets(nums):
+    if not nums: return [[]]
+    rest = subsets(nums[1:])
+    return rest + [[nums[0]] + s for s in rest]
+subsets([1,2,3])   # [[], [3], [2], [2,3], [1], [1,3], [1,2], [1,2,3]]
+
+# Permutations:
+def permutations(nums):
+    if len(nums) <= 1: return [nums]
+    result = []
+    for i, n in enumerate(nums):
+        rest = nums[:i] + nums[i+1:]
+        for p in permutations(rest):
+            result.append([n] + p)
+    return result
+# Convert recursion → iteration with explicit stack:
+def inorder_iterative(root):
+    stack, result = [], []
+    cur = root
+    while cur or stack:
+        while cur:
+            stack.append(cur)
+            cur = cur.left
+        cur = stack.pop()
+        result.append(cur.val)
+        cur = cur.right
+    return result`,
+        tips: [
+          'Always define the base case first — it is the exit condition that prevents infinite recursion',
+          'Python default recursion limit is 1000 — convert to iteration for depth > 1000',
+          'Tree problems are naturally recursive — the base case is usually `if not node: return`',
+          'Add `@lru_cache(None)` to any recursive function with overlapping subproblems',
+        ],
+        mistake: 'Forgetting the base case or writing it wrong, causing infinite recursion and `RecursionError`. Write the base case first, test it separately, then write the recursive case.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'dynamic-programming',
+        fn: 'Dynamic Programming',
+        desc: 'Memoization and tabulation for overlapping subproblems.',
+        category: 'Patterns',
+        subtitle: 'Cache results — @lru_cache for top-down, dp[] for bottom-up',
+        signature: '@lru_cache(None) def dp(n): ... | dp = [0] * n',
+        descLong: 'Dynamic programming caches results of overlapping subproblems. Top-down (memoization) uses recursion + cache. Bottom-up (tabulation) builds a table iteratively. Start with top-down to get correctness, then optimize with bottom-up if needed.',
+        code: `from functools import lru_cache
+# Top-down memoization — easiest to write:
+@lru_cache(maxsize=None)
+def fib(n):
+    if n <= 1: return n
+    return fib(n-1) + fib(n-2)
+# Bottom-up tabulation — usually faster:
+def fib_tab(n):
+    dp = [0] * (n + 1)
+    dp[1] = 1
+    for i in range(2, n + 1):
+        dp[i] = dp[i-1] + dp[i-2]
+    return dp[n]
+# Space-optimized — O(1) space:
+def fib_opt(n):
+    a, b = 0, 1
+    for _ in range(n): a, b = b, a + b
+    return a
+
+# Coin change — minimum coins to make amount:
+def coin_change(coins, amount):
+    dp = [float("inf")] * (amount + 1)
+    dp[0] = 0
+    for coin in coins:
+        for x in range(coin, amount + 1):
+            dp[x] = min(dp[x], dp[x - coin] + 1)
+    return dp[amount] if dp[amount] != float("inf") else -1
+# Longest increasing subsequence:
+def lis(nums):
+    dp = [1] * len(nums)
+    for i in range(1, len(nums)):
+        for j in range(i):
+            if nums[j] < nums[i]:
+                dp[i] = max(dp[i], dp[j] + 1)
+    return max(dp)`,
+        tips: [
+          'Start with `@lru_cache` top-down — get it correct first, optimize later if needed',
+          'Identify the DP state: what changes between recursive calls? That is your table dimension',
+          'Space optimize by keeping only the rows you need (often just current + previous)',
+          'DP = recursion + memoization. If you can write the recursion, adding `@lru_cache` gives you DP',
+        ],
+        mistake: 'Plain recursion on overlapping subproblems — `fib(50)` without memoization makes 2^50 calls. Add `@lru_cache(None)` or convert to tabulation.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'big-o',
+        fn: 'Big-O Reference',
+        desc: 'Common time complexities and Python built-in operation costs.',
+        category: 'Complexity',
+        subtitle: 'O(1) → O(log n) → O(n) → O(n log n) → O(n²) → O(2ⁿ)',
+        signature: 'O(1) < O(log n) < O(n) < O(n log n) < O(n²) < O(2ⁿ)',
+        descLong: 'Big-O describes how runtime or memory grows with input size n. Focus on the dominant term and drop constants. Knowing Python built-in complexities lets you write efficient code without profiling first.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+
+# O(1) — constant time:
+d[key]                # dict get
+s.add(x)              # set add
+lst[-1]               # list index
+stack.append(x)       # list append (amortized)
+
+# O(log n) — logarithmic:
+bisect.bisect(a, x)   # binary search
+heapq.heappush(h, x)  # heap push
+
+# O(n) — linear:
+x in lst              # list search — scan every element
+max(arr)
+list(reversed(arr))
+Counter(lst)          # one pass
+
+# O(n log n) — linearithmic:
+sorted(arr)
+arr.sort()
+
+# O(n²) — quadratic — AVOID on large input:
+for i in range(n):
+    for j in range(n):   # nested loop = n² ops
+        operations += 1
+
+# O(2ⁿ) — exponential:
+# Generating all subsets
+# Recursion without memoization on overlapping problems
+
+# Python built-in complexities:
+# list:  append O(1)*, pop() O(1)*, pop(0) O(n), in O(n), sort O(n log n)
+# dict:  get/set/del O(1)*, in O(1)*
+# set:   add/in/remove O(1)*
+# deque: appendleft/popleft O(1)
+# (* = amortized)`,
+        tips: [
+          'dict/set lookups are O(1) — convert lists to sets when doing repeated membership tests',
+          '`list.pop(0)` is O(n) — use `deque.popleft()` for O(1) queue operations',
+          'Nested loops → look for a hash map to reduce O(n²) to O(n)',
+          'Sorted array → think binary search to reduce O(n) search to O(log n)',
+        ],
+        mistake: '`if x in large_list` inside a loop: O(n) per check → O(n²) total. Convert to set once: `lookup = set(large_list)`, then `if x in lookup` is O(1) per check.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

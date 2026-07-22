@@ -1,0 +1,1470 @@
+// Python Web Frameworks & Async Web
+// Comprehensive entries for Flask, FastAPI, Django, WSGI/ASGI deployment
+// Focus: atomic, real code, RAG-compliant imports, shorthand patterns
+
+export const meta = {
+  title: 'Python Web Frameworks',
+  description: 'Flask, FastAPI, Django, and deployment patterns for web applications.',
+  tags: ['python', 'web', 'frameworks', 'apis', 'deployment'],
+};
+
+export const sections = [
+  {
+    id: 'flask',
+    title: 'Flask',
+    description: 'Micro-framework for building web applications with routing, templates, and extensions.',
+    entries: [
+      {
+        id: 'flask-app',
+        fn: 'Flask()',
+        desc: 'Create and configure a Flask application with basic routing and development server.',
+        category: 'Flask',
+        subtitle: 'App factory, routes, and development server',
+        signature: 'app = Flask(__name__)  |  @app.route("/path")  |  app.run()',
+        descLong: 'Flask is a lightweight micro-framework for building web applications. The Flask class serves as the central application object, handling routes, configuration, and request/response cycles. Use the `@app.route()` decorator to bind URL paths to view functions.',
+        code: `from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return "Hello, World!"
+
+@app.route("/about")
+def about():
+    return "About page"
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)`,
+        tips: [
+          'Use `debug=True` only in development; it auto-reloads on code changes.',
+          '`__name__` parameter allows Flask to find templates and static files relative to the module.',
+          'Specify `host="0.0.0.0"` to accept external connections; default is localhost only.',
+        ],
+        mistake: 'Running `app.run(debug=True)` in production—use Gunicorn or Waitress instead.',
+        shorthand: {
+          verbose: `from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    response = "Hello"
+    status_code = 200
+    return response, status_code
+
+app.run(debug=True)`,
+          concise: `from flask import Flask
+app = Flask(__name__)
+app.route("/")(lambda: "Hello")
+app.run(debug=True)`
+        }
+      },
+      {
+        id: 'flask-routes',
+        fn: '@app.route()',
+        desc: 'Define URL routes with path parameters, query strings, and HTTP methods.',
+        category: 'Flask',
+        subtitle: 'URL patterns, dynamic segments, HTTP verbs',
+        signature: '@app.route("/path/<type:param>", methods=["GET", "POST"])',
+        descLong: 'Flask routes map URL patterns to view functions. Use angle brackets `<param>` for dynamic segments, type converters like `<int:id>` for validation, and `methods=` to handle specific HTTP verbs. Query strings are accessed via `request.args`.',
+        code: `from flask import Flask, request
+
+app = Flask(__name__)
+
+@app.route("/users/<int:user_id>")
+def get_user(user_id):
+    return f"User ID: {user_id}"
+
+@app.route("/posts/<string:slug>")
+def get_post(slug):
+    return f"Post: {slug}"
+
+@app.route("/search")
+def search():
+    query = request.args.get("q", "")
+    limit = request.args.get("limit", 10, type=int)
+    return f"Search: {query}, limit: {limit}"
+
+@app.route("/submit", methods=["POST"])
+def submit():
+    return "Data received", 201`,
+        tips: [
+          'Type converters: `<int:id>`, `<float:price>`, `<path:filepath>` automatically cast and validate.',
+          'Query strings: `request.args.get("key", default_value, type=int)` is safe and type-aware.',
+          'Use `methods=["GET", "POST"]` to handle multiple HTTP verbs in one function.',
+        ],
+        mistake: 'Forgetting to include `methods=["POST"]` and receiving 405 Method Not Allowed.',
+        shorthand: {
+          verbose: `@app.route("/users/<user_id>")
+def user_detail(user_id):
+    user_id_int = int(user_id)
+    user = get_user_from_db(user_id_int)
+    return str(user)`,
+          concise: `@app.route("/users/<int:user_id>")
+def user_detail(user_id):
+    return get_user_from_db(user_id)`
+        }
+      },
+      {
+        id: 'flask-request-response',
+        fn: 'request, jsonify()',
+        desc: 'Access request data (JSON, form) and build responses with proper headers and status codes.',
+        category: 'Flask',
+        subtitle: 'JSON payloads, form data, response objects',
+        signature: 'request.json  |  request.form  |  jsonify(data)  |  make_response()',
+        descLong: 'The `request` object provides access to incoming request data. Use `request.json` for JSON payloads, `request.form` for form-encoded data, and `request.files` for uploads. The `jsonify()` helper builds JSON responses with correct Content-Type. Return tuples `(data, status_code, headers)` for custom responses.',
+        code: `from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route("/api/data", methods=["POST"])
+def create_data():
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
+    return jsonify({"id": 1, "name": name, "email": email}), 201
+
+@app.route("/api/upload", methods=["POST"])
+def upload_file():
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"error": "No file"}), 400
+    return jsonify({"filename": file.filename}), 201
+
+@app.route("/api/form", methods=["POST"])
+def process_form():
+    username = request.form.get("username")
+    return jsonify({"received": username})`,
+        tips: [
+          '`request.json` is None if Content-Type is not `application/json`; use `request.get_json(force=True)` to override.',
+          '`jsonify()` automatically sets `Content-Type: application/json` and handles serialization.',
+          'Always check if request data exists before accessing; use `.get()` with defaults.',
+        ],
+        mistake: 'Returning a dict directly without `jsonify()` when API clients expect proper JSON headers.',
+        shorthand: {
+          verbose: `@app.route("/users", methods=["POST"])
+def create_user():
+    payload = request.json
+    user_name = payload["name"]
+    user_email = payload["email"]
+    new_user = db.insert(user_name, user_email)
+    response = {"id": new_user.id, "name": new_user.name}
+    response_obj = jsonify(response)
+    response_obj.status_code = 201
+    return response_obj`,
+          concise: `@app.route("/users", methods=["POST"])
+def create_user():
+    user = db.insert(**request.json)
+    return jsonify(user.to_dict()), 201`
+        }
+      },
+      {
+        id: 'flask-blueprints',
+        fn: 'Blueprint()',
+        desc: 'Organize routes into reusable modules with Blueprints for larger applications.',
+        category: 'Flask',
+        subtitle: 'Modular app structure, route grouping',
+        signature: 'bp = Blueprint("name", __name__, url_prefix="/api")  |  app.register_blueprint(bp)',
+        descLong: 'Blueprints allow you to organize related routes into separate modules. Define routes on a Blueprint object, then register it with the main app. Use `url_prefix` to group routes under a common path (e.g., `/api/users`).',
+        code: `from flask import Blueprint, jsonify
+
+users_bp = Blueprint("users", __name__, url_prefix="/users")
+posts_bp = Blueprint("posts", __name__, url_prefix="/posts")
+
+@users_bp.route("/", methods=["GET"])
+def list_users():
+    return jsonify([{"id": 1, "name": "Alice"}])
+
+@users_bp.route("/<int:user_id>", methods=["GET"])
+def get_user(user_id):
+    return jsonify({"id": user_id, "name": "Alice"})
+
+@posts_bp.route("/", methods=["GET"])
+def list_posts():
+    return jsonify([{"id": 1, "title": "First Post"}])
+
+@posts_bp.route("/<int:post_id>", methods=["GET"])
+def get_post(post_id):
+    return jsonify({"id": post_id, "title": "First Post"})
+
+# In main app file:
+from flask import Flask
+app = Flask(__name__)
+app.register_blueprint(users_bp)
+app.register_blueprint(posts_bp)`,
+        tips: [
+          'Use `url_prefix` to avoid repeating path prefixes in every route.',
+          'Store Blueprints in separate modules (e.g., `routes/users.py`) for clean organization.',
+          'Register blueprints before running the app.',
+        ],
+        mistake: 'Defining all routes in a single file as the app grows—use Blueprints to scale.',
+        shorthand: {
+          verbose: `# routes/users.py
+from flask import Blueprint
+users = Blueprint("users", __name__)
+
+@users.route("/list")
+def list_users():
+    return {"users": []}
+
+# main.py
+from flask import Flask
+from routes.users import users
+app = Flask(__name__)
+app.register_blueprint(users, url_prefix="/api/users")`,
+          concise: `users = Blueprint("users", __name__, url_prefix="/api/users")
+@users.route("/")
+def list_users(): return {"users": []}
+
+app.register_blueprint(users)`
+        }
+      },
+      {
+        id: 'flask-jinja2',
+        fn: 'render_template()',
+        desc: 'Render HTML templates with Jinja2 templating engine and template variables.',
+        category: 'Flask',
+        subtitle: 'Template rendering, variables, loops, conditionals',
+        signature: 'render_template("template.html", var=value)  |  {{ var }}  |  {% for item in items %}',
+        descLong: 'Flask integrates Jinja2 for server-side HTML rendering. Use `render_template()` to load and populate templates with variables. Templates are stored in a `templates/` directory and support variables, loops, conditionals, filters, and inheritance.',
+        code: `from flask import Flask, render_template
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return render_template("index.html", title="Home", user="Alice")
+
+@app.route("/users")
+def users():
+    user_list = [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"}
+    ]
+    return render_template("users.html", users=user_list)
+
+# templates/index.html:
+# <h1>{{ title }}</h1>
+# <p>Welcome, {{ user }}!</p>
+
+# templates/users.html:
+# <ul>
+# {% for user in users %}
+#   <li>{{ user.name }} (ID: {{ user.id }})</li>
+# {% endfor %}
+# </ul>`,
+        tips: [
+          'Jinja2 variables: `{{ variable }}` for output, `{{ variable | upper }}` for filters.',
+          'Control structures: `{% if condition %}...{% endif %}`, `{% for item in items %}...{% endfor %}`.',
+          'Template inheritance: `{% extends "base.html" %}` for DRY layouts.',
+        ],
+        mistake: 'Forgetting to create a `templates/` folder in the app directory.',
+        shorthand: {
+          verbose: `@app.route("/profile/<name>")
+def profile(name):
+    user_data = {"name": name, "joined": "2023"}
+    html = render_template("profile.html")
+    html = html.replace("{{ name }}", user_data["name"])
+    html = html.replace("{{ joined }}", user_data["joined"])
+    return html`,
+          concise: `@app.route("/profile/<name>")
+def profile(name):
+    return render_template("profile.html", name=name, joined="2023")`
+        }
+      },
+      {
+        id: 'flask-sqlalchemy',
+        fn: 'SQLAlchemy()',
+        desc: 'Use Flask-SQLAlchemy for ORM-based database models and queries.',
+        category: 'Flask',
+        subtitle: 'Database models, relationships, CRUD operations',
+        signature: 'db = SQLAlchemy(app)  |  db.session.add()  |  db.session.query()',
+        descLong: 'Flask-SQLAlchemy provides an ORM layer on top of SQLAlchemy. Define models as classes, use `db.session` to manage transactions, and leverage query methods for CRUD. Supports relationships between models.',
+        code: `from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    posts = db.relationship("Post", backref="author", lazy=True)
+
+class Post(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(120), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+# Create tables
+with app.app_context():
+    db.create_all()
+
+# Add a user
+user = User(name="Alice", email="alice@example.com")
+db.session.add(user)
+db.session.commit()
+
+# Query users
+all_users = User.query.all()
+user_by_email = User.query.filter_by(email="alice@example.com").first()`,
+        tips: [
+          'Define a `__repr__()` method on models for easier debugging.',
+          'Use `lazy=True` (default) for relationships; load related objects on access.',
+          'Always commit after add/update/delete: `db.session.commit()`.',
+        ],
+        mistake: 'Forgetting to call `db.session.commit()` after creating or modifying records.',
+        shorthand: {
+          verbose: `user = User()
+user.name = "Alice"
+user.email = "alice@example.com"
+db.session.add(user)
+db.session.flush()
+db.session.commit()
+users = db.session.query(User).filter(User.name == "Alice").all()`,
+          concise: `db.session.add(User(name="Alice", email="alice@example.com"))
+db.session.commit()
+users = User.query.filter_by(name="Alice").all()`
+        }
+      },
+      {
+        id: 'flask-middleware',
+        fn: '@app.before_request, @app.after_request',
+        desc: 'Intercept requests and responses with hooks, and handle errors globally.',
+        category: 'Flask',
+        subtitle: 'Request/response hooks, error handlers',
+        signature: '@app.before_request  |  @app.after_request  |  @app.errorhandler()',
+        descLong: 'Flask provides lifecycle hooks to intercept and modify requests and responses. Use `@app.before_request` to run logic before each request (e.g., authentication), `@app.after_request` to modify responses, and `@app.errorhandler()` to handle exceptions globally.',
+        code: `from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.before_request
+def check_auth():
+    token = request.headers.get("Authorization")
+    if request.path.startswith("/api/") and not token:
+        return jsonify({"error": "Missing token"}), 401
+
+@app.after_request
+def set_headers(response):
+    response.headers["X-Custom-Header"] = "Flask"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Not found"}), 404
+
+@app.errorhandler(500)
+def server_error(error):
+    return jsonify({"error": "Internal server error"}), 500
+
+@app.route("/api/data")
+def get_data():
+    return jsonify({"data": "value"})`,
+        tips: [
+          'Use `@app.before_request` for cross-cutting concerns: auth, logging, rate-limiting.',
+          '`@app.after_request` receives the response object; always return it.',
+          'Error handlers catch exceptions and return appropriate responses.',
+        ],
+        mistake: 'Defining middleware after routes; register hooks early in app initialization.',
+        shorthand: {
+          verbose: `@app.before_request
+def authenticate():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Unauthorized"}), 401
+
+@app.after_request
+def add_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
+@app.errorhandler(404)
+def handle_404(e):
+    return jsonify({"error": "Not found"}), 404`,
+          concise: `@app.before_request
+def auth():
+    if not request.headers.get("Authorization"): abort(401)
+
+@app.after_request
+def cors(r):
+    r.headers["Access-Control-Allow-Origin"] = "*"; return r`
+        }
+      },
+    ],
+  },
+  {
+    id: 'fastapi-web',
+    title: 'FastAPI',
+    description: 'High-performance async web framework with automatic OpenAPI docs, validation, and real-time features.',
+    entries: [
+      {
+        id: 'fastapi-middleware',
+        fn: '@app.middleware, CORSMiddleware',
+        desc: 'Add middleware for CORS, custom processing, and request/response interception.',
+        category: 'FastAPI',
+        subtitle: 'CORS configuration, custom middleware, logging',
+        signature: '@app.middleware("http")  |  app.add_middleware(CORSMiddleware)',
+        descLong: 'FastAPI middleware intercepts requests and responses in a Starlette-compatible way. Use `CORSMiddleware` for cross-origin access, or create custom middleware with `@app.middleware("http")` to log, modify headers, or validate requests.',
+        code: `from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+import time
+
+app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Custom middleware
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+@app.get("/")
+async def root():
+    return {"message": "Hello"}`,
+        tips: [
+          'Set `allow_origins=["https://example.com"]` to restrict CORS in production.',
+          'Custom middleware must be async and call `call_next(request)` to continue.',
+          'Middleware order matters; add them before route definitions.',
+        ],
+        mistake: 'Using `allow_origins=["*"]` with `allow_credentials=True` (security risk).',
+        shorthand: {
+          verbose: `from fastapi.middleware.cors import CORSMiddleware
+cors_config = {
+    "allow_origins": ["https://example.com"],
+    "allow_credentials": True,
+    "allow_methods": ["GET", "POST"],
+    "allow_headers": ["*"],
+}
+app.add_middleware(CORSMiddleware, **cors_config)`,
+          concise: `app.add_middleware(CORSMiddleware, allow_origins=["https://example.com"], allow_credentials=True)`
+        }
+      },
+      {
+        id: 'fastapi-background-tasks',
+        fn: 'BackgroundTasks',
+        desc: 'Run tasks asynchronously after returning a response to the client.',
+        category: 'FastAPI',
+        subtitle: 'Fire-and-forget operations, post-response tasks',
+        signature: 'BackgroundTasks  |  background_tasks.add_task(func, *args)',
+        descLong: 'Use `BackgroundTasks` to offload work that doesn\'t need to complete before responding. Add tasks with `background_tasks.add_task()`, and FastAPI will execute them after sending the response. Useful for emails, logging, cleanup.',
+        code: `from fastapi import FastAPI, BackgroundTasks
+import time
+
+app = FastAPI()
+
+def send_email(email: str, message: str):
+    time.sleep(2)  # Simulate email sending
+    print(f"Email sent to {email}: {message}")
+
+def log_action(action: str):
+    print(f"Action logged: {action}")
+
+@app.post("/send-notification")
+async def send_notification(email: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(send_email, email, "Hello!")
+    background_tasks.add_task(log_action, "notification-sent")
+    return {"status": "Notification queued"}
+
+@app.post("/process")
+async def process_data(data: dict, background_tasks: BackgroundTasks):
+    result = {"processed": True}
+    background_tasks.add_task(cleanup, data.get("temp_file"))
+    return result
+
+def cleanup(filename: str):
+    print(f"Cleaning up {filename}")`,
+        tips: [
+          'Background tasks run sequentially; use a task queue (Celery) for parallelism.',
+          'The client gets a response immediately; slow tasks don\'t block.',
+          'Tasks run in the same process; errors won\'t reach the client.',
+        ],
+        mistake: 'Using BackgroundTasks for critical work; use Celery or Redis queue for reliability.',
+        shorthand: {
+          verbose: `@app.post("/send")
+async def send_email_endpoint(email: str, background_tasks: BackgroundTasks):
+    def send_task(email_addr):
+        time.sleep(1)
+        print(f"Sent to {email_addr}")
+    background_tasks.add_task(send_task, email)
+    return {"status": "sent"}`,
+          concise: `@app.post("/send")
+async def send(email: str, bg: BackgroundTasks):
+    bg.add_task(send_email, email)
+    return {"status": "sent"}`
+        }
+      },
+      {
+        id: 'fastapi-websockets',
+        fn: '@app.websocket()',
+        desc: 'Handle WebSocket connections for real-time bidirectional communication.',
+        category: 'FastAPI',
+        subtitle: 'WebSocket endpoint, client connections, messaging',
+        signature: '@app.websocket("/ws")  |  await websocket.accept()  |  await websocket.send_json()',
+        descLong: 'WebSocket endpoints enable real-time communication between client and server. Use `@app.websocket()` to define an endpoint, `await websocket.accept()` to establish the connection, and `await websocket.receive_text()/send_json()` for messaging.',
+        code: `from fastapi import FastAPI, WebSocket
+from fastapi.responses import HTMLResponse
+
+app = FastAPI()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            print(f"Received: {data}")
+            await websocket.send_text(f"Echo: {data}")
+    except Exception as e:
+        print(f"Connection closed: {e}")
+
+@app.websocket("/ws/json")
+async def websocket_json(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_json()
+            result = {"received": data, "timestamp": "2024-01-01"}
+            await websocket.send_json(result)
+    except Exception as e:
+        await websocket.close(code=1000)
+
+@app.get("/")
+async def get():
+    return HTMLResponse("""
+        <html>
+            <body>
+                <h1>WebSocket Test</h1>
+                <input type="text" id="msg">
+                <button onclick="send()">Send</button>
+                <ul id="messages"></ul>
+                <script>
+                    var ws = new WebSocket("ws://localhost:8000/ws");
+                    ws.onmessage = function(event) {
+                        document.getElementById("messages").innerHTML += "<li>" + event.data + "</li>";
+                    };
+                    function send() {
+                        ws.send(document.getElementById("msg").value);
+                    }
+                </script>
+            </body>
+        </html>
+    """)`,
+        tips: [
+          'Always wrap WebSocket handling in try/except to catch disconnections.',
+          'Use `receive_json()` and `send_json()` for structured data.',
+          'Call `await websocket.accept()` before sending/receiving.',
+        ],
+        mistake: 'Forgetting to await async WebSocket methods (accept, send, receive).',
+        shorthand: {
+          verbose: `@app.websocket("/ws")
+async def ws(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        try:
+            message = await websocket.receive_text()
+            response = f"Echo: {message}"
+            await websocket.send_text(response)
+        except:
+            break`,
+          concise: `@app.websocket("/ws")
+async def ws(ws: WebSocket):
+    await ws.accept()
+    async for msg in ws.iter_text(): await ws.send_text(f"Echo: {msg}")`
+        }
+      },
+      {
+        id: 'fastapi-auth',
+        fn: 'OAuth2PasswordBearer, JWT',
+        desc: 'Implement OAuth2 and JWT-based authentication with dependency injection.',
+        category: 'FastAPI',
+        subtitle: 'Token-based auth, JWT validation, dependency-based security',
+        signature: 'OAuth2PasswordBearer  |  @app.post("/token")  |  Depends()',
+        descLong: 'FastAPI provides built-in OAuth2 and JWT support. Use `OAuth2PasswordBearer` to define token locations, create a `/token` endpoint to issue JWTs, and use `Depends()` to validate tokens on protected routes.',
+        code: `from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+from passlib.context import CryptContext
+
+app = FastAPI()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = "your-secret-key"
+ALGORITHM = "HS256"
+
+fake_users_db = {
+    "alice": {"username": "alice", "hashed_password": pwd_context.hash("secret123")}
+}
+
+def verify_password(plain, hashed):
+    return pwd_context.verify(plain, hashed)
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = fake_users_db.get(username)
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = fake_users_db.get(form_data.username)
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    access_token = jwt.encode(
+        {"sub": form_data.username, "exp": datetime.utcnow() + timedelta(hours=1)},
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/me")
+async def read_user(current_user: dict = Depends(get_current_user)):
+    return current_user`,
+        tips: [
+          'Never hardcode secrets; use environment variables.',
+          '`Depends()` enables FastAPI to inject authenticated users.',
+          'Use `python-jose` for JWT encoding/decoding, `passlib` for password hashing.',
+        ],
+        mistake: 'Storing plaintext passwords; always hash with bcrypt or Argon2.',
+        shorthand: {
+          verbose: `def get_current_user(token: str = Depends(oauth2_scheme)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401)
+    user = db.get_user(username)
+    if not user:
+        raise HTTPException(status_code=401)
+    return user
+
+@app.get("/protected")
+async def protected(user: dict = Depends(get_current_user)):
+    return user`,
+          concise: `@app.get("/protected")
+async def protected(user: dict = Depends(get_current_user)):
+    return user`
+        }
+      },
+      {
+        id: 'fastapi-testing',
+        fn: 'TestClient',
+        desc: 'Test FastAPI endpoints using TestClient from httpx.',
+        category: 'FastAPI',
+        subtitle: 'Unit testing, endpoint validation, mocking',
+        signature: 'from fastapi.testclient import TestClient  |  client.get(url)  |  assert response.status_code',
+        descLong: 'FastAPI provides `TestClient` for synchronous testing of endpoints. It wraps `httpx.Client` and simulates HTTP requests without running a server. Use it in pytest to validate routes, status codes, and response bodies.',
+        code: `from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello"}
+
+@app.post("/items")
+async def create_item(name: str, price: float):
+    return {"name": name, "price": price, "id": 1}
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: int):
+    return {"item_id": item_id}
+
+# Test file: test_app.py
+client = TestClient(app)
+
+def test_read_root():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"message": "Hello"}
+
+def test_create_item():
+    response = client.post("/items?name=Widget&price=9.99")
+    assert response.status_code == 200
+    assert response.json()["name"] == "Widget"
+
+def test_read_item():
+    response = client.get("/items/42")
+    assert response.status_code == 200
+    assert response.json()["item_id"] == 42`,
+        tips: [
+          'TestClient is synchronous; use it in pytest with regular functions.',
+          'Pass query params as kwargs: `client.get("/path", params={"key": "value"})`.',
+          'Use `client.post(url, json={...})` for JSON bodies.',
+        ],
+        mistake: 'Using async TestClient for synchronous testing; TestClient handles async routes.',
+        shorthand: {
+          verbose: `client = TestClient(app)
+response = client.get("/items/1")
+assert response.status_code == 200
+data = response.json()
+assert data["item_id"] == 1`,
+          concise: `client = TestClient(app)
+assert client.get("/items/1").status_code == 200
+assert client.get("/items/1").json()["item_id"] == 1`
+        }
+      },
+    ],
+  },
+  {
+    id: 'django',
+    title: 'Django',
+    description: 'Full-stack web framework with ORM, admin interface, and built-in security.',
+    entries: [
+      {
+        id: 'django-setup',
+        fn: 'django-admin startproject',
+        desc: 'Create a Django project structure, configure settings, and define URL routing.',
+        category: 'Django',
+        subtitle: 'Project initialization, settings, url configuration',
+        signature: 'django-admin startproject myproject  |  python manage.py runserver',
+        descLong: 'A Django project contains apps, each with models, views, and templates. Use `django-admin startproject` to scaffold the project, then `python manage.py startapp` to create apps. Configure databases, installed apps, and middleware in `settings.py`, and map URLs in `urls.py`.',
+        code: `# Project structure created by django-admin startproject myproject:
+# myproject/
+#   manage.py
+#   myproject/
+#     settings.py
+#     urls.py
+#     asgi.py
+#     wsgi.py
+
+# settings.py
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "myapp",
+]
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "db.sqlite3",
+    }
+}
+
+# urls.py
+from django.contrib import admin
+from django.urls import path, include
+from myapp import views
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", views.index, name="index"),
+    path("api/", include("myapp.urls")),
+]
+
+# Run migrations and server:
+# python manage.py migrate
+# python manage.py runserver`,
+        tips: [
+          'Always run migrations after changing models: `python manage.py migrate`.',
+          'Create a superuser for admin access: `python manage.py createsuperuser`.',
+          'Use environment variables for secrets; never hardcode them in settings.py.',
+        ],
+        mistake: 'Forgetting to add your app to `INSTALLED_APPS` after creating it.',
+        shorthand: {
+          verbose: `# Create project
+django-admin startproject config .
+
+# Create app
+python manage.py startapp accounts
+
+# Add to settings.py INSTALLED_APPS
+# "accounts"
+
+# Create tables
+python manage.py migrate
+
+# Run server
+python manage.py runserver`,
+          concise: `django-admin startproject config . && python manage.py startapp accounts && python manage.py runserver`
+        }
+      },
+      {
+        id: 'django-models',
+        fn: 'models.Model',
+        desc: 'Define database models with fields, relationships, and metadata.',
+        category: 'Django',
+        subtitle: 'Model fields, relationships, Meta options, __str__',
+        signature: 'class Model(models.Model):  |  models.CharField  |  models.ForeignKey  |  class Meta',
+        descLong: 'Django models map Python classes to database tables. Define fields with types like `CharField`, `IntegerField`, `DateTimeField`. Use `ForeignKey` for relationships, and the `Meta` class for options like ordering and permissions.',
+        code: `from django.db import models
+from django.utils import timezone
+
+class Author(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField(unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Author"
+        verbose_name_plural = "Authors"
+
+class Post(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="posts")
+    published_date = models.DateTimeField(default=timezone.now)
+    is_published = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        ordering = ["-published_date"]
+        indexes = [
+            models.Index(fields=["author", "-published_date"]),
+        ]`,
+        tips: [
+          '`auto_now_add=True` sets the timestamp when the record is created; `auto_now=True` updates on every save.',
+          'Use `related_name` on ForeignKey to access reverse relationships: `author.posts.all()`.',
+          'Always define `__str__()` for meaningful object representation in admin and shell.',
+        ],
+        mistake: 'Using `on_delete=models.PROTECT` without handling orphaned records.',
+        shorthand: {
+          verbose: `class User(models.Model):
+    username = models.CharField(max_length=50)
+    email = models.EmailField()
+    created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.username
+
+class Post(models.Model):
+    title = models.CharField(max_length=200)
+    author_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)`,
+          concise: `class User(models.Model):
+    username = models.CharField(max_length=50)
+    email = models.EmailField()
+
+    def __str__(self): return self.username
+
+class Post(models.Model):
+    title = models.CharField(max_length=200)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="posts")`
+        }
+      },
+      {
+        id: 'django-orm',
+        fn: 'QuerySet methods',
+        desc: 'Query the database using Django ORM methods like filter, exclude, select_related.',
+        category: 'Django',
+        subtitle: 'QuerySet API, filtering, optimization',
+        signature: 'Model.objects.filter()  |  .exclude()  |  .select_related()  |  .prefetch_related()',
+        descLong: 'Django ORM provides a chainable QuerySet API. Use `filter()` for conditions, `exclude()` for negation, `select_related()` for foreign keys (JOIN), and `prefetch_related()` for reverse relations. All queries are lazy; they execute when evaluated.',
+        code: `from django.db.models import Q, Count, F
+
+# Basic queries
+posts = Post.objects.all()
+posts_by_author = Post.objects.filter(author__name="Alice")
+unpublished = Post.objects.exclude(is_published=True)
+
+# Multiple conditions
+recent_posts = Post.objects.filter(is_published=True, published_date__gte="2024-01-01")
+
+# OR conditions
+posts = Post.objects.filter(Q(author__name="Alice") | Q(author__name="Bob"))
+
+# Select related (optimization for ForeignKey)
+posts = Post.objects.select_related("author")
+
+# Prefetch related (optimization for reverse relations)
+authors = Author.objects.prefetch_related("posts")
+
+# Aggregation
+post_count = Author.objects.annotate(num_posts=Count("posts"))
+for author in post_count:
+    print(f"{author.name}: {author.num_posts} posts")
+
+# Update and delete
+Post.objects.filter(author__name="Charlie").update(is_published=True)
+Post.objects.filter(is_published=False).delete()
+
+# Slicing
+first_10 = Post.objects.all()[:10]
+paginate = Post.objects.all()[20:30]`,
+        tips: [
+          'Use `select_related()` for foreign keys; use `prefetch_related()` for reverse relations.',
+          'Always check `query.explain()` to see the SQL and optimize N+1 problems.',
+          'QuerySets are lazy; don\'t execute until necessary (iteration, `.get()`, `.count()`).',
+        ],
+        mistake: 'Looping over QuerySets without using `select_related()` causes N+1 queries.',
+        shorthand: {
+          verbose: `posts = Post.objects.all()
+posts = posts.filter(is_published=True)
+posts = posts.select_related("author")
+for post in posts:
+    print(post.author.name)`,
+          concise: `posts = Post.objects.filter(is_published=True).select_related("author")`
+        }
+      },
+      {
+        id: 'django-views',
+        fn: 'Function-based views',
+        desc: 'Create views as functions that handle requests and return responses.',
+        category: 'Django',
+        subtitle: 'Request/response handling, redirects, context',
+        signature: 'def view(request):  |  return HttpResponse()  |  return render()  |  return redirect()',
+        descLong: 'Function-based views (FBVs) are Python functions that accept a request object and return a response. Use `render()` for template rendering with context, `redirect()` for redirection, and decorators like `@login_required` for access control.',
+        code: `from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from .models import Post
+
+def index(request):
+    posts = Post.objects.filter(is_published=True)
+    return render(request, "posts/index.html", {"posts": posts})
+
+@require_http_methods(["GET", "POST"])
+def post_detail(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    if request.method == "POST":
+        post.is_published = not post.is_published
+        post.save()
+        return redirect("post_detail", post_id=post.id)
+    return render(request, "posts/detail.html", {"post": post})
+
+@login_required
+def create_post(request):
+    if request.method == "POST":
+        title = request.POST.get("title")
+        content = request.POST.get("content")
+        post = Post.objects.create(
+            title=title,
+            content=content,
+            author=request.user
+        )
+        return redirect("post_detail", post_id=post.id)
+    return render(request, "posts/create.html")
+
+@require_http_methods(["GET"])
+def api_posts(request):
+    posts = Post.objects.values("id", "title", "author__name")
+    return JsonResponse({"posts": list(posts)})`,
+        tips: [
+          'Use `get_object_or_404()` to raise 404 if object not found.',
+          '`@login_required` redirects unauthenticated users to login.',
+          'Always check `request.method` to handle GET vs POST differently.',
+        ],
+        mistake: 'Mixing business logic with view code; move to models or services.',
+        shorthand: {
+          verbose: `def list_posts(request):
+    posts = Post.objects.filter(is_published=True)
+    context = {"posts": posts}
+    return render(request, "posts/list.html", context)
+
+def single_post(request, pk):
+    post = Post.objects.get(id=pk)
+    return render(request, "posts/detail.html", {"post": post})`,
+          concise: `def list_posts(request):
+    return render(request, "posts/list.html", {"posts": Post.objects.filter(is_published=True)})
+
+def single_post(request, pk):
+    return render(request, "posts/detail.html", {"post": get_object_or_404(Post, id=pk)})`
+        }
+      },
+      {
+        id: 'django-class-based-views',
+        fn: 'ListView, DetailView, CreateView',
+        desc: 'Use class-based views for common patterns like listing, detail, create, update.',
+        category: 'Django',
+        subtitle: 'Generic CBVs, model mapping, context',
+        signature: 'ListView  |  DetailView  |  CreateView  |  UpdateView  |  DeleteView',
+        descLong: 'Class-based views (CBVs) provide reusable patterns for CRUD operations. Django includes generic views like `ListView` (list objects), `DetailView` (show one), `CreateView` (form + create), `UpdateView` (form + update), and `DeleteView` (delete with confirmation).',
+        code: `from django.views import View
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
+from .models import Post
+
+class PostListView(ListView):
+    model = Post
+    template_name = "posts/post_list.html"
+    context_object_name = "posts"
+    paginate_by = 10
+
+    def get_queryset(self):
+        return Post.objects.filter(is_published=True).order_by("-published_date")
+
+class PostDetailView(DetailView):
+    model = Post
+    template_name = "posts/post_detail.html"
+    context_object_name = "post"
+
+class PostCreateView(LoginRequiredMixin, CreateView):
+    model = Post
+    template_name = "posts/post_form.html"
+    fields = ["title", "content"]
+    success_url = reverse_lazy("post_list")
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+class PostUpdateView(LoginRequiredMixin, UpdateView):
+    model = Post
+    template_name = "posts/post_form.html"
+    fields = ["title", "content", "is_published"]
+    success_url = reverse_lazy("post_list")
+
+class PostDeleteView(LoginRequiredMixin, DeleteView):
+    model = Post
+    template_name = "posts/post_confirm_delete.html"
+    success_url = reverse_lazy("post_list")`,
+        tips: [
+          'Use `LoginRequiredMixin` to protect views; redirect unauthenticated users.',
+          '`paginate_by` enables automatic pagination on ListView.',
+          'Override `get_queryset()` to customize filtering.',
+        ],
+        mistake: 'Overriding `get_success_url()` when `success_url` is simpler.',
+        shorthand: {
+          verbose: `class PostListView(ListView):
+    model = Post
+    template_name = "posts/list.html"
+    context_object_name = "posts"
+    paginate_by = 10
+
+class PostDetailView(DetailView):
+    model = Post
+    template_name = "posts/detail.html"
+    context_object_name = "post"`,
+          concise: `class PostListView(ListView):
+    model = Post
+    paginate_by = 10
+
+class PostDetailView(DetailView):
+    model = Post`
+        }
+      },
+      {
+        id: 'django-forms',
+        fn: 'forms.Form, forms.ModelForm',
+        desc: 'Build and validate forms with Django forms for data validation and rendering.',
+        category: 'Django',
+        subtitle: 'Form fields, validation, cleaned_data, ModelForm',
+        signature: 'class Form(forms.Form):  |  form.is_valid()  |  form.cleaned_data  |  ModelForm',
+        descLong: 'Django forms handle rendering, validation, and CSRF protection. Inherit from `forms.Form` for custom forms, or `forms.ModelForm` to auto-generate from models. Validate with `form.is_valid()`, and access cleaned data with `form.cleaned_data`.',
+        code: `from django import forms
+from .models import Post
+
+# Custom form
+class ContactForm(forms.Form):
+    name = forms.CharField(max_length=100)
+    email = forms.EmailField()
+    message = forms.CharField(widget=forms.Textarea)
+
+    def clean_message(self):
+        message = self.cleaned_data.get("message")
+        if len(message) < 10:
+            raise forms.ValidationError("Message must be at least 10 characters.")
+        return message
+
+# ModelForm (auto-generate from model)
+class PostForm(forms.ModelForm):
+    class Meta:
+        model = Post
+        fields = ["title", "content", "is_published"]
+        labels = {
+            "title": "Post Title",
+            "content": "Post Content",
+        }
+        widgets = {
+            "content": forms.Textarea(attrs={"rows": 5}),
+        }
+
+# In view
+def contact(request):
+    if request.method == "POST":
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data["name"]
+            email = form.cleaned_data["email"]
+            message = form.cleaned_data["message"]
+            # Process form
+            return redirect("success")
+    else:
+        form = ContactForm()
+    return render(request, "contact.html", {"form": form})
+
+# In template
+# <form method="post">
+#   {% csrf_token %}
+#   {{ form.as_p }}
+#   <button type="submit">Submit</button>
+# </form>`,
+        tips: [
+          'Always include `{% csrf_token %}` in POST forms.',
+          'Use `form.cleaned_data` after `is_valid()` to access validated data.',
+          'Override `clean_<field>()` for field-specific validation.',
+        ],
+        mistake: 'Accessing `request.POST` directly without form validation.',
+        shorthand: {
+          verbose: `class ContactForm(forms.Form):
+    name = forms.CharField(max_length=100, required=True)
+    email = forms.EmailField(required=True)
+    message = forms.CharField(widget=forms.Textarea, required=True)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        return cleaned_data`,
+          concise: `class ContactForm(forms.Form):
+    name = forms.CharField(max_length=100)
+    email = forms.EmailField()
+    message = forms.CharField(widget=forms.Textarea)`
+        }
+      },
+      {
+        id: 'django-admin',
+        fn: 'admin.site.register, ModelAdmin',
+        desc: 'Register models in Django admin and customize the admin interface.',
+        category: 'Django',
+        subtitle: 'Admin registration, list display, search, filtering',
+        signature: 'admin.site.register(Model)  |  class ModelAdmin(admin.ModelAdmin)',
+        descLong: 'Django\'s admin interface provides CRUD for models. Register models with `admin.site.register()`, and customize with `ModelAdmin` options like `list_display`, `search_fields`, `list_filter`, and `fieldsets`.',
+        code: `from django.contrib import admin
+from .models import Author, Post
+
+# Simple registration
+admin.site.register(Author)
+
+# Customized admin
+@admin.register(Post)
+class PostAdmin(admin.ModelAdmin):
+    list_display = ["title", "author", "published_date", "is_published"]
+    list_filter = ["is_published", "published_date"]
+    search_fields = ["title", "author__name", "content"]
+    readonly_fields = ["created_at"]
+    fieldsets = (
+        ("Content", {
+            "fields": ("title", "content")
+        }),
+        ("Metadata", {
+            "fields": ("author", "is_published", "published_date", "created_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.author = request.user
+        super().save_model(request, obj, form, change)
+
+@admin.register(Author)
+class AuthorAdmin(admin.ModelAdmin):
+    list_display = ["name", "email", "post_count"]
+    search_fields = ["name", "email"]
+
+    def post_count(self, obj):
+        return obj.posts.count()
+    post_count.short_description = "Posts"`,
+        tips: [
+          'Use `@admin.register()` decorator as shorthand for `admin.site.register()`.',
+          '`list_display` controls which fields show in the list view.',
+          '`search_fields` enables admin search; prefix with `^` (starts with) or `=` (exact).',
+        ],
+        mistake: 'Not registering models, leaving them inaccessible in admin.',
+        shorthand: {
+          verbose: `admin.site.register(Post, PostAdmin)
+
+class PostAdmin(admin.ModelAdmin):
+    list_display = ["title", "author", "published_date"]
+    list_filter = ["is_published"]
+    search_fields = ["title"]`,
+          concise: `@admin.register(Post)
+class PostAdmin(admin.ModelAdmin):
+    list_display = ["title", "author", "published_date"]
+    list_filter = ["is_published"]
+    search_fields = ["title"]`
+        }
+      },
+      {
+        id: 'django-rest-framework',
+        fn: 'Serializer, APIView, ModelViewSet',
+        desc: 'Build REST APIs with Django REST Framework using serializers and viewsets.',
+        category: 'Django',
+        subtitle: 'Serialization, API views, routers, permissions',
+        signature: 'Serializer  |  APIView  |  ModelViewSet  |  DefaultRouter',
+        descLong: 'Django REST Framework (DRF) simplifies building REST APIs. Use `Serializer` to convert models to JSON, `APIView` for custom endpoints, and `ModelViewSet` for automatic CRUD. Register viewsets with `DefaultRouter` for URL generation.',
+        code: `from rest_framework import serializers, viewsets, routers, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import Post, Author
+
+class AuthorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Author
+        fields = ["id", "name", "email"]
+
+class PostSerializer(serializers.ModelSerializer):
+    author = AuthorSerializer(read_only=True)
+
+    class Meta:
+        model = Post
+        fields = ["id", "title", "content", "author", "published_date", "is_published"]
+
+class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+
+    def get_queryset(self):
+        return Post.objects.filter(is_published=True)
+
+    @action(detail=True, methods=["post"])
+    def publish(self, request, pk=None):
+        post = self.get_object()
+        post.is_published = True
+        post.save()
+        return Response({"status": "published"})
+
+class AuthorViewSet(viewsets.ModelViewSet):
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
+
+# URLs
+router = routers.DefaultRouter()
+router.register(r"posts", PostViewSet)
+router.register(r"authors", AuthorViewSet)
+
+# urls.py
+from django.urls import path, include
+urlpatterns = [
+    path("api/", include(router.urls)),
+]`,
+        tips: [
+          '`ModelViewSet` auto-generates list, create, retrieve, update, delete actions.',
+          'Use `@action()` decorator for custom endpoints.',
+          '`read_only=True` on fields that should not be modified.',
+        ],
+        mistake: 'Not defining `Meta.fields` on serializers; always specify what to serialize.',
+        shorthand: {
+          verbose: `class PostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ["id", "title", "content", "author"]
+
+class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer`,
+          concise: `class PostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = "__all__"
+
+class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer`
+        }
+      },
+    ],
+  },
+  {
+    id: 'web-deployment',
+    title: 'WSGI/ASGI & Deployment',
+    description: 'Production deployment with Gunicorn, Uvicorn, and async HTTP clients.',
+    entries: [
+      {
+        id: 'gunicorn',
+        fn: 'gunicorn',
+        desc: 'Deploy WSGI applications (Flask, Django) with Gunicorn worker processes.',
+        category: 'Deployment',
+        subtitle: 'Worker management, binding, reloading',
+        signature: 'gunicorn app:app  |  gunicorn -w 4 -b 0.0.0.0:8000',
+        descLong: 'Gunicorn is a WSGI HTTP server that runs Python web applications in production. Specify the number of workers, binding address, and other options. Load balancing across workers handles concurrent requests.',
+        code: `# app.py (Flask example)
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return {"message": "Hello"}
+
+# Run with Gunicorn:
+# gunicorn app:app
+# gunicorn -w 4 -b 0.0.0.0:8000 app:app
+# gunicorn -w 8 -b 127.0.0.1:8000 --timeout 60 --access-logfile - app:app
+
+# gunicorn_config.py
+import multiprocessing
+bind = "0.0.0.0:8000"
+workers = multiprocessing.cpu_count() * 2 + 1
+timeout = 30
+accesslog = "-"
+errorlog = "-"
+loglevel = "info"
+
+# Run with config:
+# gunicorn -c gunicorn_config.py app:app`,
+        tips: [
+          'Set `workers = cpu_count * 2 + 1` for CPU-bound tasks; reduce for I/O tasks.',
+          'Use `--timeout` to prevent slow requests from hanging (default 30s).',
+          'Log to stdout (`-`) for container-friendly logging.',
+        ],
+        mistake: 'Running with `workers=1` in production; use multiple workers for concurrency.',
+        shorthand: {
+          verbose: `# gunicorn_config.py
+bind = "0.0.0.0:8000"
+workers = 4
+timeout = 30
+accesslog = "-"
+
+# Run
+gunicorn -c gunicorn_config.py app:app`,
+          concise: `gunicorn -w 4 -b 0.0.0.0:8000 --timeout 30 app:app`
+        }
+      },
+      {
+        id: 'uvicorn',
+        fn: 'uvicorn',
+        desc: 'Deploy ASGI applications (FastAPI, Starlette) with Uvicorn server.',
+        category: 'Deployment',
+        subtitle: 'Async server, worker processes, reloading',
+        signature: 'uvicorn app:app  |  uvicorn -w 4 -h 0.0.0.0 -p 8000',
+        descLong: 'Uvicorn is an ASGI HTTP server for async Python frameworks. It handles async/await routes natively. Configure workers for production, and use `--reload` during development.',
+        code: `# app.py (FastAPI example)
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return {"message": "Hello"}
+
+# Run with Uvicorn:
+# uvicorn app:app
+# uvicorn app:app --reload
+# uvicorn app:app -w 4 -h 0.0.0.0 -p 8000
+# uvicorn app:app --workers 8 --host 0.0.0.0 --port 8000 --timeout-keep-alive 5
+
+# uvicorn_config.py (for production)
+import multiprocessing
+host = "0.0.0.0"
+port = 8000
+workers = multiprocessing.cpu_count() * 2 + 1
+timeout_keep_alive = 5
+access_log = True
+log_level = "info"
+
+# Run with config:
+# uvicorn app:app --config uvicorn_config.py`,
+        tips: [
+          'Use `--reload` only in development; it watches for file changes.',
+          'Set `workers` for production; defaults to 1.',
+          '`--timeout-keep-alive` controls idle connection timeout.',
+        ],
+        mistake: 'Using `--reload` in production (performance impact).',
+        shorthand: {
+          verbose: `# Development
+uvicorn app:app --reload
+
+# Production
+uvicorn app:app --workers 4 --host 0.0.0.0 --port 8000`,
+          concise: `uvicorn app:app --reload  # dev
+uvicorn app:app -w 4 -h 0.0.0.0 -p 8000  # prod`
+        }
+      },
+      {
+        id: 'httpx-client',
+        fn: 'httpx.AsyncClient',
+        desc: 'Make asynchronous HTTP requests with httpx for API calls in async apps.',
+        category: 'Deployment',
+        subtitle: 'Async HTTP client, request/response, streaming',
+        signature: 'async with httpx.AsyncClient() as client:  |  await client.get(url)  |  await client.post()',
+        descLong: 'httpx is a modern HTTP client with both sync and async APIs. Use `AsyncClient` in async contexts for non-blocking I/O. It supports all HTTP methods, timeouts, authentication, and streaming.',
+        code: `import httpx
+import asyncio
+
+async def fetch_data():
+    async with httpx.AsyncClient() as client:
+        response = await client.get("https://api.example.com/data")
+        data = response.json()
+        return data
+
+async def post_data():
+    async with httpx.AsyncClient() as client:
+        payload = {"key": "value"}
+        response = await client.post(
+            "https://api.example.com/data",
+            json=payload,
+            timeout=10.0
+        )
+        return response.status_code
+
+async def fetch_multiple():
+    async with httpx.AsyncClient() as client:
+        urls = ["https://api.example.com/1", "https://api.example.com/2"]
+        tasks = [client.get(url) for url in urls]
+        responses = await asyncio.gather(*tasks)
+        return [r.json() for r in responses]
+
+async def stream_response():
+    async with httpx.AsyncClient() as client:
+        async with client.stream("GET", "https://example.com/large-file") as response:
+            async for chunk in response.aiter_bytes():
+                print(f"Received {len(chunk)} bytes")
+
+# In FastAPI
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/fetch")
+async def fetch_endpoint():
+    async with httpx.AsyncClient() as client:
+        response = await client.get("https://api.example.com/data")
+        return response.json()`,
+        tips: [
+          'Always use `async with` to ensure connections are closed.',
+          'Set `timeout=` to prevent hanging on slow APIs.',
+          'Reuse `AsyncClient` connections within the same context for efficiency.',
+        ],
+        mistake: 'Creating a new AsyncClient for each request (inefficient).',
+        shorthand: {
+          verbose: `async def get_data(url: str):
+    client = httpx.AsyncClient()
+    try:
+        response = await client.get(url)
+        return response.json()
+    finally:
+        await client.aclose()`,
+          concise: `async def get_data(url: str):
+    async with httpx.AsyncClient() as client:
+        return (await client.get(url)).json()`
+        }
+      },
+    ],
+  },
+];
+export default { meta, sections }

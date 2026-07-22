@@ -1,0 +1,910 @@
+/**
+ * data/python/apis.js
+ * APIs & Frameworks. One subject per entry.
+ */
+
+export const meta = {
+  title: 'APIs & Frameworks',
+  domain: 'python',
+  sheet: 'apis',
+  icon: '🌐',
+}
+
+export const sections = [
+{
+    id: 'fastapi',
+    title: 'FastAPI',
+    entries: [
+      {
+        id: 'fastapi-routes',
+        fn: 'FastAPI routes',
+        desc: 'Define HTTP endpoints with automatic validation and OpenAPI docs.',
+        category: 'FastAPI',
+        subtitle: 'Path params, query params, request body — all validated via type hints',
+        signature: '@app.get("/items/{id}") async def fn(id: int, q: str = None):',
+        descLong: 'FastAPI uses Python type hints for automatic request validation, serialization, and OpenAPI docs generation (available at /docs). Path parameters are in the URL; query parameters are function arguments with defaults; request body comes from Pydantic models.',
+        code: `from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+from typing import Optional
+
+app = FastAPI(title="My API", version="1.0.0")
+
+class UserCreate(BaseModel):
+    name:  str
+    email: str
+    age:   Optional[int] = None
+
+class UserResponse(BaseModel):
+    id:    int
+    name:  str
+    email: str
+    model_config = {"from_attributes": True}  # ORM mode
+
+# GET — path + query params:
+@app.get("/users/{user_id}", response_model=UserResponse)
+async def get_user(
+    user_id: int,          # path parameter
+    verbose: bool = False, # query parameter (?verbose=true)
+    db = Depends(get_db),  # dependency injection
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Not found")
+    return user
+
+# POST — request body:
+@app.post("/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED)
+async def create_user(body: UserCreate, db=Depends(get_db)):
+    user = User(**body.model_dump())
+    db.add(user); db.commit(); db.refresh(user)
+    return user
+
+# Run: uvicorn main:app --reload`,
+        tips: [
+          'FastAPI auto-generates `/docs` (Swagger UI) and `/redoc` — browse the API interactively',
+          '`response_model=` strips private fields before returning — prevents leaking internal data',
+          '`raise HTTPException(status_code=404, detail="msg")` is the standard error response',
+          '`status_code=201` on POST routes — 200 is incorrect for creation',
+        ],
+        mistake: 'Putting all logic in route functions. Move DB queries and business logic to service functions — routes should only handle HTTP concerns (parsing, status codes, HTTPException).',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'fastapi-di',
+        fn: 'FastAPI dependency injection',
+        desc: 'Share logic across routes with Depends() — DB sessions, auth, config.',
+        category: 'FastAPI',
+        subtitle: 'Depends() injects shared resources — composable and testable',
+        signature: 'def route(dep=Depends(get_dep)): ...',
+        descLong: 'FastAPI\'s Depends() system injects dependencies (DB sessions, auth tokens, config) into route functions. Dependencies can depend on other dependencies (composition). Yield dependencies handle setup and teardown.',
+        code: `from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+# DB session dependency — always closed after request:
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db          # request runs here
+    finally:
+        db.close()
+# Auth dependency:
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db         = Depends(get_db),
+    user = verify_token(token, db)
+        raise HTTPException(
+            status_code = status.HTTP_401_UNAUTHORIZED,
+            detail      = "Invalid token",
+            headers     = {"WWW-Authenticate": "Bearer"},
+        )
+# Admin-only dependency (composing dependencies):
+def get_admin(current_user = Depends(get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not admin")
+    return current_user
+# Use in routes:
+@app.get("/users/me")
+async def me(user = Depends(get_current_user)):
+@app.delete("/users/{id}")
+async def delete(id: int,
+    db    = Depends(get_db),
+    admin = Depends(get_admin)):
+    db.query(User).filter(User.id == id).delete()
+    db.commit()
+    return {"deleted": id}`,
+        tips: [
+          '`yield` in a dependency — code before yield is setup, code after is teardown (always runs)',
+          'Dependencies can depend on other dependencies — compose them like building blocks',
+          'Dependencies are cached per request — `get_db()` is called once even if multiple routes use it',
+          'Override dependencies in tests: `app.dependency_overrides[get_db] = lambda: test_db`',
+        ],
+        mistake: 'Creating a DB session at module level instead of using a dependency. Module-level sessions are not scoped to a request — they accumulate connections and cause leaks.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'pydantic-models',
+        fn: 'Pydantic models',
+        desc: 'Define validated, typed data schemas for request and response bodies.',
+        category: 'FastAPI',
+        subtitle: 'BaseModel with Field constraints — validates on instantiation',
+        signature: 'class Model(BaseModel): field: type = Field(..., gt=0)',
+        descLong: 'Pydantic BaseModel validates data at instantiation using type hints and Field constraints. Used in FastAPI for request bodies, response schemas, and settings. model_dump() serializes to dict; model_validate() parses from dict.',
+        code: `from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
+
+class Order(BaseModel):
+    id:       int
+    item:     str           = Field(..., min_length=1)  # required
+    quantity: int           = Field(..., gt=0, le=1000)
+    price:    float         = Field(..., gt=0)
+    discount: float         = Field(0.0, ge=0, le=1.0)
+    created:  datetime      = Field(default_factory=datetime.now)
+    tags:     list[str]     = []
+
+# Instantiate (validates immediately):
+o = Order(id=1, item='Widget', quantity=5, price=9.99)
+
+# Serialize:
+o.model_dump()              # dict
+o.model_dump(exclude={'id'})
+o.model_dump_json()         # JSON string
+
+# Parse from dict:
+Order.model_validate({'id':1,'item':'x','quantity':1,'price':5.0})
+
+# Nested models:
+class Address(BaseModel):
+    street: str
+    city:   str
+
+class Customer(BaseModel):
+    name:    str
+    address: Address        # validates recursively
+    orders:  list[Order] = []
+
+# ORM mode (read from SQLAlchemy objects):
+class UserResponse(BaseModel):
+    id:   int
+    name: str
+    model_config = {"from_attributes": True}`,
+        tips: [
+          '`Field(..., gt=0)` — `...` means required (no default). Use `None` as default for optional fields',
+          '`model_dump(exclude={"password"})` strips sensitive fields before logging or returning',
+          '`from_attributes=True` in `model_config` lets Pydantic read attributes from ORM objects',
+          'Pydantic v2 (current): `model_dump()` not `dict()`, `model_validate()` not `parse_obj()`',
+        ],
+        mistake: 'Using Pydantic v1 syntax in v2: `@validator` → `@field_validator`, `dict()` → `model_dump()`, `parse_obj()` → `model_validate()`. Check version: `pydantic.__version__`.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'pydantic-validators',
+        fn: 'Pydantic validators',
+        desc: 'Add custom validation logic to Pydantic model fields.',
+        category: 'FastAPI',
+        subtitle: '@field_validator for per-field, @model_validator for cross-field',
+        signature: '@field_validator("field") @classmethod def validate(cls, v): ...',
+        descLong: 'Pydantic v2 uses @field_validator for per-field validation and @model_validator for cross-field constraints. Validators receive the value and can raise ValueError to fail validation.',
+        code: `from pydantic import BaseModel, field_validator, model_validator
+class User(BaseModel):
+    email: str
+    age:   int
+    name:  str
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        if '@' not in v:
+            raise ValueError('invalid email address')
+        return v.lower()      # transform as well as validate
+    @field_validator('age')
+    def validate_age(cls, v: int) -> int:
+        if not 0 <= v <= 150:
+            raise ValueError('age must be between 0 and 150')
+        return v
+    @field_validator('name')
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError('name cannot be empty')
+        return v.title()    # normalize case
+# @model_validator — cross-field validation:
+class DateRange(BaseModel):
+    start: datetime
+    end:   datetime
+    @model_validator(mode='after')
+    def check_dates(self) -> 'DateRange':
+        if self.end <= self.start:
+            raise ValueError('end must be after start')
+        return self
+# Validation errors are collected and returned together:
+try:
+    User(email='bad', age=-5, name='')
+except ValidationError as e:
+    print(e.errors())   # list of all field errors`,
+        tips: [
+          'Validators are `@classmethod` in Pydantic v2 — the `cls` argument receives the model class',
+          'Returning a transformed value from a validator is fine — use it to normalize (lowercase, strip, etc.)',
+          '`mode="after"` in `@model_validator` runs after all field validators pass — has access to all fields',
+          'All validation errors are collected and raised together — users see all problems at once',
+        ],
+        mistake: 'Using the v1 `@validator` decorator in Pydantic v2. It still works but is deprecated. Use `@field_validator` with `@classmethod` as the v2 replacement.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'pydantic-settings',
+        fn: 'Pydantic BaseSettings',
+        desc: 'Load typed configuration from environment variables and .env files.',
+        category: 'FastAPI',
+        subtitle: '12-factor app config — reads from env vars automatically',
+        signature: 'class Settings(BaseSettings): db_url: str',
+        descLong: 'BaseSettings (from pydantic-settings) reads configuration from environment variables automatically. Field names map to env var names. Use @lru_cache to create a singleton — settings are loaded once and reused.',
+        code: `from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+class Settings(BaseSettings):
+    # Reads DATABASE_URL from env automatically:
+    database_url: str
+    secret_key:   str
+    debug:        bool  = False
+    port:         int   = 8000
+    cors_origins: list[str] = ["http://localhost:3000"]
+    model_config = {
+        "env_file":          ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive":    False,   # DATABASE_URL or database_url both work
+    }
+# .env file:
+# DATABASE_URL=postgresql://user:pass@localhost/mydb
+# SECRET_KEY=supersecret123
+# DEBUG=false
+# Singleton — load once:
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+settings = get_settings()
+print(settings.database_url)
+# In FastAPI with Depends():
+from fastapi import Depends
+@app.get("/info")
+def info(s: Settings = Depends(get_settings)):
+    return {"debug": s.debug, "port": s.port}`,
+        tips: [
+          'Add `.env` to `.gitignore` immediately — never commit credentials to version control',
+          '`@lru_cache` on `get_settings()` creates a singleton — settings are loaded only once',
+          '`BaseSettings` validates and casts env vars — `PORT="8000"` automatically becomes `int`',
+          'Install separately: `pip install pydantic-settings`',
+        ],
+        mistake: 'Hardcoding credentials in source code. Use env vars — one accidental `git push` and credentials are public forever.',
+        shorthand: {
+          verbose: `from pydantic_settings import BaseSettings
+from functools import lru_cache
+class Settings(BaseSettings):
+# Reads DATABASE_URL from env automatically:`,
+          concise: `return {"debug": s.debug, "port": s.port}`
+        }
+      },
+      {
+        id: 'sqlalchemy-models',
+        fn: 'SQLAlchemy models',
+        desc: 'Define database tables as Python classes with the ORM.',
+        category: 'FastAPI',
+        subtitle: 'DeclarativeBase + mapped_column — SQLAlchemy 2.0 style',
+        signature: 'class User(Base): id: Mapped[int] = mapped_column(primary_key=True)',
+        descLong: 'SQLAlchemy ORM maps Python classes to database tables. The modern (2.0+) API uses DeclarativeBase and Mapped[type] annotations. Relationships link models and enable lazy/eager loading of related objects.',
+        code: `from sqlalchemy import create_engine, String, ForeignKey
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
+    relationship, sessionmaker)
+
+engine     = create_engine("postgresql://user:pass@host/db")
+SessionLocal = sessionmaker(bind=engine)
+class Base(DeclarativeBase):
+    pass  # Marker class for all ORM models
+class Department(Base):
+    __tablename__ = "departments"
+    id:   Mapped[int]  = mapped_column(primary_key=True)
+    name: Mapped[str]  = mapped_column(String(100), unique=True)
+    employees: Mapped[list["Employee"]] = relationship(back_populates="dept")
+class Employee(Base):
+    __tablename__ = "employees"
+    id:      Mapped[int]            = mapped_column(primary_key=True)
+    name:    Mapped[str]            = mapped_column(String(200))
+    email:   Mapped[str]            = mapped_column(String(200), unique=True)
+    dept_id: Mapped[int | None]     = mapped_column(ForeignKey("departments.id"))
+    dept:    Mapped["Department | None"] = relationship(back_populates="employees")
+# Create all tables:
+Base.metadata.create_all(engine)`,
+        tips: [
+          '`Mapped[int | None]` is a nullable column — `Mapped[int]` is NOT NULL',
+          '`relationship(back_populates="...")` creates the bidirectional link between models',
+          '`relationship(lazy="selectin")` avoids N+1 queries — loads related objects in one extra query',
+          'Always call `Base.metadata.create_all(engine)` to create tables before using the app',
+        ],
+        mistake: 'Using `relationship(lazy="select")` (the default) with nested loops. For every parent object, SQLAlchemy executes a separate query for children — N+1 problem. Use `lazy="selectin"` or `eager` loading.',
+        shorthand: {
+          verbose: `from sqlalchemy import create_engine, String, ForeignKey
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
+relationship, sessionmaker)
+engine     = create_engine("postgresql://user:pass@host/db")`,
+          concise: `Base.metadata.create_all(engine)`
+        }
+      },
+      {
+        id: 'sqlalchemy-session',
+        fn: 'SQLAlchemy session',
+        desc: 'Perform CRUD operations using a database session.',
+        subtitle: 'Session manages transactions — always use as context manager',
+        signature: 'with Session(engine) as db: db.add(obj); db.commit()',
+        descLong: 'The Session is the unit of work — it tracks objects and flushes changes to the database on commit. Always use a context manager to guarantee cleanup. Refresh after commit to reload server-generated values like auto-increment IDs.',
+        code: `from sqlalchemy.orm import Session
+from sqlalchemy import select
+with Session(engine) as db:
+    # Create:
+    emp = Employee(name="Alice", email="alice@co.com")
+    db.add(emp)
+    db.commit()
+    db.refresh(emp)          # reload id, created_at, etc.
+    print(emp.id)            # now populated
+    # Read by PK:
+    emp = db.get(Employee, 1)
+    # Read with query:
+    emps = db.scalars(select(Employee)).all()
+    alice = db.scalars(
+        select(Employee).where(Employee.name == "Alice")
+    ).first()
+
+    # Filter + join + order:
+    results = db.scalars(
+        select(Employee)
+        .join(Department)
+        .where(Department.name == "Engineering")
+        .where(Employee.salary > 80_000)
+        .order_by(Employee.salary.desc())
+        .limit(10)
+    ).all()
+    # Update:
+    emp.salary = 95_000
+    # Delete:
+    db.delete(emp)
+    db.commit()`,
+        tips: [
+          '`db.refresh(obj)` after commit reloads server-generated fields — without it, `obj.id` may be None',
+          '`db.scalars(select(Model))` is the SQLAlchemy 2.0 query style — cleaner than legacy `db.query(Model)`',
+          'The `with Session(engine) as db:` context manager automatically rolls back on exception',
+          '`db.get(Model, pk)` is faster than a full query for primary key lookups',
+        ],
+        mistake: 'Not calling `db.refresh(obj)` after `db.commit()`. The in-memory object\'s server-generated fields (id, timestamps) are stale until refreshed.',
+        shorthand: {
+          verbose: `from sqlalchemy.orm import Session
+from sqlalchemy import select
+with Session(engine) as db:
+# Create:`,
+          concise: `db.commit()`
+        }
+      },
+    ],
+  },
+  {
+    id: 'async',
+    title: 'Async & Concurrency',
+    entries: [
+      {
+        id: 'async-def',
+        fn: 'async def',
+        desc: 'Define an asynchronous coroutine function.',
+        category: 'Async',
+        subtitle: 'Calling async def returns a coroutine — it does not execute until awaited',
+        signature: 'async def fn() -> type: ...',
+        descLong: 'async def creates a coroutine function. Calling it returns a coroutine object — the body does not execute until the coroutine is awaited or scheduled. Use asyncio.run() to enter the event loop from synchronous code.',
+        code: `import asyncio
+# Define:
+async def fetch(url: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, timeout=10)
+        r.raise_for_status()
+        return r.json()
+
+# Call from sync code — enters event loop:
+result = asyncio.run(fetch("https://api.example.com"))
+# async context manager:
+async def read_file(path: str) -> str:
+    async with aiofiles.open(path) as f:
+        return await f.read()
+# async generator:
+async def paginate(url: str):
+    page = 1
+    while True:
+        data = await fetch(f"{url}?page={page}")
+        if not data:
+            break
+        for item in data:
+            yield item
+        page += 1
+async for item in paginate("https://api.example.com/items"):
+    process(item)`,
+        tips: [
+          '`async def` creates a coroutine function — calling it returns a coroutine object, not the result',
+          'Use `asyncio.run()` once at the top level to enter the event loop from sync code',
+          'Never call `asyncio.run()` inside an already-running event loop — use `await` directly instead',
+          'async/await only helps I/O-bound work — CPU-bound tasks still block the event loop',
+        ],
+        mistake: 'Calling `asyncio.run()` inside an already-running event loop (Jupyter, FastAPI). Use `await coroutine` directly in those contexts, or `asyncio.create_task()` to schedule it.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'await',
+        fn: 'await',
+        desc: 'Suspend a coroutine until an awaitable completes.',
+        category: 'Async',
+        subtitle: 'Yields control to the event loop — resumes when the result is ready',
+        signature: 'result = await coroutine | await asyncio.sleep(1)',
+        descLong: 'await suspends the current coroutine and yields control to the event loop until the awaitable completes. It can only be used inside an async def function. Awaitables include coroutines, Tasks, and Futures.',
+        code: `import asyncio
+
+async def main():
+    # await a coroutine:
+    result = await fetch("https://api.example.com")
+    # non-blocking sleep:
+    await asyncio.sleep(1)
+    # schedule + await a Task:
+    task = asyncio.create_task(fetch("https://api.example.com"))
+    result = await task
+    # sequential — one at a time:
+    r1 = await fetch("https://api.example.com/a")
+    r2 = await fetch("https://api.example.com/b")
+    # concurrent — both at once:
+    r1, r2 = await asyncio.gather(
+        fetch("https://api.example.com/a"),
+        fetch("https://api.example.com/b"),
+    )`,
+        tips: [
+          '`await` can only be used inside `async def` — using it in a regular function is a SyntaxError',
+          'Two sequential `await` calls run one after the other — use `asyncio.gather()` for concurrency',
+          '`asyncio.create_task()` schedules a coroutine to run concurrently without awaiting immediately',
+          '`await asyncio.sleep(0)` yields control to the event loop without sleeping — useful in tight loops',
+        ],
+        mistake: 'Writing two sequential awaits expecting concurrency: `r1 = await fn1(); r2 = await fn2()`. This is sequential. Use `r1, r2 = await asyncio.gather(fn1(), fn2())`.',
+        shorthand: {
+          verbose: `import asyncio
+async def main():
+# await a coroutine:
+result = await fetch("https://api.example.com")`,
+          concise: `)`
+        }
+      },
+      {
+        id: 'asyncio-gather',
+        fn: 'asyncio.gather()',
+        desc: 'Run multiple coroutines concurrently and collect all results.',
+        subtitle: 'Concurrent I/O — all coroutines run simultaneously',
+        signature: 'results = await asyncio.gather(*coroutines, return_exceptions=False)',
+        descLong: 'asyncio.gather() runs all given coroutines concurrently and returns their results in order. return_exceptions=True prevents one failure from cancelling everything — exceptions are returned as values instead of being raised.',
+        code: `import asyncio, httpx
+async def fetch(client, url):
+    r = await client.get(url, timeout=10)
+    r.raise_for_status()
+    return r.json()
+# Concurrent fetches — all run simultaneously:
+async def fetch_all(urls: list[str]) -> list[dict]:
+    async with httpx.AsyncClient() as client:
+        tasks = [fetch(client, url) for url in urls]
+        return await asyncio.gather(*tasks)
+results = asyncio.run(fetch_all(urls))  # all at once!
+# return_exceptions=True — handle partial failures:
+async def safe_fetch_all(urls):
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+    return [
+        r if not isinstance(r, Exception) else None
+        for r in results
+    ]
+
+# Rate limiting — semaphore:
+sem = asyncio.Semaphore(10)  # max 10 concurrent
+async def limited_fetch(client, url):
+    async with sem:
+        return await fetch(client, url)
+# TaskGroup (Python 3.11+) — cancels all on first failure:
+async def main():
+    async with asyncio.TaskGroup() as tg:
+        t1 = tg.create_task(fetch(client, url1))
+        t2 = tg.create_task(fetch(client, url2))
+    return t1.result(), t2.result()`,
+        tips: [
+          '`return_exceptions=True` makes gather never raise — exceptions come back as return values',
+          '`asyncio.Semaphore(n)` rate-limits concurrent requests — prevents overwhelming an API',
+          '`TaskGroup` (3.11+) cancels all sibling tasks on first failure — structured concurrency',
+          'Create all tasks first as a list, then pass to gather — do not `await` each one sequentially',
+        ],
+        mistake: '`await asyncio.gather(coro1, coro2)` does NOT run them in parallel if you forgot the `*` unpacking. `await asyncio.gather(*[coro1, coro2])` or list the coroutines directly: `await asyncio.gather(coro1, coro2)`.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'asyncio-queue',
+        fn: 'asyncio.Queue()',
+        desc: 'Thread-safe async FIFO queue for producer/consumer patterns.',
+        category: 'Async',
+        subtitle: 'Decouple producers from consumers in async workflows',
+        signature: 'q = asyncio.Queue(); await q.put(item); item = await q.get()',
+        descLong: 'asyncio.Queue provides an async-native FIFO queue for coordinating producers and consumers. put() adds items; get() waits for an item. task_done() signals a task is complete; join() waits for all items to be processed.',
+        code: `import asyncio
+async def producer(q: asyncio.Queue, items: list):
+    for item in items:
+        await q.put(item)
+        print(f"Produced: {item}")
+    # Signal consumers to stop:
+    for _ in range(num_consumers):
+        await q.put(None)   # sentinel value
+async def consumer(q: asyncio.Queue, name: str):
+    while True:
+        item = await q.get()
+        if item is None:     # sentinel — exit
+            q.task_done()
+            break
+        await process(item)
+        q.task_done()
+        print(f"{name} processed: {item}")
+    q = asyncio.Queue(maxsize=10)  # backpressure
+    num_consumers = 3
+
+    tasks = [
+        asyncio.create_task(producer(q, range(20))),
+        *[asyncio.create_task(consumer(q, f"worker-{i}"))
+          for i in range(num_consumers)],
+    ]
+    await asyncio.gather(*tasks)
+asyncio.run(main())`,
+        tips: [
+          '`maxsize=n` creates backpressure — producer will wait if the queue is full',
+          '`task_done()` after each `get()` is needed to make `q.join()` work correctly',
+          'Use `None` or a sentinel object to signal consumers to stop',
+          'For CPU-bound work, use `multiprocessing.Queue` — asyncio.Queue is single-threaded',
+        ],
+        mistake: 'Forgetting `task_done()` when using `q.join()`. Without it, `join()` never returns — it waits for all `task_done()` calls to match the number of `put()` calls.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'thread-pool',
+        fn: 'ThreadPoolExecutor',
+        desc: 'Run I/O-bound blocking functions concurrently in a thread pool.',
+        category: 'Async',
+        subtitle: 'Parallel I/O — use for blocking libraries (requests, psycopg2)',
+        signature: 'with ThreadPoolExecutor(max_workers=10) as ex: futures = ex.map(fn, items)',
+        descLong: 'ThreadPoolExecutor runs functions in worker threads — useful for I/O-bound blocking code (file I/O, `requests`, database calls). Threads share memory but are limited by the GIL for CPU-bound work.',
+        code: `from concurrent.futures import ThreadPoolExecutor, as_completed
+import requests
+def fetch_url(url: str) -> dict:
+    return requests.get(url, timeout=10).json()
+# map — simple, ordered results:
+with ThreadPoolExecutor(max_workers=10) as ex:
+    results = list(ex.map(fetch_url, urls))
+# submit — finer control, unordered (fastest first):
+    futures = {ex.submit(fetch_url, url): url for url in urls}
+    for future in as_completed(futures):
+        url = futures[future]
+        try:
+            data = future.result()
+            print(f"{url}: ok")
+        except Exception as e:
+            print(f"{url}: failed — {e}")
+
+# Run blocking code inside async event loop:
+import asyncio
+async def async_fetch(url):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, fetch_url, url)`,
+        tips: [
+          '`as_completed()` yields futures as they finish — best UX for large batches',
+          '`loop.run_in_executor(None, fn, *args)` runs blocking code in a thread from async context',
+          'The GIL prevents true parallelism in threads for CPU-bound code — use ProcessPoolExecutor instead',
+          '`max_workers` for I/O-bound: 10-50; for CPU-bound with processes: `os.cpu_count()`',
+        ],
+        mistake: 'Using ThreadPoolExecutor for CPU-bound work like number crunching. The GIL means threads do not run in parallel for CPU work. Use ProcessPoolExecutor instead.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'process-pool',
+        fn: 'ProcessPoolExecutor',
+        desc: 'Run CPU-bound functions in parallel across multiple processes.',
+        subtitle: 'True parallelism for CPU-bound work — bypasses the GIL',
+        signature: 'with ProcessPoolExecutor(max_workers=4) as ex: results = ex.map(fn, items)',
+        descLong: 'ProcessPoolExecutor runs functions in separate processes — each has its own Python interpreter and memory. This bypasses the GIL, enabling true parallelism for CPU-bound work. Objects must be picklable to be passed between processes.',
+        code: `from concurrent.futures import ProcessPoolExecutor, as_completed
+import os
+def heavy_compute(n: int) -> int:
+    # CPU-bound: sum of squares
+    return sum(i * i for i in range(n))
+# map — simple parallel execution:
+with ProcessPoolExecutor(max_workers=os.cpu_count()) as ex:
+    results = list(ex.map(heavy_compute, [10**6] * 8))
+# submit — handle results as they complete:
+with ProcessPoolExecutor(max_workers=4) as ex:
+    futures = {ex.submit(heavy_compute, n): n for n in range(1, 9)}
+        n = futures[future]
+        print(f"n={n}: {future.result()}")
+# Chunk large iterables for efficiency:
+data = list(range(1_000_000))
+chunk_size = len(data) // os.cpu_count()
+chunks = [data[i:i+chunk_size] for i in range(0,len(data),chunk_size)]
+def process_chunk(chunk):
+    return sum(x**2 for x in chunk)
+with ProcessPoolExecutor() as ex:
+    partial_results = list(ex.map(process_chunk, chunks))
+total = sum(partial_results)`,
+        tips: [
+          'Arguments and return values must be picklable — lambdas and closures often are not',
+          '`max_workers=os.cpu_count()` uses all available cores — typically optimal for CPU-bound work',
+          'Process startup has overhead — only worth it for tasks that take > ~100ms each',
+          '`multiprocessing.Pool` and `ProcessPoolExecutor` are equivalent — `ProcessPoolExecutor` is the modern API',
+        ],
+        mistake: 'Passing lambda functions to ProcessPoolExecutor. Lambdas are not picklable. Define named functions at module level instead.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+    ],
+  },
+  {
+    id: 'http-stdlib',
+    title: 'HTTP & Standard Library',
+    entries: [
+      {
+        id: 'logging',
+        fn: 'logging',
+        desc: 'Production-grade application logging with levels and handlers.',
+        category: 'Standard Library',
+        subtitle: 'Never use print() in production — use logging.getLogger(__name__)',
+        signature: 'log = logging.getLogger(__name__) | log.info("msg %s", val)',
+        descLong: 'The logging module provides leveled, configurable logging. Always get a named logger per module with `getLogger(__name__)`. Configure at the entry point, not in library code.',
+        code: `import logging, sys
+
+# Configure at app entry point:
+logging.basicConfig(
+    level   = logging.INFO,
+    format  = '%(asctime)s %(levelname)-8s %(name)s %(message)s',
+    stream  = sys.stdout,
+)
+# Get a named logger per module:
+log = logging.getLogger(__name__)  # use module name!
+# Levels:
+log.debug("Detailed debug info — only in dev")
+log.info("User logged in: %s", user_id)   # lazy formatting
+log.warning("Rate limit approaching: %d/min", rate)
+log.error("DB connection failed")
+log.critical("Disk full!")
+log.exception("Unhandled error")    # logs traceback automatically
+# File + console handler:
+logger = logging.getLogger('myapp')
+fh = logging.FileHandler('app.log')
+ch = logging.StreamHandler()
+fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+fh.setFormatter(fmt); ch.setFormatter(fmt)
+logger.addHandler(fh); logger.addHandler(ch)
+# Context with LoggerAdapter:
+adapter = logging.LoggerAdapter(log, {'request_id': req_id})
+adapter.info("Processing item")  # request_id in all messages`,
+        tips: [
+          'Use `log.info("val: %s", value)` — lazy formatting, string only built if level is active',
+          '`log.exception("msg")` inside an except block automatically includes the full traceback',
+          'Libraries should only add a NullHandler — never call basicConfig()',
+          'Never call `logging.getLogger()` (root logger) in libraries — use `getLogger(__name__)`',
+        ],
+        mistake: 'Using `print()` for logging in production. No levels, no timestamps, no file routing, no way to silence it. Use `logging.getLogger(__name__)` instead.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'os-environ',
+        fn: 'os.environ',
+        desc: 'Read configuration and secrets from environment variables.',
+        category: 'Standard Library',
+        subtitle: 'os.getenv() for optional, os.environ[] for required',
+        signature: 'os.getenv("KEY", "default") | os.environ["KEY"]',
+        descLong: 'Environment variables are the standard place for configuration and secrets in production (12-factor app pattern). os.environ["KEY"] raises KeyError if missing (use for required vars). os.getenv("KEY", default) returns the default if absent.',
+        code: `import os
+from dotenv import load_dotenv
+
+# Load .env file for local development:
+load_dotenv()   # reads .env in current directory
+# .env file:
+# DATABASE_URL=postgresql://user:pass@localhost/mydb
+# SECRET_KEY=supersecret123
+# DEBUG=true
+# PORT=8000
+# Required vars — raises if missing:
+db_url = os.environ["DATABASE_URL"]
+secret = os.environ["SECRET_KEY"]
+# Optional vars with default:
+port    = int(os.getenv("PORT", "8000"))
+debug   = os.getenv("DEBUG", "false").lower() == "true"
+env     = os.getenv("ENVIRONMENT", "production")
+# List all env vars:
+for key, val in os.environ.items():
+    print(f"{key}={val}")
+# Check presence:
+if "SECRET_KEY" not in os.environ:
+    raise RuntimeError("SECRET_KEY env var is not set")
+# Set in tests:
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"`,
+        tips: [
+          'Add `.env` to `.gitignore` immediately — never commit credentials',
+          '`os.environ["KEY"]` raises `KeyError` on missing — use for required vars so the app fails loudly',
+          '`os.getenv("KEY")` returns `None` on missing — check explicitly or provide a default',
+          'For typed config, use `Pydantic BaseSettings` instead of raw `os.getenv` calls',
+        ],
+        mistake: 'Hardcoding credentials: `db = connect("password123")`. Use env vars — one accidental commit and credentials are compromised.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+
+    
+      {
+        id: 'requests',
+        fn: 'requests',
+        desc: 'Synchronous HTTP client — the standard library for REST API calls.',
+        category: 'HTTP',
+        subtitle: 'GET, POST, auth, sessions, error handling — always set timeout=',
+        signature: 'requests.get(url, params={}, headers={}, timeout=10)',
+        descLong: 'requests is the standard sync HTTP library. Always set timeout= — without it, a hung server blocks your program forever. Use Session to reuse TCP connections across multiple requests to the same host.',
+        code: `import requests
+# GET:
+r = requests.get('https://api.example.com/users',
+    params  = {'page': 1, 'limit': 50},
+    headers = {'Authorization': 'Bearer token123'},
+    timeout = 10,          # always set timeout!
+)
+r.raise_for_status()       # raises HTTPError on 4xx/5xx
+data = r.json()            # parse JSON body
+# POST:
+r = requests.post('https://api.example.com/users',
+    json    = {'name': 'Alice', 'email': 'alice@example.com'},
+    timeout = 10,
+# Session — reuse connection + headers:
+with requests.Session() as s:
+    s.headers.update({'Authorization': 'Bearer token123'})
+    r1 = s.get('https://api.example.com/users')
+    r2 = s.get('https://api.example.com/orders')
+# Handle errors properly:
+try:
+    r = requests.get(url, timeout=10)
+    r.raise_for_status()
+    return r.json()
+except requests.exceptions.Timeout:
+    raise RuntimeError("Request timed out")
+except requests.exceptions.HTTPError as e:
+    raise RuntimeError(f"HTTP {e.response.status_code}: {e}")
+except requests.exceptions.ConnectionError:
+    raise RuntimeError("Connection failed")`,
+        tips: [
+          'Always set `timeout=` — without it, requests can hang forever',
+          '`r.raise_for_status()` is one line to raise on any 4xx/5xx — always call before `r.json()`',
+          '`Session` reuses TCP connections — ~3x faster for multiple requests to the same host',
+          '`requests.get(..., verify=False)` disables SSL verification — never in production',
+        ],
+        mistake: 'Not setting `timeout=`. A single hung server request will block your entire program indefinitely. Always pass `timeout=10` (or higher for slow APIs).',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'httpx',
+        fn: 'httpx',
+        desc: 'Async-capable HTTP client — drop-in replacement for requests.',
+        category: 'HTTP',
+        subtitle: 'Same API as requests but supports async/await',
+        signature: 'async with httpx.AsyncClient() as client: r = await client.get(url)',
+        descLong: 'httpx has the same API as requests but also supports async with AsyncClient. Use httpx when you need concurrent HTTP requests — with asyncio.gather() you can fetch hundreds of URLs concurrently.',
+        code: `import httpx
+import asyncio
+
+# Sync (same as requests):
+r = httpx.get('https://api.example.com/data', timeout=10)
+r.raise_for_status()
+data = r.json()
+# Async — concurrent requests:
+async def fetch(url: str) -> dict:
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(url)
+        r.raise_for_status()
+        return r.json()
+async def fetch_all(urls: list[str]) -> list[dict]:
+        tasks = [client.get(url) for url in urls]
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        return [
+            r.json() if not isinstance(r, Exception) else None
+            for r in responses
+        ]
+# Run from sync context:
+results = asyncio.run(fetch_all(urls))
+# Auth, headers, retries:
+async with httpx.AsyncClient(
+    base_url = 'https://api.example.com',
+    headers  = {'Authorization': 'Bearer token'},
+    timeout  = httpx.Timeout(connect=5, read=30),
+) as client:
+    r = await client.post('/users', json={'name': 'Alice'})`,
+        tips: [
+          '`asyncio.gather(*tasks)` fetches all URLs concurrently — much faster than sequential requests',
+          '`return_exceptions=True` in gather prevents one failure from crashing everything else',
+          '`base_url=` in AsyncClient — set it once and use relative paths in each call',
+          '`httpx.Timeout(connect=5, read=30)` sets separate connect and read timeouts',
+        ],
+        mistake: 'Creating a new `AsyncClient` for every request in a loop — this defeats connection pooling. Create one client and reuse it for all requests in the same session.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      }
+],
+  },
+]
+
+export default { meta, sections }

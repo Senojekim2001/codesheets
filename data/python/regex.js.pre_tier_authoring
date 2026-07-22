@@ -1,0 +1,857 @@
+/**
+ * data/python/regex.js
+ * Regular Expressions. One subject per entry.
+ */
+
+export const meta = {
+  id: 'python-regex',
+  label: 'Regular Expressions',
+  icon: '🔍',
+  description: 'Python regex: re.match, re.search, re.findall, re.sub, groups, flags, and practical patterns.',
+}
+
+export const sections = [
+  {
+    id: 'regex-basics',
+    title: 'Basics & Matching',
+    entries: [
+      {
+        id: 're-match',
+        fn: 're.match() vs re.search() vs re.fullmatch()',
+        desc: 'Choose the right matching function based on where you need to find the pattern.',
+        category: 'Regex',
+        subtitle: 'Match at start vs anywhere vs entire string',
+        signature: 're.match(pattern, string)  |  re.search(pattern, string)  |  re.fullmatch(pattern, string)',
+        descLong: 're.match() checks only the beginning of the string. re.search() scans the entire string and returns the first match. re.fullmatch() requires the entire string to match the pattern. All three return a Match object (truthy) on success, None on failure. Use match() when you expect a prefix, search() for general "find this anywhere" queries, fullmatch() to validate entire strings.',
+        code: `import re
+
+text = "The quick brown fox"
+
+# match() — only checks the start
+m = re.match(r"The", text)
+print(m)  # <re.Match object; span=(0, 3), match='The'>
+
+m = re.match(r"quick", text)
+print(m)  # None — "quick" is not at the start
+
+# search() — finds anywhere in string
+m = re.search(r"quick", text)
+print(m)  # <re.Match object; span=(4, 9), match='quick'>
+
+# fullmatch() — entire string must match
+m = re.fullmatch(r"The \\w+ \\w+ \\w+", text)
+print(m)  # <re.Match object; span=(0, 19), match='The quick brown fox'>
+
+# Practical: validate email format
+email = "user@example.com"
+if re.fullmatch(r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}", email):
+    print("Valid email")
+
+# Extract first URL from text
+if m := re.search(r"https?://\\S+", "Visit https://example.com for more"):
+    print(m.group())  # https://example.com`,
+        tips: [
+          'match() is fastest for patterns expected at the start (e.g., file headers, config keys).',
+          'search() is the workhorse for finding patterns anywhere — use this when unsure.',
+          'fullmatch() is ideal for validation — does this entire input satisfy the pattern?',
+          'All three return a Match object with .group(), .start(), .end() methods if successful.',
+        ],
+        mistake: 'Using match() when you mean search() — match() only checks the start of the string. This is a common source of "pattern not found" bugs when the pattern isn\'t at the beginning.',
+        shorthand: {
+          verbose: `import re
+text = "Contact us at help@example.com"
+found = False
+for word in text.split():
+    if word.startswith("help"):
+        found = True
+        break
+if found:
+    print("Found help email")`,
+          concise: `import re
+if re.search(r"help\\S+@\\S+", text):
+    print("Found help email")`
+        },
+      },
+      {
+        id: 're-findall',
+        fn: 're.findall() and re.finditer()',
+        desc: 'Find all non-overlapping occurrences of a pattern.',
+        category: 'Regex',
+        subtitle: 'findall returns list, finditer returns iterator',
+        signature: 're.findall(pattern, string)  |  re.finditer(pattern, string)',
+        descLong: 're.findall() returns a list of all non-overlapping matches (strings or tuples if groups). re.finditer() returns an iterator of Match objects — memory-efficient for large strings. Use findall() for small result sets or when you need quick list access. Use finditer() when processing large volumes or need Match metadata (position, groups, etc.). Both are case-sensitive by default; use re.IGNORECASE flag to ignore case.',
+        code: `import re
+
+text = "Emails: alice@example.com, bob@example.org, charlie@test.co.uk"
+
+# findall() returns list of strings
+emails = re.findall(r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}", text)
+print(emails)
+# ['alice@example.com', 'bob@example.org', 'charlie@test.co.uk']
+
+# finditer() returns Match objects with position info
+for match in re.finditer(r"\\w+@\\w+", text):
+    print(f"Found {match.group()} at position {match.start()}-{match.end()}")
+# Found alice@example at position 8-23
+# Found bob@example at position 25-37
+# Found charlie@test at position 39-53
+
+# Extract pairs with groups
+text = "Alice:30, Bob:25, Charlie:35"
+pairs = re.findall(r"(\\w+):(\\d+)", text)
+print(pairs)  # [('Alice', '30'), ('Bob', '25'), ('Charlie', '35')]
+
+# Count pattern occurrences
+text = "aaa bbb aaa ccc aaa"
+count = len(re.findall(r"aaa", text))
+print(count)  # 3
+
+# Extract all numbers
+numbers = re.findall(r"\\d+", "There are 42 apples and 17 oranges")
+print(numbers)  # ['42', '17']`,
+        tips: [
+          'findall() with groups returns tuples — unpack them: for name, age in re.findall(r"(\\w+):(\\d+)", text):',
+          'finditer() is memory-efficient for large text — process matches one at a time instead of building a huge list.',
+          'Use \\w (word characters), \\d (digits), \\s (whitespace) for cleaner patterns.',
+          'Non-overlapping means "aaa" in "aaaa" finds only one match (position 0-3), not two.',
+        ],
+        mistake: 'Assuming findall() with groups returns match objects — it actually returns just the group values. Use finditer() if you need match positions.',
+        shorthand: {
+          verbose: `import re
+text = "apple, banana, cherry, date"
+words = []
+for word in text.split(", "):
+    words.append(word.strip())`,
+          concise: `import re
+words = re.findall(r"\\w+", text)`
+        },
+      },
+      {
+        id: 're-sub',
+        fn: 're.sub() and re.subn()',
+        desc: 'Replace patterns with strings or callable functions.',
+        category: 'Regex',
+        subtitle: 'Substitution with fixed strings, backreferences, or dynamic replacements',
+        signature: 're.sub(pattern, repl, string, count=0, flags=0)  |  re.subn(...)',
+        descLong: 're.sub() replaces all matches (or first count matches) and returns the new string. re.subn() is identical but returns a tuple (new_string, num_replacements). The replacement can be a literal string (with backreferences \\1, \\g<name>), a function, or a lambda. Functions receive a Match object and must return a string. Use sub() for simple replacements; use a callable for complex logic.',
+        code: `import re
+
+text = "Hello World, Hello Python"
+
+# Simple string replacement
+result = re.sub(r"Hello", "Hi", text)
+print(result)  # Hi World, Hi Python
+
+# With count limit (replace first 2 only)
+result = re.sub(r"Hello", "Hi", text, count=2)
+print(result)  # Hi World, Hi Python
+
+# Using backreferences — swap first and last words in sentence
+text = "Alice jumped over the fence"
+result = re.sub(r"(\\w+)\\s+(.*?)\\s+(\\w+)$", r"\\3 \\2 \\1", text)
+print(result)  # fence ... jumped Alice
+
+# Callable replacement — uppercase all matches
+def uppercase_match(match):
+    return match.group(0).upper()
+
+result = re.sub(r"hello|world", uppercase_match, "hello world hello")
+print(result)  # HELLO WORLD HELLO
+
+# Lambda replacement — add exclamation to capitalized words
+result = re.sub(r"\\b([A-Z]\\w+)\\b", lambda m: m.group(1) + "!", text)
+print(result)  # Alice! jumped over the Fence!
+
+# subn() returns tuple (new_string, count)
+result, count = re.subn(r"\\b\\d+\\b", "[NUM]", "I have 2 cats and 5 dogs")
+print(result)  # I have [NUM] cats and [NUM] dogs
+print(count)   # 2
+
+# Named group replacement
+text = "Name: Alice, Age: 30"
+result = re.sub(r"Name: (?P<name>\\w+), Age: (?P<age>\\d+)",
+                r"Person is \\g<name> (\\g<age> years old)", text)
+print(result)  # Person is Alice (30 years old)`,
+        tips: [
+          'Use raw strings (r"...") to avoid escaping backslashes — r"\\d" is cleaner than "\\\\d".',
+          'Backreferences: \\1, \\2... for positional groups; \\g<name> for named groups.',
+          'Callable replacement: def repl(m): return ... — you get the full Match object with position, groups, etc.',
+          're.subn() is useful when you need to know how many replacements were made.',
+        ],
+        mistake: 'Forgetting raw strings — re.sub("\\d", ...) treats \\d as a literal backslash-d, not digit. Always use r"\\d".',
+        shorthand: {
+          verbose: `import re
+text = text.replace("colour", "color")
+text = text.replace("flavour", "flavor")
+text = text.replace("neighbour", "neighbor")`,
+          concise: `text = re.sub(r"(\\w+)ou(r)", r"\\1o\\2", text)`
+        },
+      },
+      {
+        id: 're-split',
+        fn: 're.split()',
+        desc: 'Split a string using a regex pattern as the delimiter.',
+        category: 'Regex',
+        subtitle: 'Flexible string splitting with pattern-based separators',
+        signature: 're.split(pattern, string, maxsplit=0, flags=0)',
+        descLong: 're.split() works like str.split() but accepts regex patterns instead of fixed strings. Captures groups are included in the result. maxsplit limits the number of splits. Useful for splitting on multiple delimiters, whitespace variations, or complex boundaries. Compare: str.split(", ") splits on exactly ", "; re.split(r",\\s*") splits on comma followed by any whitespace.',
+        code: `import re
+
+# Split on multiple delimiters
+text = "apple, banana; orange: grape"
+result = re.split(r"[,;:]", text)
+print(result)  # ['apple', ' banana', ' orange', ' grape']
+
+# Split on variable whitespace
+text = "one  two   three    four"
+result = re.split(r"\\s+", text)
+print(result)  # ['one', 'two', 'three', 'four']
+
+# Split and keep delimiters (using capture groups)
+text = "Hello123World456Python"
+result = re.split(r"(\\d+)", text)
+print(result)  # ['Hello', '123', 'World', '456', 'Python']
+
+# Limit splits with maxsplit
+text = "a:b:c:d:e"
+result = re.split(r":", text, maxsplit=2)
+print(result)  # ['a', 'b', 'c:d:e']
+
+# Split sentences (period followed by space or newline)
+text = "First sentence. Second sentence.\\nThird sentence."
+sentences = re.split(r"\\.\\s*", text)
+print(sentences)  # ['First sentence', 'Second sentence', 'Third sentence', '']
+
+# Split camelCase into words
+text = "oneTwoThreeFour"
+words = re.split(r"(?=[A-Z])", text)
+print(words)  # ['one', 'Two', 'Three', 'Four']`,
+        tips: [
+          'Capture groups in the pattern are included in the result — use non-capturing groups (?:...) if you want splitting without capturing.',
+          're.split(r"\\s+") is a regex version of str.split() with no args — it handles multiple spaces, tabs, newlines.',
+          'Split on class boundaries: re.split(r"(?=[A-Z])", "camelCase") splits before uppercase letters without consuming them.',
+          'Empty strings in result signal consecutive delimiters — filter with [x for x in result if x].',
+        ],
+        mistake: 'Forgetting that capture groups are included in the result — re.split(r"(\\d+)", "a1b2c") returns [\'a\', \'1\', \'b\', \'2\', \'c\'], not [\'a\', \'b\', \'c\'].',
+        shorthand: {
+          verbose: `import re
+text = "apple, banana; orange"
+parts = text.replace(";", ",").split(",")
+result = [p.strip() for p in parts]`,
+          concise: `result = re.split(r"[,;]\\s*", text)`
+        },
+      },
+      {
+        id: 're-compile',
+        fn: 're.compile()',
+        desc: 'Pre-compile regex patterns for reuse and performance.',
+        category: 'Regex',
+        subtitle: 'Pattern objects for repeated matching, flags, and debugging',
+        signature: 're.compile(pattern, flags=0)',
+        descLong: 're.compile() returns a Pattern object that you can call methods on multiple times: .match(), .search(), .findall(), .sub(), etc. Compiling is beneficial when you use the same pattern repeatedly — the pattern is compiled to bytecode once. Also makes code more readable and enables patterns to have names. You can inspect pattern properties: .pattern, .flags, .groups.',
+        code: `import re
+
+# Compile a pattern once, use many times
+email_pattern = re.compile(r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}")
+
+emails = [
+    "alice@example.com",
+    "bob@invalid",
+    "charlie@test.org"
+]
+
+# Use the compiled pattern
+for email in emails:
+    if email_pattern.match(email):
+        print(f"Valid: {email}")
+    else:
+        print(f"Invalid: {email}")
+
+# Compiled pattern has .search(), .findall(), .sub(), etc.
+text = "Contact alice@example.com or bob@test.org"
+matches = email_pattern.findall(text)
+print(matches)  # ['alice@example.com', 'bob@test.org']
+
+# Compile with flags
+case_insensitive = re.compile(r"hello", re.IGNORECASE)
+print(case_insensitive.search("HELLO world"))  # Match!
+
+# Inspect pattern properties
+pattern = re.compile(r"(\\w+)@(\\w+)")
+print(pattern.pattern)  # (\\w+)@(\\w+)
+print(pattern.groups)   # 2 — number of capture groups
+
+# Good practice: define patterns at module level
+USER_PATTERN = re.compile(r"@(\\w+)")
+DATE_PATTERN = re.compile(r"\\d{4}-\\d{2}-\\d{2}")
+IP_PATTERN = re.compile(r"\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")
+
+def find_users(text):
+    return USER_PATTERN.findall(text)
+
+def find_dates(text):
+    return DATE_PATTERN.findall(text)`,
+        tips: [
+          'Compile patterns at module level (outside functions) — compute once, reuse everywhere.',
+          'Pattern objects are thread-safe and memory-efficient compared to calling re.search(pattern_str, ...) repeatedly.',
+          'Use descriptive names: DATE_PATTERN, EMAIL_PATTERN — much clearer than anonymous r"\\d{4}...".',
+          'Compiled patterns remember flags — case_insensitive_pattern doesn\'t require re.IGNORECASE on each call.',
+        ],
+        mistake: 'Compiling the same pattern inside a loop or function every time it\'s called — defeats the purpose. Compile once at module level.',
+        shorthand: {
+          verbose: `for email in emails:
+    if re.search(r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}", email):
+        print(email)`,
+          concise: `pattern = re.compile(r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}")
+for email in emails:
+    if pattern.search(email):
+        print(email)`
+        },
+      },
+    ],
+  },
+  {
+    id: 'regex-groups',
+    title: 'Groups & Captures',
+    entries: [
+      {
+        id: 're-groups',
+        fn: 'Capture groups, named groups, match.group(), match.groups()',
+        desc: 'Extract parts of a match using groups.',
+        category: 'Regex',
+        subtitle: '() for groups, (?P<name>) for named groups, .group() and .groups()',
+        signature: 're.search(r"(\\w+)@(\\w+)", text).group(1)  |  match.groups()  |  match.group("name")',
+        descLong: 'Parentheses () create capture groups — they extract parts of a match. Numbered groups: \\1, \\2... or match.group(1), match.group(2)... Named groups (?P<name>...) are more readable: (?P<domain>\\w+). match.group(0) or match.group() returns the entire match. match.groups() returns a tuple of all groups. Nesting works: (()). Groups enable sophisticated data extraction from structured text.',
+        code: `import re
+
+# Numbered capture groups
+text = "Alice (30) works in New York"
+m = re.search(r"(\\w+)\\s+\\((\\d+)\\)\\s+works\\s+in\\s+(\\w+\\s+\\w+)", text)
+
+print(m.group(0))  # entire match: Alice (30) works in New York
+print(m.group(1))  # first group: Alice
+print(m.group(2))  # second group: 30
+print(m.group(3))  # third group: New York
+print(m.groups())  # tuple of all groups: ('Alice', '30', 'New York')
+
+# Named capture groups — much more readable
+pattern = r"(?P<name>\\w+)\\s+\\((?P<age>\\d+)\\)\\s+works\\s+in\\s+(?P<city>\\w+\\s+\\w+)"
+m = re.search(pattern, text)
+
+print(m.group("name"))   # Alice
+print(m.group("age"))    # 30
+print(m.group("city"))   # New York
+print(m.groupdict())     # {'name': 'Alice', 'age': '30', 'city': 'New York'}
+
+# Extract from structured log
+log = "2025-03-23 ERROR Database connection failed after 3 retries"
+pattern = r"(?P<date>\\d{4}-\\d{2}-\\d{2})\\s+(?P<level>\\w+)\\s+(?P<msg>.+)"
+m = re.search(pattern, log)
+
+print(m.group("date"))   # 2025-03-23
+print(m.group("level"))  # ERROR
+print(m.group("msg"))    # Database connection failed after 3 retries
+
+# Parse URLs into components
+url = "https://api.github.com/repos/python/cpython/issues"
+pattern = r"(?P<scheme>\\w+)://(?P<host>[\\w.]+)(?P<path>/\\S+)"
+m = re.match(pattern, url)
+
+print(m.groupdict())
+# {'scheme': 'https', 'host': 'api.github.com', 'path': '/repos/python/cpython/issues'}`,
+        tips: [
+          'Named groups are self-documenting — m.group("age") is clearer than m.group(2).',
+          'm.groupdict() returns a dict of named groups — perfect for unpacking: {name, age, city} = m.groupdict()',
+          'Nested groups work: ((\\w+)@(\\w+)) has 3 groups: entire part, domain, TLD.',
+          'm.group(0) and m.group() are identical — both return the entire match.',
+        ],
+        mistake: 'Numbered groups become unreadable in complex patterns — use named groups for clarity. Also forgetting that m.group() with no args returns the entire match, not group 0 (which is the same).',
+        shorthand: {
+          verbose: `import re
+text = "Alice 30"
+name = text.split()[0]
+age = text.split()[1]`,
+          concise: `import re
+m = re.search(r"(?P<name>\\w+)\\s+(?P<age>\\d+)", text)
+name, age = m.group("name"), m.group("age")`
+        },
+      },
+      {
+        id: 're-non-capturing',
+        fn: 'Non-capturing groups, lookahead, lookbehind',
+        desc: 'Match patterns without capturing, or assert conditions without consuming characters.',
+        category: 'Regex',
+        subtitle: '(?:...) non-capturing, (?=...) positive lookahead, (?!...) negative lookahead, (?<=...) lookbehind',
+        descLong: 'Non-capturing groups (?:...) group patterns for alternation or quantifiers without creating a numbered group. Lookahead (?=...) and (?!...) assert that what follows matches/doesn\'t match, without consuming it. Lookbehind (?<=...) and (?<!...) assert what precedes matches/doesn\'t match. Lookbehind is fixed-width in Python. These are zero-width assertions — useful for conditional matching and complex patterns.',
+        code: `import re
+
+# Non-capturing group — group without numbering
+pattern = r"(?:hello|hi)\\s+(?:world|universe)"
+m = re.search(pattern, "hello world")
+print(m.group(0))  # hello world
+print(m.groups())  # () — no captured groups!
+
+# vs. with capturing groups
+pattern = r"(hello|hi)\\s+(world|universe)"
+m = re.search(pattern, "hello world")
+print(m.groups())  # ('hello', 'world') — groups captured
+
+# Positive lookahead (?=...) — "hello" followed by "world"
+pattern = r"hello(?=\\s+world)"
+print(re.search(pattern, "hello world").group())  # hello
+print(re.search(pattern, "hello python"))         # None
+
+# Negative lookahead (?!...) — "hello" NOT followed by "world"
+pattern = r"hello(?!\\s+world)"
+print(re.search(pattern, "hello python").group())  # hello
+print(re.search(pattern, "hello world"))           # None
+
+# Positive lookbehind (?<=...) — "world" preceded by "hello "
+pattern = r"(?<=hello\\s)world"
+print(re.search(pattern, "hello world").group())   # world
+print(re.search(pattern, "goodbye world"))         # None
+
+# Negative lookbehind (?<!...) — "world" NOT preceded by "goodbye"
+pattern = r"(?<!goodbye\\s)world"
+print(re.search(pattern, "hello world").group())   # world
+print(re.search(pattern, "goodbye world"))         # None
+
+# Extract numbers not preceded by a minus sign (avoid negative numbers)
+text = "Alice has 5 apples and -3 oranges"
+pattern = r"(?<!-)\\b\\d+\\b"
+print(re.findall(pattern, text))  # ['5'] — not '-3'
+
+# Match prices: extract numbers preceded by $, not consumed
+text = "Items cost $100 and $50"
+pattern = r"(?<=\\$)\\d+"
+print(re.findall(pattern, text))  # ['100', '50']
+
+# Combined: word boundary lookahead/lookbehind
+pattern = r"\\b(?!the\\b)\\w+"  # any word NOT equal to "the"
+text = "the cat and the dog"
+print(re.findall(pattern, text))  # ['cat', 'and', 'dog']`,
+        tips: [
+          'Non-capturing groups (?:...) reduce group count — useful when you want alternation but don\'t need to extract it.',
+          'Lookahead/lookbehind don\'t consume characters — great for checking conditions without shifting the match position.',
+          'Lookbehind must be fixed-width in Python (no quantifiers) — (?<=[0-9]{1,3}) fails, use (?<=[0-9]{3}).',
+          'Negative lookahead (?!...) is powerful for exclusion patterns — find words not containing a substring.',
+        ],
+        mistake: 'Using lookbehind with variable-width patterns — Python only supports fixed-width lookbehind. Use lookahead or split/finditer as workarounds.',
+        shorthand: {
+          verbose: `import re
+text = "The cat and the dog"
+words = re.findall(r"\\w+", text)
+result = [w for w in words if w.lower() != "the"]`,
+          concise: `import re
+result = re.findall(r"\\b(?!the\\b)\\w+", text, re.IGNORECASE)`
+        },
+      },
+      {
+        id: 're-backreferences',
+        fn: 'Backreferences in patterns and replacements',
+        desc: 'Refer to captured groups within the same pattern or in substitutions.',
+        category: 'Regex',
+        subtitle: '\\1, \\g<name> in patterns; \\1, \\g<name> in replacements',
+        descLong: 'Backreferences allow you to match the same text that was previously captured. In patterns, \\1 refers to group 1, \\2 to group 2, etc. In replacements, \\1 and \\g<1> both work; for named groups use \\g<name>. This is powerful for finding repeated words, matching balanced pairs, or swapping matched groups. Python regex backreferences are numbered, not named, in the pattern itself — use \\g<name> for named group backreferences.',
+        code: `import re
+
+# Find repeated words: (\\w+)\\s+\\1
+text = "The the quick brown fox fox jumps"
+pattern = r"\\b(\\w+)\\s+\\1\\b"
+matches = re.findall(pattern, text)
+print(matches)  # ['the', 'fox']
+
+# Remove repeated words
+text = re.sub(r"\\b(\\w+)\\s+\\1\\b", r"\\1", text)
+print(text)  # The quick brown fox jumps
+
+# Match quoted strings with matching quotes
+text = 'He said "hello world" and \'goodbye world\''
+pattern = r"(['\\""])(.*?)\\1"
+matches = re.findall(pattern, text)
+print(matches)  # [('"', 'hello world'), ("'", 'goodbye world')]
+
+# Swap pairs: (...) (...) -> (...) (...)
+text = "Alice Bob Charlie David"
+pattern = r"(\\w+)\\s+(\\w+)"
+result = re.sub(pattern, r"\\2 \\1", text)
+print(result)  # Bob Alice David Charlie
+
+# Named group backreferences in patterns
+text = "The year 2025-03-23 (ISO date)"
+pattern = r"(?P<year>\\d{4})-(?P<month>\\d{2})-(?P=year)"  # (?P=year) refers back to year group
+# This would match "2025...2025" if it existed
+
+# Named group backreferences in replacements
+text = "Name: Alice, Age: 30"
+pattern = r"Name: (?P<name>\\w+), Age: (?P<age>\\d+)"
+result = re.sub(pattern, r"\\g<age>-year-old \\g<name>", text)
+print(result)  # 30-year-old Alice
+
+# Backreferences in complex transforms
+# Extract and rearrange: "first, last" -> "Last, First"
+text = "Smith, John and Doe, Jane"
+pattern = r"(\\w+),\\s+(\\w+)"
+result = re.sub(pattern, lambda m: f"{m.group(2).title()}, {m.group(1).title()}", text)
+print(result)  # John, Smith and Jane, Doe`,
+        tips: [
+          'Backreferences in patterns (\\1, \\2) find repeated captured text — perfect for duplicate detection.',
+          'Backreferences in replacements: \\1 or \\g<1> for numbered groups; \\g<name> for named groups.',
+          'Backreferences only work if the group actually matched — for optional groups, use \\1? or handle None.',
+          'Use (?P=name) to backreference a named group within the pattern itself.',
+        ],
+        mistake: 'Confusing \\1 (backreference to group 1) with the literal string "\\\\1" — use raw strings r"\\1".',
+        shorthand: {
+          verbose: `import re
+text = "Alice Bob"
+parts = text.split()
+result = f"{parts[1]} {parts[0]}"`,
+          concise: `import re
+result = re.sub(r"(\\w+)\\s+(\\w+)", r"\\2 \\1", text)`
+        },
+      },
+    ],
+  },
+  {
+    id: 'regex-patterns',
+    title: 'Patterns & Flags',
+    entries: [
+      {
+        id: 're-character-classes',
+        fn: 'Character classes, quantifiers, escapes',
+        desc: 'Build patterns with character classes, quantifiers, and escape sequences.',
+        category: 'Regex',
+        subtitle: '\\d \\w \\s [a-z] [^...] * + ? {n,m} . ^ $',
+        signature: 're.search(r"\\d+", string)  |  re.search(r"[a-zA-Z_]\\w*", string)',
+        descLong: '\\d matches digits 0-9; \\w matches word characters (letters, digits, underscore); \\s matches whitespace. Character classes [a-z] match ranges, [abc] match specific chars, [^abc] match NOT those chars. Quantifiers: * (0+), + (1+), ? (0-1), {n} (exactly n), {n,m} (n to m). . matches any char except newline. ^ anchors to start, $ to end. \\b word boundary. Escape special chars with backslash.',
+        code: `import re
+
+# \\d — digits only
+pattern = r"\\d+"
+print(re.findall(pattern, "I have 42 apples and 17 oranges"))  # ['42', '17']
+
+# \\w — word characters (letters, digits, underscore)
+pattern = r"\\w+"
+print(re.findall(pattern, "hello_world-123"))  # ['hello_world', '123']
+
+# \\s — whitespace
+pattern = r"\\s+"
+print(re.split(pattern, "one  two   three"))  # ['one', 'two', 'three']
+
+# Character class ranges
+pattern = r"[a-z]+"  # lowercase letters only
+print(re.findall(pattern, "Hello World 123"))  # ['ello', 'orld']
+
+pattern = r"[A-Z]"   # uppercase letters
+print(re.findall(pattern, "Hello World"))  # ['H', 'W']
+
+pattern = r"[0-9]"   # same as \\d
+print(re.findall(pattern, "abc123def"))  # ['1', '2', '3']
+
+# Negated character class [^...]
+pattern = r"[^0-9]+"  # NOT digits (same as [a-zA-Z_])
+print(re.findall(pattern, "abc123def456"))  # ['abc', 'def']
+
+# Quantifiers
+print(re.findall(r"a*", "aaabbaaa"))   # ['aaa', '', 'bb', 'aaa', '']
+print(re.findall(r"a+", "aaabbaaa"))   # ['aaa', 'aaa']
+print(re.findall(r"a?", "aaabbaaa"))   # ['a', 'a', 'a', '', 'b', 'b', 'a', 'a', 'a', '']
+print(re.findall(r"a{2,4}", "aaabbaaaaab"))  # ['aaa', 'aaaa']
+
+# Anchors: ^ (start) and $ (end)
+pattern = r"^hello"
+print(re.search(pattern, "hello world"))   # Match
+print(re.search(pattern, "say hello"))     # No match — hello is not at start
+
+pattern = r"world$"
+print(re.search(pattern, "hello world"))   # Match
+print(re.search(pattern, "world hello"))   # No match
+
+# . matches any character (except newline by default)
+pattern = r"a.c"
+print(re.findall(pattern, "abc adc aec"))  # ['abc', 'adc', 'aec']
+
+# Word boundary \\b
+pattern = r"\\bcat\\b"
+print(re.findall(pattern, "cat catch catalog car"))  # ['cat']`,
+        tips: [
+          '\\w is [a-zA-Z0-9_] — includes underscore, useful for identifiers.',
+          '[^...] negation matches anything NOT in the class — [^0-9] matches non-digits.',
+          '{n,m} is more precise than * or +: {2,4} matches 2-4 occurrences.',
+          '. matches any char except newline — use re.DOTALL to include newlines.',
+        ],
+        mistake: 'Forgetting to escape special regex chars — . matches any char, not a literal dot. Use \\. for a literal period.',
+        shorthand: {
+          verbose: `import re
+text = "The price is $19.99"
+for i, char in enumerate(text):
+    if char.isdigit():
+        print(char)`,
+          concise: `import re
+digits = re.findall(r"\\d", text)`
+        },
+      },
+      {
+        id: 're-flags',
+        fn: 're.IGNORECASE, re.MULTILINE, re.DOTALL, re.VERBOSE',
+        desc: 'Control regex behavior with flags.',
+        category: 'Regex',
+        subtitle: 'Case-insensitive, multiline mode, dot matches newlines, verbose/comments',
+        signature: 're.search(pattern, string, flags=re.IGNORECASE)  |  re.IGNORECASE | re.MULTILINE',
+        descLong: 're.IGNORECASE (re.I) — case-insensitive matching. re.MULTILINE (re.M) — ^ and $ match line boundaries, not just string start/end. re.DOTALL (re.S) — . matches newlines too. re.VERBOSE (re.X) — allow whitespace and # comments in pattern for readability. Flags can be combined with |. Also specify inline: (?i) for IGNORECASE, (?m) for MULTILINE, (?s) for DOTALL, (?x) for VERBOSE.',
+        code: `import re
+
+# re.IGNORECASE (re.I) — case-insensitive
+text = "Hello HELLO hello"
+pattern = r"hello"
+print(re.findall(pattern, text))  # ['hello']
+print(re.findall(pattern, text, re.IGNORECASE))  # ['Hello', 'HELLO', 'hello']
+
+# re.MULTILINE (re.M) — ^ and $ match line boundaries
+text = """start line1
+start line2
+end line3"""
+
+pattern = r"^start"
+print(re.findall(pattern, text))  # ['start'] — matches only first line
+print(re.findall(pattern, text, re.MULTILINE))  # ['start', 'start'] — matches all lines
+
+# re.DOTALL (re.S) — . matches newlines
+text = "hello\\nworld"
+print(re.search(r"hello.world", text))  # None — . doesn't match \\n
+print(re.search(r"hello.world", text, re.DOTALL))  # Match!
+
+# re.VERBOSE (re.X) — whitespace and comments for readability
+email_pattern = re.compile(r"""
+    \\b                          # word boundary
+    [\\w.+-]+                    # username
+    @                            # @ symbol
+    [\\w.-]+                     # domain
+    \\.                          # dot
+    \\w{2,}                      # TLD (2+ chars)
+    \\b                          # word boundary
+""", re.VERBOSE)
+
+text = "Contact alice@example.com for info"
+print(email_pattern.search(text).group())  # alice@example.com
+
+# Inline flags — (?flag)
+pattern = r"(?i)hello"  # case-insensitive for this pattern only
+print(re.search(pattern, "HELLO").group())  # HELLO
+
+# Combine flags with |
+pattern = r"^start.*end$"
+text = "start\\nmiddle\\nend"
+print(re.search(pattern, text))  # None
+print(re.search(pattern, text, re.MULTILINE | re.DOTALL))  # Match!
+
+# Turn flags off with (?-flag) after (?flags)
+pattern = r"(?i)Hello(?-i)World"
+print(re.search(pattern, "helloWorld"))  # Match
+print(re.search(pattern, "helloworld"))  # No match — World is case-sensitive`,
+        tips: [
+          're.VERBOSE lets you comment and format regex patterns across multiple lines — essential for complex patterns.',
+          'Inline flags (?i) are useful when you want to compile a pattern once with mixed case handling.',
+          're.MULTILINE changes ^ and $ behavior — ^ matches after \\n, $ matches before \\n.',
+          're.DOTALL makes . match \\n too — useful for matching across newlines in multi-line strings.',
+        ],
+        mistake: 'Assuming re.MULTILINE makes . match newlines — that\'s re.DOTALL. MULTILINE only affects ^ and $.',
+        shorthand: {
+          verbose: `import re
+text = "Hello and HELLO"
+result = []
+for word in text.split():
+    if word.lower() == "hello":
+        result.append(word)`,
+          concise: `import re
+result = re.findall(r"hello", text, re.IGNORECASE)`
+        },
+      },
+      {
+        id: 're-common-patterns',
+        fn: 'Practical regex patterns',
+        desc: 'Ready-to-use patterns for common data: email, URL, phone, date, IP.',
+        category: 'Regex',
+        subtitle: 'Email, URL, phone number, ISO date, IPv4 address',
+        signature: 're.findall(email_pattern, text)  |  re.match(phone_pattern, phone_num)',
+        descLong: 'Common regex patterns for validating and extracting real-world data. Email, URL, phone numbers, dates, and IP addresses each have standard formats. These patterns are starting points — production systems often use dedicated libraries (email_validator, validators, etc.) for robustness. But regex is lightweight and useful for quick validation, parsing, and extraction tasks.',
+        code: `import re
+
+# ────── Email ──────────────────────────────────────────
+email_pattern = r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}"
+text = "Contact alice@example.com or bob@test.co.uk"
+emails = re.findall(email_pattern, text)
+print(emails)  # ['alice@example.com', 'bob@test.co.uk']
+
+# ────── URL ────────────────────────────────────────────
+url_pattern = r"https?://[\\w.-]+\\.\\w{2,}(?:/\\S*)?"
+text = "Visit https://example.com or http://test.org/page"
+urls = re.findall(url_pattern, text)
+print(urls)  # ['https://example.com', 'http://test.org/page']
+
+# ────── Phone number (US format) ────────────────────────
+phone_pattern = r"\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}"
+phones = [
+    "(555) 123-4567",
+    "555.123.4567",
+    "555-123-4567",
+    "5551234567",
+]
+for phone in phones:
+    if re.match(phone_pattern, phone):
+        print(f"Valid: {phone}")
+
+# ────── ISO date (YYYY-MM-DD) ────────────────────────────
+date_pattern = r"\\d{4}-\\d{2}-\\d{2}"
+text = "Events on 2025-03-23 and 2025-12-25"
+dates = re.findall(date_pattern, text)
+print(dates)  # ['2025-03-23', '2025-12-25']
+
+# ────── IPv4 address ────────────────────────────────────
+ip_pattern = r"\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"
+logs = "Requests from 192.168.1.1 and 10.0.0.5"
+ips = re.findall(ip_pattern, logs)
+print(ips)  # ['192.168.1.1', '10.0.0.5']
+
+# Validate IP (basic)
+def is_valid_ip(ip):
+    pattern = r"^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+    if not re.match(pattern, ip):
+        return False
+    # Check octets are 0-255
+    return all(0 <= int(octet) <= 255 for octet in ip.split("."))
+
+print(is_valid_ip("192.168.1.256"))  # False — 256 > 255
+print(is_valid_ip("192.168.1.1"))    # True
+
+# ────── Hashtag (Twitter/social media) ──────────────────
+hashtag_pattern = r"#\\w+"
+text = "Check out #python and #regex for more"
+hashtags = re.findall(hashtag_pattern, text)
+print(hashtags)  # ['#python', '#regex']
+
+# ────── Mention (@username) ────────────────────────────
+mention_pattern = r"@\\w+"
+text = "@alice mentioned @bob yesterday"
+mentions = re.findall(mention_pattern, text)
+print(mentions)  # ['@alice', '@bob']`,
+        tips: [
+          'These patterns are good starting points but may not cover all edge cases. For production, use validated libraries: email_validator, validators, etc.',
+          'URL pattern (?:/\\S*)? is optional trailing path — adjust for your needs.',
+          'Phone patterns vary by region — this is US format. Adjust \\d counts for your country.',
+          'IPv4 octets should be 0-255, but regex with \\d{1,3} allows up to 999 — validate separately if needed.',
+        ],
+        mistake: 'Using simplified patterns in production systems that handle user data — regex patterns can have edge cases. Use dedicated validation libraries for email, phone, etc.',
+        shorthand: {
+          verbose: `import re
+text = "Email: alice@example.com"
+parts = text.split("@")
+if len(parts) == 2 and "." in parts[1]:
+    print("Maybe valid email")`,
+          concise: `import re
+if re.search(r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}", text):
+    print("Possible email")`
+        },
+      },
+      {
+        id: 're-verbose',
+        fn: 're.VERBOSE for readable multi-line patterns',
+        desc: 'Use re.VERBOSE to write complex patterns with comments and whitespace.',
+        category: 'Regex',
+        subtitle: 'Multi-line patterns with # comments for maintainability',
+        signature: 're.compile(pattern, re.VERBOSE)',
+        descLong: 're.VERBOSE (re.X) allows you to write regex patterns across multiple lines with comments. Whitespace is ignored unless escaped (or in character classes). This makes complex patterns much more readable and maintainable. Comments start with # and go to end of line. Essential for production patterns that others will need to understand and modify.',
+        code: `import re
+
+# ────── Example 1: Email with VERBOSE ──────────────────
+email_pattern = re.compile(r"""
+    \\b                          # word boundary
+    [\\w.+-]+                    # username: alphanumeric, dot, plus, dash
+    @                            # @ symbol
+    [\\w.-]+                     # domain: alphanumeric, dot, dash
+    \\.                          # literal dot
+    [a-z]{2,}                    # TLD: 2+ lowercase letters
+    \\b                          # word boundary
+""", re.VERBOSE | re.IGNORECASE)
+
+text = "Contact Alice@Example.COM for details"
+match = email_pattern.search(text)
+print(match.group() if match else "No match")  # Alice@Example.COM
+
+# ────── Example 2: Date parser with VERBOSE ───────────
+date_parser = re.compile(r"""
+    (?P<year>\\d{4})            # year: 4 digits
+    -                            # literal dash
+    (?P<month>\\d{2})           # month: 2 digits
+    -                            # literal dash
+    (?P<day>\\d{2})             # day: 2 digits
+    (?:                          # optional time (non-capturing group)
+        \\s+                     # whitespace
+        (?P<hour>\\d{2})        # hour
+        :                        # colon
+        (?P<minute>\\d{2})      # minute
+        (?::(?P<second>\\d{2}))? # optional seconds
+    )?
+""", re.VERBOSE)
+
+text = "Event: 2025-03-23 14:30:45"
+match = date_parser.search(text)
+if match:
+    d = match.groupdict()
+    print(f"Date: {d['year']}-{d['month']}-{d['day']}")
+    print(f"Time: {d['hour']}:{d['minute']}:{d['second']}")
+
+# ────── Example 3: HTTP request line parser ───────────
+http_request = re.compile(r"""
+    (?P<method>GET|POST|PUT|DELETE|PATCH)  # HTTP method
+    \\s+                                     # whitespace
+    (?P<path>/[^\\s]*)                     # URI path
+    \\s+                                     # whitespace
+    HTTP/(?P<version>\\d+\\.\\d+)          # HTTP version
+""", re.VERBOSE)
+
+request = "POST /api/users HTTP/1.1"
+match = http_request.match(request)
+if match:
+    print(match.groupdict())
+    # {'method': 'POST', 'path': '/api/users', 'version': '1.1'}
+
+# ────── Example 4: Log line parser ──────────────────────
+log_pattern = re.compile(r"""
+    \\[(?P<timestamp>\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})\\]  # [YYYY-MM-DD HH:MM:SS]
+    \\s+                                     # whitespace
+    \\[(?P<level>\\w+)\\]                  # [LEVEL]
+    \\s+                                     # whitespace
+    (?P<message>.+)                          # rest of line
+""", re.VERBOSE)
+
+log_line = "[2025-03-23 14:30:45] [ERROR] Database connection failed"
+match = log_pattern.match(log_line)
+if match:
+    print(match.group("level"))    # ERROR
+    print(match.group("message"))  # Database connection failed`,
+        tips: [
+          're.VERBOSE turns whitespace into "invisible" — it\'s ignored in the pattern. Use literal spaces inside [...] or \\s to match actual spaces.',
+          'Comments with # are powerful — explain what each part of the regex does. Future you will appreciate it.',
+          'Combine re.VERBOSE with re.IGNORECASE and other flags using |: re.VERBOSE | re.IGNORECASE.',
+          'Test verbose patterns with re.compile() at module level, not inline — much more readable.',
+        ],
+        mistake: 'Forgetting that spaces in VERBOSE patterns are ignored unless in character classes — "a b" matches "ab", not "a b". Use \\s or spaces inside [...] if you need literal spaces.',
+        shorthand: {
+          verbose: `# Complex pattern on one line — hard to read
+pattern = r"[\\w.+-]+@[\\w.-]+\\.\\w{2,}|\\d{4}-\\d{2}-\\d{2}|https?://[\\w.-]+"`,
+          concise: `# Same pattern with VERBOSE — self-documenting
+pattern = re.compile(r"""
+    [\\w.+-]+@[\\w.-]+\\.\\w{2,}  # email
+    |                              # OR
+    \\d{4}-\\d{2}-\\d{2}           # ISO date
+    |                              # OR
+    https?://[\\w.-]+              # URL
+""", re.VERBOSE)`
+        },
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

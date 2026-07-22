@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "title": "CSS Flexbox",
+    "domain": "css",
+    "sheet": "flexbox",
+    "icon": "📦"
+  },
+  "sections": [
+    {
+      "id": "container",
+      "title": "Flex Container",
+      "entries": [
+        {
+          "id": "display-flex",
+          "fn": "display: flex",
+          "desc": "Enable flexbox on a container.",
+          "category": "Container",
+          "subtitle": "Turn any element into a flex container",
+          "signature": "display: flex | inline-flex",
+          "descLong": "Setting display: flex on an element makes it a flex container. Its direct children become flex items. Use inline-flex to keep the container itself inline.",
+          "code": ".container {\n  display: flex;\n}\n\n/* Inline flex — container stays inline */\n.tag-list {\n  display: inline-flex;\n  gap: 8px;\n}",
+          "tips": [
+            "Only **direct children** become flex items — grandchildren are unaffected",
+            "`display: inline-flex` makes the container itself inline while children are still flex items",
+            "Flexbox is one-dimensional — use CSS Grid for two-dimensional layouts"
+          ],
+          "mistake": "Applying flex properties (justify-content, align-items) to the child instead of the container. These properties go on the parent.",
+          "ytId": "fYq5PXgSsbE",
+          "ytTitle": "Flexbox in 100 Seconds"
+        },
+        {
+          "id": "flex-direction",
+          "fn": "flex-direction",
+          "desc": "Set the main axis direction.",
+          "category": "Container",
+          "subtitle": "Control whether items flow in a row or column",
+          "signature": "flex-direction: row | row-reverse | column | column-reverse",
+          "descLong": "flex-direction sets the main axis. row (default) flows items left to right. column flows top to bottom. The cross axis is always perpendicular to the main axis.",
+          "code": "/* Default — left to right */\n.row { flex-direction: row; }\n\n/* Top to bottom */\n.stack { flex-direction: column; }\n\n/* Reverse order */\n.reversed { flex-direction: row-reverse; }\n\n/* Common pattern: centered hero */\n.hero {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n}",
+          "tips": [
+            "Changing direction also swaps what `justify-content` and `align-items` affect",
+            "`column` direction makes height the main axis — items stack vertically",
+            "Use `row-reverse` for RTL layouts or to visually flip order without changing DOM order"
+          ],
+          "mistake": "Forgetting that justify-content controls the MAIN axis and align-items controls the CROSS axis. When direction is column, justify-content controls vertical alignment.",
+          "ytId": "fYq5PXgSsbE",
+          "ytTitle": "CSS flex-direction"
+        },
+        {
+          "id": "justify-content",
+          "fn": "justify-content",
+          "desc": "Align items along the main axis.",
+          "category": "Container",
+          "subtitle": "Distribute space along the main axis",
+          "signature": "justify-content: flex-start | center | flex-end | space-between | space-around | space-evenly",
+          "descLong": "justify-content controls spacing along the main axis (horizontal in row, vertical in column). space-between puts space between items; space-evenly distributes space including edges.",
+          "code": "/* Center horizontally */\n.center { justify-content: center; }\n\n/* Space between items, flush to edges */\n.nav { justify-content: space-between; }\n\n/* Equal space everywhere */\n.pills { justify-content: space-evenly; }\n\n/* Push to end */\n.toolbar { justify-content: flex-end; }",
+          "tips": [
+            "`space-between` — no space at edges; `space-around` — half space at edges; `space-evenly` — equal space everywhere",
+            "Only has effect if items don't fill the container — if they do, there's no space to distribute",
+            "In a column container, justify-content controls **vertical** alignment"
+          ],
+          "mistake": "Using justify-content: center to center a single item vertically. In a row container, justify-content is horizontal. Use align-items: center for vertical centering.",
+          "ytId": "fYq5PXgSsbE",
+          "ytTitle": "CSS justify-content"
+        },
+        {
+          "id": "align-items",
+          "fn": "align-items",
+          "desc": "Align items along the cross axis.",
+          "category": "Container",
+          "subtitle": "Control cross-axis alignment of flex items",
+          "signature": "align-items: stretch | center | flex-start | flex-end | baseline",
+          "descLong": "align-items controls alignment on the cross axis (vertical in row direction). Default is stretch — items fill the container height. Use center to vertically center items.",
+          "code": "/* Vertically center all items */\n.card {\n  display: flex;\n  align-items: center;\n  height: 100px;\n}\n\n/* Perfect centering (horizontal + vertical) */\n.hero {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  height: 100vh;\n}\n\n/* Align text baselines */\n.toolbar {\n  display: flex;\n  align-items: baseline;\n}",
+          "tips": [
+            "Default is `stretch` — items grow to fill container height",
+            "`baseline` aligns items by their text baseline — useful for mixed font sizes",
+            "Use `align-self` on individual children to override the container's `align-items`"
+          ],
+          "mistake": "Trying to vertically center with just justify-content. You need BOTH justify-content: center AND align-items: center for true centering.",
+          "ytId": "fYq5PXgSsbE",
+          "ytTitle": "CSS align-items"
+        }
+      ]
+    },
+    {
+      "id": "items",
+      "title": "Flex Items",
+      "entries": [
+        {
+          "id": "flex-grow",
+          "fn": "flex-grow",
+          "desc": "Allow an item to grow to fill available space.",
+          "category": "Items",
+          "subtitle": "Proportionally expand items to fill remaining space",
+          "signature": "flex-grow: <number>  /* default: 0 */",
+          "descLong": "flex-grow controls how much an item expands to fill available space. 0 means no growing. 1 means share space equally. 2 means take twice as much as items with flex-grow: 1.",
+          "code": "/* Item fills remaining space */\n.main-content {\n  flex-grow: 1;\n}\n\n/* Sidebar stays fixed, content fills rest */\n.layout {\n  display: flex;\n}\n.sidebar { width: 250px; }\n.content { flex-grow: 1; }\n\n/* Proportional growing */\n.col-2 { flex-grow: 2; } /* twice as wide as col-1 */\n.col-1 { flex-grow: 1; }",
+          "tips": [
+            "`flex-grow: 1` on a child makes it fill all remaining space",
+            "Ratios matter: two items with `flex-grow: 1` split space equally; one with `2` and one with `1` split 2:1",
+            "Use the `flex` shorthand: `flex: 1` sets `flex-grow: 1, flex-shrink: 1, flex-basis: 0`"
+          ],
+          "mistake": "Setting flex-grow on the container instead of the child. flex-grow is a child property.",
+          "ytId": "fYq5PXgSsbE",
+          "ytTitle": "CSS flex-grow"
+        },
+        {
+          "id": "flex-shorthand",
+          "fn": "flex shorthand",
+          "desc": "Set grow, shrink, and basis in one property.",
+          "category": "Items",
+          "subtitle": "The flex shorthand: grow / shrink / basis",
+          "signature": "flex: <grow> <shrink> <basis>  /* e.g. flex: 1 1 auto */",
+          "descLong": "The flex shorthand sets flex-grow, flex-shrink, and flex-basis together. flex: 1 is the most common value — means grow: 1, shrink: 1, basis: 0% (divide space equally).",
+          "code": "/* flex: 1 — equal width columns */\n.col { flex: 1; }\n\n/* flex: 0 0 250px — fixed width, no grow/shrink */\n.sidebar { flex: 0 0 250px; }\n\n/* flex: 1 1 auto — grow and shrink from natural size */\n.tag { flex: 1 1 auto; }\n\n/* Common layout: fixed sidebar + fluid content */\n.layout { display: flex; }\n.sidebar { flex: 0 0 240px; }\n.main    { flex: 1; }",
+          "tips": [
+            "`flex: 1` = `flex: 1 1 0%` — items start from 0 and divide space equally",
+            "`flex: auto` = `flex: 1 1 auto` — items start from natural size then distribute remaining space",
+            "`flex: none` = `flex: 0 0 auto` — item is rigid, doesn't grow or shrink",
+            "Prefer the `flex` shorthand over setting grow/shrink/basis individually"
+          ],
+          "mistake": "Using flex: 1 and expecting items to be equal width when they have different content. Use flex: 1 1 0% or flex: 1 to ensure equal distribution from zero.",
+          "ytId": "fYq5PXgSsbE",
+          "ytTitle": "CSS flex shorthand"
+        }
+      ]
+    }
+  ]
+}

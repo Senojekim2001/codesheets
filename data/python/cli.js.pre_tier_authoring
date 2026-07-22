@@ -1,0 +1,658 @@
+/**
+ * data/python/cli.js
+ * CLI Tools. One subject per entry.
+ */
+
+export const meta = {
+  title: 'CLI Tools',
+  domain: 'python',
+  sheet: 'cli',
+  icon: '⌨️',
+}
+
+export const sections = [
+  {
+    id: 'argparse',
+    title: 'argparse',
+    entries: [
+      {
+        id: 'argparse-basics',
+        fn: 'ArgumentParser, add_argument(), parse_args()',
+        desc: 'Core argparse setup for positional and optional arguments',
+        category: 'Fundamentals',
+        subtitle: 'Define CLI arguments and parse from sys.argv',
+        signature: 'ArgumentParser(description="..."); add_argument("name", help="..."); parse_args()',
+        descLong: 'ArgumentParser creates a parser object. add_argument() registers arguments (positional require order, optional use -- prefix). parse_args() reads sys.argv and returns a Namespace with argument values.',
+        code: `import argparse
+
+parser = argparse.ArgumentParser(description='Greet a user')
+parser.add_argument('name', help='User name')
+parser.add_argument('--greeting', default='Hello', help='Greeting word')
+args = parser.parse_args()
+print(f"{args.greeting}, {args.name}")`,
+        tips: ['Positional args have no -- prefix and are required', 'Optional args use -- prefix and are optional by default', 'help= text appears in --help output'],
+        mistake: 'Forgetting to call parse_args() — the parser object itself is not the parsed values',
+        shorthand: {
+          verbose: `import sys
+if len(sys.argv) < 2:
+    print("Usage: script.py <name>")
+    sys.exit(1)
+name = sys.argv[1]
+greeting = sys.argv[3] if len(sys.argv) > 3 else 'Hello'
+print(f"{greeting}, {name}")`,
+          concise: `import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('name')
+parser.add_argument('--greeting', default='Hello')
+args = parser.parse_args()
+print(f"{args.greeting}, {args.name}")`
+        }
+      },
+      {
+        id: 'argparse-types',
+        fn: 'type=, choices=, nargs=, action=, default=, required=',
+        desc: 'Control argument types, validation, multiplicity, and defaults',
+        category: 'Configuration',
+        subtitle: 'Type conversion, validation, and defaults',
+        signature: 'add_argument(..., type=int, choices=[...], nargs="*", action="store_true", default=X, required=True)',
+        descLong: 'type= converts arguments (int, float, str). choices= restricts to allowed values. nargs="*" collects multiple arguments into a list. action="store_true" treats flag as boolean. default= provides fallback. required=True forces the argument.',
+        code: `import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--count', type=int, default=1, help='Number of items')
+parser.add_argument('--level', choices=['low', 'medium', 'high'], required=True)
+parser.add_argument('--files', nargs='*', default=[], help='List of files')
+parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+args = parser.parse_args()
+print(f"Count: {args.count}, Level: {args.level}, Verbose: {args.verbose}")`,
+        tips: ['nargs="+" requires at least one arg; nargs="?" is optional', 'action="count" increments for each flag use (-vvv)', 'type= runs conversion; fails with error if invalid'],
+        mistake: 'Using action="store_true" with type= causes conflicts',
+        shorthand: {
+          verbose: `import sys
+count = int(sys.argv[sys.argv.index('--count') + 1]) if '--count' in sys.argv else 1
+level = 'low'
+for i, arg in enumerate(sys.argv):
+    if arg == '--level':
+        level = sys.argv[i+1]
+        break
+verbose = '--verbose' in sys.argv`,
+          concise: `import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--count', type=int, default=1)
+parser.add_argument('--level', choices=['low', 'medium', 'high'], required=True)
+parser.add_argument('--verbose', action='store_true')
+args = parser.parse_args()`
+        }
+      },
+      {
+        id: 'argparse-subcommands',
+        fn: 'add_subparsers(), set_defaults()',
+        desc: 'Create multi-command CLIs like git commit, git push',
+        category: 'Advanced',
+        subtitle: 'Sub-commands with independent argument sets',
+        signature: 'add_subparsers(dest="cmd"); subparsers.add_parser("cmd"); set_defaults(func=handler)',
+        descLong: 'add_subparsers() creates a sub-parser container. add_parser() registers each sub-command. set_defaults(func=...) binds a handler. In main, call args.func(args) to invoke the right handler.',
+        code: `import argparse
+
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers(dest='command', help='Commands')
+
+commit = subparsers.add_parser('commit', help='Commit changes')
+commit.add_argument('--message', '-m', required=True)
+commit.set_defaults(func=lambda args: print(f"Commit: {args.message}"))
+
+push = subparsers.add_parser('push', help='Push changes')
+push.add_argument('--branch', default='main')
+push.set_defaults(func=lambda args: print(f"Push to {args.branch}"))
+
+args = parser.parse_args()
+args.func(args) if hasattr(args, 'func') else parser.print_help()`,
+        tips: ['dest="command" stores which subcommand was called', 'Each subparser inherits parent args automatically', 'Use set_defaults(func=handler) to avoid big if/elif chains'],
+        mistake: 'Forgetting to check hasattr(args, "func") before calling, causing AttributeError when no subcommand given',
+        shorthand: {
+          verbose: `import sys
+if len(sys.argv) < 2:
+    print("Usage: cmd [commit|push] [options]")
+elif sys.argv[1] == 'commit':
+    msg_idx = sys.argv.index('-m') + 1 if '-m' in sys.argv else None
+    message = sys.argv[msg_idx] if msg_idx else 'No message'
+    print(f"Commit: {message}")
+elif sys.argv[1] == 'push':
+    print("Push to main")`,
+          concise: `import argparse
+parser = argparse.ArgumentParser()
+subs = parser.add_subparsers(dest='cmd')
+commit = subs.add_parser('commit')
+commit.add_argument('-m', required=True)
+commit.set_defaults(func=lambda a: print(f"Commit: {a.m}"))
+args = parser.parse_args()
+args.func(args) if hasattr(args, 'func') else parser.print_help()`
+        }
+      },
+      {
+        id: 'argparse-groups',
+        fn: 'add_argument_group(), add_mutually_exclusive_group()',
+        desc: 'Organize arguments into groups and enforce mutual exclusivity',
+        category: 'Organization',
+        subtitle: 'Group arguments in help output and enforce constraints',
+        signature: 'add_argument_group("title"); add_mutually_exclusive_group()',
+        descLong: 'add_argument_group() organizes arguments in --help under titled sections for readability. add_mutually_exclusive_group() enforces that only one argument in the group can be used at a time.',
+        code: `import argparse
+
+parser = argparse.ArgumentParser()
+
+# Organize into groups
+input_group = parser.add_argument_group('input options')
+input_group.add_argument('--file', help='Input file')
+input_group.add_argument('--text', help='Input text')
+
+output_group = parser.add_argument_group('output options')
+output_group.add_argument('--format', choices=['json', 'csv'], default='json')
+
+# Mutually exclusive: choose one output mode
+mode_group = parser.add_mutually_exclusive_group()
+mode_group.add_argument('--verbose', action='store_true')
+mode_group.add_argument('--quiet', action='store_true')
+
+args = parser.parse_args()
+if args.verbose and args.quiet:
+    parser.error("Cannot use --verbose and --quiet together")`,
+        tips: ['Mutually exclusive groups automatically error if both used', 'Groups improve --help readability for complex CLIs', 'add_argument() called on group adds to that group'],
+        mistake: 'Mutually exclusive group enforcement happens at parse time, but manual checks are still sometimes needed',
+        shorthand: {
+          verbose: `import sys
+input_args = [a for a in sys.argv if a.startswith('--file') or a.startswith('--text')]
+if len(input_args) == 0:
+    print("Need --file or --text")
+    sys.exit(1)`,
+          concise: `import argparse
+parser = argparse.ArgumentParser()
+ig = parser.add_argument_group('inputs')
+ig.add_argument('--file')
+ig.add_argument('--text')
+mg = parser.add_mutually_exclusive_group()
+mg.add_argument('--verbose', action='store_true')
+mg.add_argument('--quiet', action='store_true')
+args = parser.parse_args()`
+        }
+      },
+    ]
+  },
+  {
+    id: 'click',
+    title: 'Click',
+    entries: [
+      {
+        id: 'click-basics',
+        fn: '@click.command(), @click.option(), @click.argument(), click.echo()',
+        desc: 'Decorator-based CLI with Click',
+        category: 'Fundamentals',
+        subtitle: 'Define commands with decorators',
+        signature: '@click.command(); @click.option("--name"); @click.argument("file"); click.echo(msg)',
+        descLong: '@click.command() marks a function as a CLI command. @click.option() adds optional flags. @click.argument() adds positional arguments. click.echo() prints with color and formatting support.',
+        code: `import click
+
+@click.command()
+@click.argument('name')
+@click.option('--greeting', default='Hello', help='Greeting word')
+@click.option('--count', type=int, default=1, help='Repeat count')
+def greet(name, greeting, count):
+    """Greet a person."""
+    for _ in range(count):
+        click.echo(f"{greeting}, {name}!")
+
+if __name__ == '__main__':
+    greet()`,
+        tips: ['Decorators apply top-to-bottom; arguments must come before options', 'click.echo() handles Unicode and terminal colors', 'Function parameters match option/argument names automatically'],
+        mistake: 'Forgetting to call the function in if __name__ == "__main__": block',
+        shorthand: {
+          verbose: `import argparse, sys
+parser = argparse.ArgumentParser()
+parser.add_argument('name')
+parser.add_argument('--greeting', default='Hello')
+parser.add_argument('--count', type=int, default=1)
+args = parser.parse_args()
+for _ in range(args.count):
+    print(f"{args.greeting}, {args.name}!")`,
+          concise: `import click
+@click.command()
+@click.argument('name')
+@click.option('--greeting', default='Hello')
+@click.option('--count', type=int, default=1)
+def greet(name, greeting, count):
+    for _ in range(count):
+        click.echo(f"{greeting}, {name}!")
+
+if __name__ == '__main__':
+    greet()`
+        }
+      },
+      {
+        id: 'click-types',
+        fn: 'type=click.Path(), click.Choice(), click.IntRange(), click.File()',
+        desc: 'Built-in Click types for validation and conversion',
+        category: 'Configuration',
+        subtitle: 'Type validation and file handling',
+        signature: 'type=click.Path(exists=True); type=click.Choice([...]); type=click.IntRange(0, 100); type=click.File("r")',
+        descLong: 'Click provides type objects for validation. click.Path() checks file/directory existence. click.Choice() restricts to allowed values. click.IntRange() enforces numeric bounds. click.File() opens and passes file objects.',
+        code: `import click
+
+@click.command()
+@click.option('--input', type=click.File('r'), help='Input file')
+@click.option('--output', type=click.File('w'), help='Output file')
+@click.option('--level', type=click.IntRange(1, 10), default=5)
+@click.option('--format', type=click.Choice(['json', 'csv', 'yaml']), default='json')
+@click.option('--dir', type=click.Path(exists=True, file_okay=False))
+def process(input, output, level, format, dir):
+    """Process files with validation."""
+    if input:
+        data = input.read()
+        click.echo(f"Read {len(data)} chars")
+    click.echo(f"Level: {level}, Format: {format}")
+
+if __name__ == '__main__':
+    process()`,
+        tips: ['click.File() handles closing automatically; use context managers for safety', 'click.Path() validates existence only if exists=True', 'click.IntRange() auto-validates without extra checks'],
+        mistake: 'Forgetting exists=True when you want click.Path() to validate the file exists',
+        shorthand: {
+          verbose: `import sys, os
+try:
+    input_file = open(sys.argv[2], 'r') if len(sys.argv) > 2 else None
+    level = int(sys.argv[4]) if len(sys.argv) > 4 else 5
+    if level < 1 or level > 10:
+        print("Level must be 1-10")
+        sys.exit(1)
+except Exception as e:
+    print(f"Error: {e}")`,
+          concise: `import click
+@click.command()
+@click.option('--input', type=click.File('r'))
+@click.option('--level', type=click.IntRange(1, 10), default=5)
+@click.option('--format', type=click.Choice(['json', 'csv']))
+def process(input, level, format):
+    pass
+
+if __name__ == '__main__':
+    process()`
+        }
+      },
+      {
+        id: 'click-groups',
+        fn: '@click.group(), @click.pass_context, click.Context',
+        desc: 'Multi-command CLIs with groups and context passing',
+        category: 'Advanced',
+        subtitle: 'Sub-commands and shared context',
+        signature: '@click.group(); @group.command(); @click.pass_context',
+        descLong: '@click.group() creates a command group. @group.command() registers sub-commands. @click.pass_context injects the Context object, allowing parent options to be accessed by sub-commands.',
+        code: `import click
+
+@click.group()
+@click.option('--verbose', is_flag=True)
+@click.pass_context
+def cli(ctx, verbose):
+    """CLI tool with sub-commands."""
+    ctx.ensure_object(dict)
+    ctx.obj['verbose'] = verbose
+
+@cli.command()
+@click.argument('name')
+@click.pass_context
+def greet(ctx, name):
+    """Greet someone."""
+    if ctx.obj['verbose']:
+        click.echo(f"[VERBOSE] Greeting {name}")
+    click.echo(f"Hello, {name}!")
+
+@cli.command()
+def status():
+    """Show status."""
+    click.echo("Status: OK")
+
+if __name__ == '__main__':
+    cli()`,
+        tips: ['ctx.ensure_object(dict) initializes ctx.obj safely', 'Sub-command functions receive parent context if decorated with @click.pass_context', 'ctx.obj stores shared data between parent and children'],
+        mistake: 'Forgetting @click.pass_context when accessing parent options in sub-commands',
+        shorthand: {
+          verbose: `import sys
+if '--verbose' in sys.argv:
+    verbose = True
+    sys.argv.remove('--verbose')
+if len(sys.argv) > 1:
+    if sys.argv[1] == 'greet':
+        name = sys.argv[2] if len(sys.argv) > 2 else 'World'
+        if verbose: print(f"[VERBOSE] Greeting {name}")
+        print(f"Hello, {name}!")`,
+          concise: `import click
+@click.group()
+@click.option('--verbose', is_flag=True)
+@click.pass_context
+def cli(ctx, verbose):
+    ctx.ensure_object(dict)
+    ctx.obj['verbose'] = verbose
+
+@cli.command()
+@click.argument('name')
+@click.pass_context
+def greet(ctx, name):
+    if ctx.obj['verbose']:
+        click.echo(f"[VERBOSE] Greeting {name}")
+    click.echo(f"Hello, {name}!")
+
+if __name__ == '__main__':
+    cli()`
+        }
+      },
+      {
+        id: 'click-prompts',
+        fn: 'click.prompt(), click.confirm(), click.password_option(), click.progressbar()',
+        desc: 'Interactive prompts and progress feedback',
+        category: 'Interaction',
+        subtitle: 'User input and progress indication',
+        signature: 'click.prompt("Enter name"); click.confirm("Continue?"); click.password_option(); click.progressbar(items)',
+        descLong: 'click.prompt() asks for user input with validation. click.confirm() yes/no question. click.password_option() hides input. click.progressbar() shows iteration progress with visual bar.',
+        code: `import click
+import time
+
+@click.command()
+def interactive():
+    """Interactive CLI example."""
+    name = click.prompt('Enter your name')
+    email = click.prompt('Enter email', type=click.Email())
+
+    if click.confirm('Continue with this information?'):
+        click.echo(f"Welcome, {name}!")
+
+        password = click.prompt('Enter password', hide_input=True)
+        click.echo("Processing...")
+
+        items = range(10)
+        with click.progressbar(items, label='Processing') as bar:
+            for item in bar:
+                time.sleep(0.1)
+
+        click.echo("Done!")
+    else:
+        click.echo("Cancelled.")
+
+if __name__ == '__main__':
+    interactive()`,
+        tips: ['click.prompt() with type= validates input (click.Email(), click.INT, etc.)', 'click.password_option() is a decorator that prompts for a password', 'click.progressbar() works with any iterable and shows a progress bar'],
+        mistake: 'Using click.password_option() as a decorator but also calling click.prompt() separately causes double prompting',
+        shorthand: {
+          verbose: `import getpass
+name = input("Enter your name: ")
+email = input("Enter email: ")
+if input("Continue? (y/n): ").lower() == 'y':
+    password = getpass.getpass("Enter password: ")
+    for i in range(10):
+        print(f"Processing {i+1}/10")`,
+          concise: `import click, time
+@click.command()
+def interactive():
+    name = click.prompt('Enter your name')
+    if click.confirm('Continue?'):
+        pwd = click.prompt('Password', hide_input=True)
+        with click.progressbar(range(10)) as bar:
+            for _ in bar:
+                time.sleep(0.1)
+
+if __name__ == '__main__':
+    interactive()`
+        }
+      },
+    ]
+  },
+  {
+    id: 'typer',
+    title: 'Typer',
+    entries: [
+      {
+        id: 'typer-basics',
+        fn: 'typer.Typer(), Annotated, typer.Option(), typer.Argument()',
+        desc: 'Type-hint-driven CLI with Typer',
+        category: 'Fundamentals',
+        subtitle: 'Use Python type hints to define CLI',
+        signature: 'typer.Typer(); Annotated[str, typer.Option()]; Annotated[str, typer.Argument()]',
+        descLong: 'Typer uses Python type hints to auto-generate CLIs. Annotated[type, typer.Option()] marks optional params. Annotated[type, typer.Argument()] marks positional params. Types are inferred from hints.',
+        code: `import typer
+from typing import Annotated
+
+app = typer.Typer()
+
+@app.command()
+def greet(
+    name: Annotated[str, typer.Argument(help="Person to greet")],
+    greeting: Annotated[str, typer.Option(help="Greeting word")] = "Hello",
+    count: Annotated[int, typer.Option(help="Repeat count")] = 1,
+):
+    """Greet a person."""
+    for _ in range(count):
+        typer.echo(f"{greeting}, {name}!")
+
+if __name__ == "__main__":
+    app()`,
+        tips: ['Type hints define argument types (int, str, bool)', 'Default values for Annotated params make them optional', 'Typer auto-generates help from docstrings and type hints'],
+        mistake: 'Forgetting Annotated wrapper causes Typer to miss Option/Argument metadata',
+        shorthand: {
+          verbose: `import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('name', help='Person to greet')
+parser.add_argument('--greeting', default='Hello', help='Greeting word')
+parser.add_argument('--count', type=int, default=1, help='Repeat count')
+args = parser.parse_args()
+for _ in range(args.count):
+    print(f"{args.greeting}, {args.name}!")`,
+          concise: `import typer
+from typing import Annotated
+
+app = typer.Typer()
+
+@app.command()
+def greet(
+    name: Annotated[str, typer.Argument()],
+    greeting: Annotated[str, typer.Option()] = "Hello",
+    count: Annotated[int, typer.Option()] = 1,
+):
+    for _ in range(count):
+        typer.echo(f"{greeting}, {name}!")
+
+if __name__ == "__main__":
+    app()`
+        }
+      },
+      {
+        id: 'typer-app',
+        fn: 'typer.Typer(), app.command(), app()',
+        desc: 'Multi-command Typer apps',
+        category: 'Advanced',
+        subtitle: 'Build apps with multiple sub-commands',
+        signature: 'app = typer.Typer(); @app.command(); app()',
+        descLong: 'Create a Typer instance, register commands with @app.command(), and run with app(). Each command is a separate function. Typer auto-generates a CLI with help text.',
+        code: `import typer
+from typing import Annotated
+
+app = typer.Typer()
+
+@app.command()
+def create(
+    name: Annotated[str, typer.Argument(help="Resource name")],
+    resource_type: Annotated[str, typer.Option(help="Type")] = "file",
+):
+    """Create a new resource."""
+    typer.echo(f"Creating {resource_type}: {name}")
+
+@app.command()
+def delete(
+    name: Annotated[str, typer.Argument(help="Resource name")],
+    confirm: Annotated[bool, typer.Option(help="Skip confirmation")] = False,
+):
+    """Delete a resource."""
+    if not confirm:
+        if not typer.confirm(f"Delete {name}?"):
+            typer.echo("Cancelled.")
+            raise typer.Exit()
+    typer.echo(f"Deleted: {name}")
+
+@app.command()
+def list():
+    """List all resources."""
+    typer.echo("Resources: file1, file2, file3")
+
+if __name__ == "__main__":
+    app()`,
+        tips: ['Each function becomes a sub-command automatically', 'typer.confirm() prompts for yes/no', 'typer.Exit() exits with status 0'],
+        mistake: 'Using raise typer.Exit(code=1) is the correct way to exit with error; calling sys.exit() is less idiomatic',
+        shorthand: {
+          verbose: `import sys, argparse
+parser = argparse.ArgumentParser()
+subs = parser.add_subparsers(dest='cmd')
+create_sub = subs.add_parser('create')
+create_sub.add_argument('name')
+delete_sub = subs.add_parser('delete')
+delete_sub.add_argument('name')
+args = parser.parse_args()
+if args.cmd == 'create':
+    print(f"Creating: {args.name}")`,
+          concise: `import typer
+from typing import Annotated
+
+app = typer.Typer()
+
+@app.command()
+def create(name: Annotated[str, typer.Argument()]):
+    typer.echo(f"Creating: {name}")
+
+@app.command()
+def delete(name: Annotated[str, typer.Argument()]):
+    if typer.confirm(f"Delete {name}?"):
+        typer.echo(f"Deleted: {name}")
+
+if __name__ == "__main__":
+    app()`
+        }
+      },
+    ]
+  },
+  {
+    id: 'cli-utilities',
+    title: 'Output & Utilities',
+    entries: [
+      {
+        id: 'rich-output',
+        fn: 'rich.print(), Console, Table, Progress',
+        desc: 'Rich terminal formatting and tables',
+        category: 'Formatting',
+        subtitle: 'Beautiful output with colors, tables, and progress',
+        signature: 'rich.print(...); Console().print(...); Table(); Progress()',
+        descLong: 'rich.print() prints formatted text with colors and styles. Console object provides more control. Table renders structured data. Progress shows progress bars for long operations.',
+        code: `from rich.console import Console
+from rich.table import Table
+from rich.progress import track
+import time
+
+console = Console()
+
+# Styled output
+console.print("[bold cyan]Welcome![/bold cyan]")
+console.print("[red]Error:[/red] Something went wrong", style="bold")
+
+# Table
+table = Table(title="User Data")
+table.add_column("Name", style="cyan")
+table.add_column("Age", style="magenta")
+table.add_column("Status", style="green")
+table.add_row("Alice", "30", "Active")
+table.add_row("Bob", "25", "Inactive")
+console.print(table)
+
+# Progress bar
+for item in track(range(10), description="Processing..."):
+    time.sleep(0.1)
+
+console.print("[green]✓ Complete![/green]")`,
+        tips: ['Markup uses [color]text[/color] syntax', 'Table.add_column() and Table.add_row() build tables', 'track() wraps iterables to show progress bars automatically'],
+        mistake: 'Forgetting to import Console or Table from rich.console/rich.table',
+        shorthand: {
+          verbose: `import sys, time
+print("Welcome!")
+print("Error: Something went wrong")
+print("Name | Age | Status")
+print("-" * 30)
+print("Alice | 30 | Active")
+print("Bob | 25 | Inactive")
+for i in range(10):
+    print(f"Processing... {i+1}/10")
+    time.sleep(0.1)
+print("Complete!")`,
+          concise: `from rich.console import Console
+from rich.table import Table
+from rich.progress import track
+import time
+
+console = Console()
+console.print("[bold cyan]Welcome![/bold cyan]")
+
+table = Table(title="User Data")
+table.add_column("Name", style="cyan")
+table.add_row("Alice", "30")
+console.print(table)
+
+for _ in track(range(10)):
+    time.sleep(0.1)
+console.print("[green]✓ Complete![/green]")`
+        }
+      },
+      {
+        id: 'sys-argv',
+        fn: 'sys.argv, sys.stdin, sys.stdout, sys.stderr',
+        desc: 'Raw argument and stream handling',
+        category: 'Fundamentals',
+        subtitle: 'Direct access to command-line arguments and I/O streams',
+        signature: 'sys.argv[0], sys.argv[1:]; sys.stdin.read(); sys.stdout.write(); sys.stderr.write()',
+        descLong: 'sys.argv is a list of command-line arguments (argv[0] is script name). sys.stdin reads input. sys.stdout writes output. sys.stderr writes errors. Useful for low-level control or piping.',
+        code: `import sys
+
+# Access raw arguments
+script_name = sys.argv[0]
+args = sys.argv[1:]
+
+if len(args) == 0:
+    sys.stderr.write("Usage: script.py <name> [--verbose]\\n")
+    sys.exit(1)
+
+name = args[0]
+verbose = "--verbose" in args
+
+# Read from stdin
+if "--read-stdin" in args:
+    data = sys.stdin.read()
+    sys.stdout.write(f"Read {len(data)} bytes\\n")
+
+# Write to stdout and stderr
+sys.stdout.write(f"Hello, {name}!\\n")
+if verbose:
+    sys.stderr.write(f"[DEBUG] Processing {name}\\n")
+
+sys.exit(0)`,
+        tips: ['sys.argv[0] is the script name; actual args start at argv[1]', 'sys.stderr is for errors and debug output', 'sys.stdin is useful for piping: cat file.txt | script.py'],
+        mistake: 'Forgetting to strip newlines when reading from stdin (use .strip() or readline())',
+        shorthand: {
+          verbose: `import sys
+if len(sys.argv) < 2:
+    print("Need argument")
+    sys.exit(1)
+name = sys.argv[1]
+print(f"Hello, {name}")`,
+          concise: `import sys
+if len(sys.argv) < 2:
+    sys.stderr.write("Need argument\\n")
+    sys.exit(1)
+name = sys.argv[1]
+sys.stdout.write(f"Hello, {name}!\\n")`
+        }
+      },
+    ]
+  },
+]
+
+export default { meta, sections }

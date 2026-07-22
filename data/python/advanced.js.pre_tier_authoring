@@ -1,0 +1,1817 @@
+export const meta = {
+  id: 'python-advanced',
+  label: 'Advanced Python',
+  icon: '🐍',
+  description: 'Advanced Python: decorators, context managers, pathlib, logging, typing, dataclasses, and metaclasses.',
+}
+
+export const sections = [
+  {
+    id: 'decorators',
+    title: 'Decorators',
+    entries: [
+      {
+        id: 'function-decorators',
+        fn: 'Function Decorators — Wrapping & Enhancing Functions',
+        desc: 'Add behavior to functions without modifying them — logging, caching, authentication, retry, and timing.',
+        category: 'Decorators',
+        subtitle: '@decorator syntax, functools.wraps, parameterized decorators',
+        signature: '@decorator  |  @decorator(args)  |  functools.wraps(fn)',
+        descLong: 'Decorators wrap functions to add behavior: logging, caching, access control, retry logic, input validation. A decorator is a function that takes a function and returns a new function. @functools.wraps preserves the original function\'s name and docstring. Parameterized decorators (decorators with arguments) require an extra nesting level. Stack multiple decorators — they apply bottom-up.',
+        code: `import functools
+import time
+from typing import Callable, Any
+
+# Basic decorator with functools.wraps
+def timer(fn: Callable) -> Callable:
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = fn(*args, **kwargs)
+        elapsed = time.perf_counter() - start
+        print(f"{fn.__name__} took {elapsed:.4f}s")
+        return result
+    return wrapper
+
+@timer
+def slow_function():
+    time.sleep(0.5)
+    return "done"
+
+# Parameterized decorator (decorator with arguments)
+def retry(max_attempts: int = 3, delay: float = 1.0):
+    def decorator(fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return fn(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_attempts:
+                        raise
+                    print(f"Attempt {attempt} failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+        return wrapper
+    return decorator
+
+@retry(max_attempts=3, delay=0.5)
+def fetch_data(url: str) -> dict:
+    import requests
+    return requests.get(url, timeout=5).json()
+
+# Cache decorator (built-in)
+@functools.lru_cache(maxsize=128)
+def fibonacci(n: int) -> int:
+    if n < 2:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+# Stacking decorators (apply bottom-up)
+@timer
+@retry(max_attempts=3)
+def fragile_api_call():
+    pass  # retry wraps first, then timer wraps retry
+
+# Class-based decorator (for state)
+class CountCalls:
+    def __init__(self, fn):
+        functools.update_wrapper(self, fn)
+        self.fn = fn
+        self.count = 0
+
+    def __call__(self, *args, **kwargs):
+        self.count += 1
+        print(f"{self.fn.__name__} called {self.count} times")
+        return self.fn(*args, **kwargs)
+
+@CountCalls
+def greet(name):
+    return f"Hello, {name}!"`,
+        tips: [
+          'Always use @functools.wraps — without it, the wrapped function loses its __name__, __doc__, and __module__.',
+          '@functools.lru_cache is a built-in memoization decorator — use it for expensive pure functions.',
+          'Stacked decorators apply bottom-up: @A @B @C def f → A(B(C(f))). The bottom one wraps first.',
+          'Use *args, **kwargs in wrapper to accept any arguments — makes decorators work with any function signature.',
+        ],
+        mistake: 'Forgetting @functools.wraps — debugging becomes a nightmare because stack traces show "wrapper" instead of the actual function name. Always wrap.',
+        shorthand: {
+          verbose: `def timer(fn):
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = fn(*args, **kwargs)
+        elapsed = time.perf_counter() - start
+        print(f"{fn.__name__} took {elapsed:.4f}s")
+        return result
+    return wrapper`,
+          concise: `@functools.wraps(fn)
+def timer(fn: Callable) -> Callable:
+    def wrapper(*args, **kwargs):
+        start, result = time.perf_counter(), fn(*args, **kwargs)
+        print(f"{fn.__name__} took {time.perf_counter() - start:.4f}s")
+        return result
+    return wrapper`
+        },
+      },
+      {
+        id: 'class-decorators',
+        fn: 'Class Decorators & Descriptor Protocol',
+        desc: 'Decorate classes to add methods, enforce contracts, or register classes — plus the descriptor protocol for custom attributes.',
+        category: 'Decorators',
+        subtitle: '@dataclass, custom class decorators, __get__/__set__',
+        signature: 'def decorator(cls): ... return cls  |  __get__(self, obj, objtype)',
+        descLong: 'Class decorators receive a class and return a modified class — used for adding methods, registering classes, or enforcing invariants. @dataclass is the most common class decorator. The descriptor protocol (__get__, __set__, __delete__) creates reusable attribute behaviors: validation, lazy computation, type checking. Properties are built on descriptors.',
+        code: `import functools
+from typing import Any
+
+# Class decorator — add methods or modify the class
+def add_repr(cls):
+    """Auto-generate __repr__ from __init__ params."""
+    def __repr__(self):
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{cls.__name__}({attrs})'
+    cls.__repr__ = __repr__
+    return cls
+
+@add_repr
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+print(Point(3, 4))  # Point(x=3, y=4)
+
+# Registry pattern
+_plugins = {}
+def register(cls):
+    _plugins[cls.__name__.lower()] = cls
+    return cls
+
+@register
+class JSONParser:
+    def parse(self, data): ...
+
+@register
+class XMLParser:
+    def parse(self, data): ...
+
+parser = _plugins['jsonparser']()  # lookup by name
+
+# Descriptor — reusable validated attribute
+class Validated:
+    def __init__(self, validator, error_msg="Invalid value"):
+        self.validator = validator
+        self.error_msg = error_msg
+
+    def __set_name__(self, owner, name):
+        self.name = name
+        self.private_name = f'_{name}'
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return getattr(obj, self.private_name, None)
+
+    def __set__(self, obj, value):
+        if not self.validator(value):
+            raise ValueError(f"{self.name}: {self.error_msg} (got {value!r})")
+        setattr(obj, self.private_name, value)
+
+class User:
+    name = Validated(lambda v: isinstance(v, str) and len(v) > 0,
+                     "must be non-empty string")
+    age = Validated(lambda v: isinstance(v, int) and 0 <= v <= 150,
+                    "must be int 0-150")
+    email = Validated(lambda v: isinstance(v, str) and '@' in v,
+                      "must contain @")
+
+    def __init__(self, name, age, email):
+        self.name = name    # triggers Validated.__set__
+        self.age = age
+        self.email = email
+
+user = User("Alice", 30, "alice@example.com")  # OK
+# User("", 30, "test")  # ValueError: name: must be non-empty string`,
+        tips: [
+          '__set_name__ (Python 3.6+) automatically receives the attribute name — no need to pass it manually.',
+          'Descriptors are how @property, @staticmethod, and @classmethod work internally.',
+          'Class decorators are simpler than metaclasses for most use cases — prefer them unless you need __init_subclass__.',
+          'The registry pattern with decorators is perfect for plugin systems and factory patterns.',
+        ],
+        mistake: 'Using metaclasses when a class decorator or __init_subclass__ would suffice — metaclasses are complex and only one metaclass per class hierarchy. Class decorators compose freely.',
+        shorthand: {
+          verbose: `def register(cls):
+    _plugins[cls.__name__.lower()] = cls
+    return cls
+
+@register
+class JSONParser:
+    pass`,
+          concise: `def register(cls):
+    return _plugins.setdefault(cls.__name__.lower(), cls) or cls`
+        },
+      },
+    ],
+  },
+  {
+    id: 'context-managers',
+    title: 'Context Managers & Generators',
+    entries: [
+      {
+        id: 'context-manager-patterns',
+        fn: 'Context Managers — Resource Management & State',
+        desc: 'Ensure cleanup with with statements — files, locks, database connections, temporary state changes.',
+        category: 'Context Managers',
+        subtitle: '__enter__/__exit__, contextlib.contextmanager, ExitStack',
+        signature: 'with resource as r: ...  |  @contextmanager  |  ExitStack()',
+        descLong: 'Context managers guarantee cleanup code runs via __enter__ (setup) and __exit__ (teardown). The with statement calls __enter__ on entry and __exit__ on exit (even if exceptions occur). @contextlib.contextmanager creates context managers from generators (yield once). ExitStack manages a dynamic number of context managers. Use for: file handles, locks, DB transactions, temp directories, monkey-patching.',
+        code: `from contextlib import contextmanager, ExitStack
+from pathlib import Path
+import tempfile
+import os
+
+# Class-based context manager
+class DatabaseTransaction:
+    def __init__(self, connection):
+        self.conn = connection
+
+    def __enter__(self):
+        self.conn.begin()
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
+        return False  # don't suppress exceptions
+
+# Generator-based (simpler)
+@contextmanager
+def timer(label="Block"):
+    import time
+    start = time.perf_counter()
+    try:
+        yield  # code in the 'with' block runs here
+    finally:
+        elapsed = time.perf_counter() - start
+        print(f"{label}: {elapsed:.4f}s")
+
+with timer("Data processing"):
+    result = expensive_computation()
+
+# Temporary directory
+@contextmanager
+def temp_workspace():
+    original = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.chdir(tmpdir)
+        try:
+            yield tmpdir
+        finally:
+            os.chdir(original)  # always restore
+
+with temp_workspace() as workspace:
+    # work in temp dir, auto-cleaned up after
+    Path("output.txt").write_text("data")
+
+# Temporary monkey-patch
+@contextmanager
+def patch_env(**kwargs):
+    old = {k: os.environ.get(k) for k in kwargs}
+    os.environ.update(kwargs)
+    try:
+        yield
+    finally:
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+with patch_env(DEBUG="1", API_KEY="test"):
+    assert os.environ["DEBUG"] == "1"
+
+# ExitStack — dynamic number of context managers
+@contextmanager
+def open_multiple(paths):
+    with ExitStack() as stack:
+        files = [stack.enter_context(open(p)) for p in paths]
+        yield files
+
+with open_multiple(["a.txt", "b.txt", "c.txt"]) as files:
+    for f in files:
+        print(f.read())`,
+        tips: [
+          '@contextmanager is usually simpler than a class — use yield for the resource and finally for cleanup.',
+          'Return False from __exit__ to propagate exceptions; return True to suppress them (rarely what you want).',
+          'ExitStack handles a dynamic number of context managers — essential when you don\'t know the count at write time.',
+          'Context managers replace try/finally patterns — they\'re more readable and harder to get wrong.',
+        ],
+        mistake: 'Suppressing exceptions in __exit__ by returning True accidentally — this silently swallows errors. Always return False (or omit the return) unless you intentionally want to suppress specific exceptions.',
+        shorthand: {
+          verbose: `class DatabaseTransaction:
+    def __init__(self, conn):
+        self.conn = conn
+    def __enter__(self):
+        self.conn.begin()
+        return self.conn
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self.conn.rollback()
+        else:
+            self.conn.commit()`,
+          concise: `@contextmanager
+def database(conn):
+    conn.begin()
+    try:
+        yield conn
+    except:
+        conn.rollback()
+        raise
+    else:
+        conn.commit()`
+        },
+      },
+      {
+        id: 'generators-advanced',
+        fn: 'Advanced Generators & Itertools',
+        desc: 'Lazy evaluation, generator pipelines, itertools recipes, and memory-efficient data processing.',
+        category: 'Generators',
+        subtitle: 'yield, yield from, itertools, generator expressions',
+        signature: 'yield value  |  yield from iterable  |  itertools.chain, islice, groupby',
+        descLong: 'Generators produce values lazily — only computing the next value when requested. This enables processing datasets larger than memory. Generator pipelines chain transformations without intermediate lists. yield from delegates to sub-generators. itertools provides optimized building blocks: chain, islice, groupby, product, combinations, accumulate. Generator expressions are inline generators.',
+        code: `import itertools
+from pathlib import Path
+
+# Generator pipeline — process huge file without loading it all
+def read_lines(path):
+    with open(path) as f:
+        for line in f:
+            yield line.strip()
+
+def filter_errors(lines):
+    for line in lines:
+        if "ERROR" in line:
+            yield line
+
+def parse_timestamp(lines):
+    for line in lines:
+        ts, _, msg = line.partition(" ")
+        yield {"timestamp": ts, "message": msg}
+
+# Chain generators — each processes one line at a time
+pipeline = parse_timestamp(filter_errors(read_lines("app.log")))
+for entry in itertools.islice(pipeline, 10):  # first 10 errors
+    print(entry)
+
+# yield from — delegate to sub-generator
+def flatten(nested):
+    for item in nested:
+        if isinstance(item, (list, tuple)):
+            yield from flatten(item)  # recursive delegation
+        else:
+            yield item
+
+list(flatten([1, [2, [3, 4], 5], [6, 7]]))  # [1, 2, 3, 4, 5, 6, 7]
+
+# itertools essentials
+# chain — concatenate iterables
+all_items = itertools.chain(list1, list2, list3)
+
+# islice — slice an iterator (no negative indices)
+first_100 = itertools.islice(huge_generator(), 100)
+
+# groupby — group consecutive equal elements (must be sorted!)
+data = sorted(records, key=lambda r: r["category"])
+for category, group in itertools.groupby(data, key=lambda r: r["category"]):
+    items = list(group)
+    print(f"{category}: {len(items)} items")
+
+# product — cartesian product (nested loops)
+for size, color in itertools.product(["S", "M", "L"], ["red", "blue"]):
+    print(f"{size}-{color}")  # S-red, S-blue, M-red, ...
+
+# combinations and permutations
+list(itertools.combinations([1, 2, 3, 4], 2))  # [(1,2), (1,3), (1,4), (2,3), ...]
+list(itertools.permutations([1, 2, 3], 2))      # [(1,2), (1,3), (2,1), (2,3), ...]
+
+# accumulate — running totals
+list(itertools.accumulate([1, 2, 3, 4, 5]))  # [1, 3, 6, 10, 15]
+
+# batched (Python 3.12+)
+# list(itertools.batched(range(10), 3))  # [(0,1,2), (3,4,5), (6,7,8), (9,)]
+
+# Generator expression (inline generator)
+sum_squares = sum(x**2 for x in range(1_000_000))  # no list created`,
+        tips: [
+          'Generator pipelines process one item at a time — memory usage stays constant regardless of data size.',
+          'yield from is more than syntactic sugar — it properly propagates .send(), .throw(), and .close().',
+          'itertools.groupby requires SORTED input — group by key on unsorted data gives wrong results.',
+          'Use generator expressions (x for x in ...) instead of list comprehensions when you only iterate once.',
+        ],
+        mistake: 'Calling list() on a huge generator defeats the purpose — it loads everything into memory. Iterate lazily or use itertools.islice() to limit consumption.',
+        shorthand: {
+          verbose: `def flatten(nested):
+    for item in nested:
+        if isinstance(item, (list, tuple)):
+            for sub in flatten(item):
+                yield sub
+        else:
+            yield item`,
+          concise: `def flatten(nested):
+    for item in nested:
+        if isinstance(item, (list, tuple)):
+            yield from flatten(item)
+        else:
+            yield item`
+        },
+      },
+    ],
+  },
+  {
+    id: 'pathlib-logging',
+    title: 'Pathlib & Logging',
+    entries: [
+      {
+        id: 'pathlib-patterns',
+        fn: 'pathlib — Modern File Path Handling',
+        desc: 'Object-oriented filesystem paths — reading, writing, globbing, and path manipulation without os.path.',
+        category: 'Standard Library',
+        subtitle: 'Path(), read_text, write_text, glob, mkdir, stat',
+        signature: 'Path("dir") / "file.txt"  |  path.read_text()  |  path.glob("**/*.py")',
+        descLong: 'pathlib.Path replaces os.path with an object-oriented API. Paths compose with / operator. Methods for reading (read_text, read_bytes), writing (write_text, write_bytes), globbing (glob, rglob), and metadata (stat, exists, is_file, is_dir). Path objects are immutable and hashable. Available since Python 3.4, it\'s the recommended way to handle filesystem paths.',
+        code: `from pathlib import Path
+
+# Create paths (/ operator!)
+project = Path("/home/user/project")
+config = project / "config" / "settings.json"
+print(config)  # /home/user/project/config/settings.json
+
+# Path components
+p = Path("/home/user/project/src/main.py")
+p.name        # "main.py"
+p.stem        # "main"
+p.suffix      # ".py"
+p.parent      # Path("/home/user/project/src")
+p.parents[1]  # Path("/home/user/project")
+p.parts       # ('/', 'home', 'user', 'project', 'src', 'main.py')
+
+# Read and write files (one-liners!)
+text = Path("config.json").read_text(encoding="utf-8")
+Path("output.txt").write_text("Hello, World!", encoding="utf-8")
+data = Path("image.png").read_bytes()
+Path("copy.png").write_bytes(data)
+
+# Check existence and type
+p.exists()       # True/False
+p.is_file()      # True if regular file
+p.is_dir()       # True if directory
+p.stat().st_size  # file size in bytes
+
+# Create directories
+Path("output/reports/2024").mkdir(parents=True, exist_ok=True)
+
+# Globbing — find files
+for py_file in Path("src").rglob("*.py"):  # recursive
+    print(py_file)
+
+# List directory contents
+for item in Path(".").iterdir():
+    kind = "DIR" if item.is_dir() else "FILE"
+    print(f"  [{kind}] {item.name}")
+
+# Change extension
+p = Path("report.txt")
+p.with_suffix(".pdf")   # Path("report.pdf")
+p.with_stem("summary")  # Path("summary.txt")  (Python 3.9+)
+
+# Resolve and relative paths
+p.resolve()              # absolute path
+p.relative_to("/home")   # relative path from /home
+
+# Rename and delete
+Path("old.txt").rename("new.txt")
+Path("temp.txt").unlink(missing_ok=True)  # delete (no error if missing)
+
+# Common pattern: process all files
+def process_directory(directory: Path, pattern: str = "*.csv"):
+    for file_path in sorted(directory.rglob(pattern)):
+        print(f"Processing {file_path.name} ({file_path.stat().st_size:,} bytes)")
+        data = file_path.read_text()
+        # ... process data ...`,
+        tips: [
+          'Use / operator for path composition: Path("dir") / "subdir" / "file.txt" — cleaner than os.path.join.',
+          'read_text() and write_text() are one-liners that handle open/close — no with statement needed.',
+          'rglob("**/*.py") is recursive glob — much simpler than os.walk() + fnmatch.',
+          'mkdir(parents=True, exist_ok=True) is the equivalent of mkdir -p — creates all parents, no error if exists.',
+        ],
+        mistake: 'Using string concatenation for paths ("dir/" + "file.txt") — it breaks on Windows (backslashes). Path("dir") / "file.txt" handles OS differences automatically.',
+        shorthand: {
+          verbose: `import os
+path = os.path.join("/home/user", "project", "config.json")
+with open(path) as f:
+    text = f.read()`,
+          concise: `text = (Path("/home/user") / "project" / "config.json").read_text()`
+        },
+      },
+      {
+        id: 'logging-config',
+        fn: 'logging — Structured Application Logging',
+        desc: 'Production logging with levels, formatters, handlers, and structured output — replaces print() debugging.',
+        category: 'Standard Library',
+        subtitle: 'getLogger, handlers, formatters, structured logging',
+        signature: 'logger = logging.getLogger(__name__)  |  logger.info("msg", extra={...})',
+        descLong: 'The logging module provides leveled, configurable logging. Loggers form a hierarchy (by module name). Handlers direct output (console, file, network). Formatters control output format. Levels: DEBUG < INFO < WARNING < ERROR < CRITICAL. Use getLogger(__name__) per module. Configure once at application startup. For structured logging (JSON), use python-json-logger or structlog.',
+        code: `import logging
+import logging.handlers
+import sys
+import json
+
+# ── Basic setup ─────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+# ── Per-module logger (best practice) ───────────────
+logger = logging.getLogger(__name__)
+
+logger.debug("Detailed debug info")      # hidden at INFO level
+logger.info("User %s logged in", username)
+logger.warning("Disk usage at %d%%", 85)
+logger.error("Failed to connect to %s", url)
+logger.exception("Unexpected error")      # includes traceback
+
+# ── Advanced configuration ──────────────────────────
+def setup_logging():
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    # Console handler — INFO and above
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(logging.INFO)
+    console.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)-8s] %(name)s: %(message)s"
+    ))
+
+    # File handler — all levels, with rotation
+    file_handler = logging.handlers.RotatingFileHandler(
+        "app.log",
+        maxBytes=10_000_000,  # 10MB
+        backupCount=5,        # keep 5 old files
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s"
+    ))
+
+    root.addHandler(console)
+    root.addHandler(file_handler)
+
+# ── Structured logging (JSON) ───────────────────────
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_data = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+        if hasattr(record, "user_id"):
+            log_data["user_id"] = record.user_id
+        return json.dumps(log_data)
+
+# ── Context with extra fields ───────────────────────
+logger.info("Order placed", extra={"user_id": 42, "order_id": "abc-123"})
+
+# LoggerAdapter for consistent extra fields
+class RequestLogger(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        kwargs.setdefault("extra", {}).update(self.extra)
+        return msg, kwargs
+
+req_logger = RequestLogger(logger, {"request_id": "req-xyz", "ip": "1.2.3.4"})
+req_logger.info("Processing request")`,
+        tips: [
+          'Use logger.info("msg %s", var) NOT logger.info(f"msg {var}") — lazy formatting skips string creation if level is filtered.',
+          'getLogger(__name__) per module creates a hierarchy — configure the root logger once at startup.',
+          'RotatingFileHandler prevents logs from filling the disk — set maxBytes and backupCount.',
+          'logger.exception() automatically includes the traceback — use it in except blocks.',
+        ],
+        mistake: 'Using print() for production logging — it can\'t be filtered by level, rotated, sent to files, or structured as JSON. logging is built-in and handles all of this.',
+        shorthand: {
+          verbose: `import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.info("Application started")`,
+          concise: `import logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+logger = logging.getLogger(__name__)
+logger.info("Application started")`
+        },
+      },
+    ],
+  },
+  {
+    id: 'typing-dataclasses',
+    title: 'Typing & Dataclasses',
+    entries: [
+      {
+        id: 'typing-advanced',
+        fn: 'Advanced Type Hints — Protocols, TypeVar, Overload',
+        desc: 'Structural typing with Protocol, generic functions with TypeVar, and precise overloads for complex APIs.',
+        category: 'Typing',
+        subtitle: 'Protocol, TypeVar, overload, TypeAlias, TypeGuard',
+        signature: 'class Readable(Protocol): def read(self) -> str: ...  |  T = TypeVar("T")',
+        descLong: 'Python\'s type system supports structural typing (Protocol — duck typing made explicit), generics (TypeVar — "this function returns the same type it receives"), overloaded signatures (@overload — different return types based on input), type aliases (TypeAlias), and type guards (TypeGuard — narrow types in if branches). These enable precise types for complex APIs without runtime overhead.',
+        code: `from typing import (
+    Protocol, TypeVar, overload, TypeAlias,
+    TypeGuard, Generic, Callable, Iterator
+)
+from collections.abc import Sequence
+
+# Protocol — structural typing (duck typing with types)
+class Readable(Protocol):
+    def read(self) -> str: ...
+
+class Closeable(Protocol):
+    def close(self) -> None: ...
+
+class ReadableCloseable(Readable, Closeable, Protocol):
+    pass
+
+def process(source: Readable) -> str:
+    return source.read().upper()
+
+# Any object with a .read() method works — no inheritance needed
+# process(open("file.txt"))  # works
+# process(io.StringIO("hello"))  # works
+
+# TypeVar — generic functions
+T = TypeVar("T")
+
+def first(items: Sequence[T]) -> T:
+    return items[0]
+
+x: int = first([1, 2, 3])      # T inferred as int
+y: str = first(["a", "b"])     # T inferred as str
+
+# Bounded TypeVar
+Num = TypeVar("Num", int, float)
+def double(x: Num) -> Num:
+    return x * 2
+
+# @overload — different return types based on input
+@overload
+def parse(data: str) -> dict: ...
+@overload
+def parse(data: bytes) -> list: ...
+def parse(data: str | bytes) -> dict | list:
+    if isinstance(data, str):
+        return json.loads(data)
+    return list(data)
+
+# TypeGuard — narrow types in conditionals
+def is_string_list(val: list) -> TypeGuard[list[str]]:
+    return all(isinstance(x, str) for x in val)
+
+def process_items(items: list) -> None:
+    if is_string_list(items):
+        # type checker knows items is list[str] here
+        print(", ".join(items))
+
+# TypeAlias (Python 3.10+)
+JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
+UserID: TypeAlias = int
+Callback: TypeAlias = Callable[[str, int], bool]`,
+        tips: [
+          'Protocol enables duck typing with static checking — any object matching the shape satisfies the type.',
+          'TypeVar preserves type relationships: first(list[int]) → int, first(list[str]) → str.',
+          '@overload is for type checkers only — the actual implementation must handle all cases.',
+          'Use TypeAlias for complex types — JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | ... is much clearer.',
+        ],
+        mistake: 'Using ABC (abstract base class) when Protocol would suffice — ABC requires inheritance, Protocol uses structural typing. Prefer Protocol for "this object just needs a .read() method" patterns.',
+        shorthand: {
+          verbose: `class Animal(ABC):
+    @abstractmethod
+    def speak(self): pass
+
+class Dog(Animal):
+    def speak(self):
+        return "Woof"`,
+          concise: `class Speakable(Protocol):
+    def speak(self) -> str: ...`
+        },
+      },
+      {
+        id: 'dataclasses-advanced',
+        fn: 'Dataclasses — Advanced Patterns',
+        desc: 'Beyond basic @dataclass — frozen classes, field factories, post_init, slots, and Pydantic comparison.',
+        category: 'Dataclasses',
+        subtitle: 'frozen, slots, field(), __post_init__, KW_ONLY',
+        signature: '@dataclass(frozen=True, slots=True)  |  field(default_factory=list)',
+        descLong: 'Dataclasses (Python 3.7+) auto-generate __init__, __repr__, __eq__, and optionally __hash__, __order__. Advanced features: frozen=True for immutable instances, slots=True (3.10+) for memory savings, field() for defaults and metadata, __post_init__ for validation, KW_ONLY (3.10+) for keyword-only fields. For validation at runtime, use Pydantic or attrs instead.',
+        code: `from dataclasses import dataclass, field, asdict, replace
+from typing import ClassVar
+
+# Immutable dataclass
+@dataclass(frozen=True, slots=True)
+class Point:
+    x: float
+    y: float
+
+    def distance(self, other: "Point") -> float:
+        return ((self.x - other.x)**2 + (self.y - other.y)**2) ** 0.5
+
+p = Point(3.0, 4.0)
+# p.x = 5  # FrozenInstanceError — immutable!
+p2 = replace(p, x=5.0)  # create modified copy
+
+# Field factories and validation
+@dataclass
+class Config:
+    name: str
+    tags: list[str] = field(default_factory=list)  # mutable default
+    _created_at: float = field(default_factory=time.time, repr=False)
+    MAX_TAGS: ClassVar[int] = 10  # class variable, not a field
+
+    def __post_init__(self):
+        if not self.name:
+            raise ValueError("name cannot be empty")
+        if len(self.tags) > self.MAX_TAGS:
+            raise ValueError(f"max {self.MAX_TAGS} tags")
+
+# KW_ONLY (Python 3.10+)
+from dataclasses import KW_ONLY
+
+@dataclass
+class Request:
+    url: str
+    method: str = "GET"
+    _: KW_ONLY
+    headers: dict = field(default_factory=dict)
+    timeout: float = 30.0
+
+# Request("https://api.example.com", headers={"Auth": "token"})
+
+# Ordered dataclass (generates __lt__, __le__, etc.)
+@dataclass(order=True)
+class Version:
+    sort_index: tuple = field(init=False, repr=False)
+    major: int
+    minor: int
+    patch: int
+
+    def __post_init__(self):
+        self.sort_index = (self.major, self.minor, self.patch)
+
+versions = [Version(1, 2, 0), Version(2, 0, 0), Version(1, 1, 9)]
+sorted(versions)  # [1.1.9, 1.2.0, 2.0.0]
+
+# Serialize
+config = Config("myapp", ["web", "api"])
+d = asdict(config)  # {'name': 'myapp', 'tags': ['web', 'api'], ...}
+
+# Inheritance
+@dataclass
+class Animal:
+    name: str
+    sound: str = "..."
+
+@dataclass
+class Dog(Animal):
+    breed: str = "Unknown"
+    sound: str = "Woof"  # override default`,
+        tips: [
+          'frozen=True + slots=True is the most efficient immutable container — less memory and hashable.',
+          'Use field(default_factory=list) for mutable defaults — field(default=[]) is a shared mutable bug.',
+          '__post_init__ runs after __init__ — use it for validation, computed fields, and normalization.',
+          'replace() creates a shallow copy with modifications — like a spread operator for dataclasses.',
+        ],
+        mistake: 'Using a mutable default directly: @dataclass class C: items: list = [] — all instances share the SAME list. Use field(default_factory=list) for independent lists per instance.',
+        shorthand: {
+          verbose: `@dataclass
+class Config:
+    name: str
+    tags: list[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)`,
+          concise: `@dataclass(frozen=True, slots=True)
+class Config:
+    name: str
+    tags: list[str] = field(default_factory=list)`
+        },
+      },
+    ],
+  },
+  {
+    id: 'metaprogramming',
+    title: 'Metaprogramming',
+    entries: [
+      {
+        id: 'metaclass',
+        fn: 'Metaclasses — Customizing Class Creation',
+        desc: 'Control how classes are created using type() and custom metaclasses — advanced class modification at definition time.',
+        category: 'Metaprogramming',
+        subtitle: 'type(), __new__, __init__, metaclass= kwarg, use cases',
+        signature: 'class Meta(type): def __new__(mcs, name, bases, dct): ...  |  class MyClass(metaclass=Meta): ...',
+        descLong: 'A metaclass is a class whose instances are classes. The type() function is the default metaclass. Custom metaclasses override __new__ (class creation) and __init__ (class initialization) to modify how classes are constructed. Metaclasses enable: enforcing attribute patterns, auto-registering subclasses, validating definitions, modifying methods. Rarely needed — prefer class decorators, __init_subclass__, or descriptors. Rule: metaclasses are one per inheritance hierarchy.',
+        code: `# Metaclass fundamentals
+class Meta(type):
+    """Custom metaclass that tracks all subclasses."""
+
+    subclasses_registry = {}
+
+    def __new__(mcs, name, bases, namespace):
+        cls = super().__new__(mcs, name, bases, namespace)
+        if name != 'Base':  # don't register the base
+            mcs.subclasses_registry[name] = cls
+        return cls
+
+class Base(metaclass=Meta):
+    pass
+
+@Meta.register
+class Plugin1(Base):
+    pass
+
+@Meta.register
+class Plugin2(Base):
+    pass
+
+# Lookup plugins by name
+plugin_cls = Meta.subclasses_registry['Plugin1']
+
+# ── Enforce attribute patterns ──
+class ValidatedMeta(type):
+    """Enforce that all methods have docstrings and type hints."""
+
+    def __new__(mcs, name, bases, namespace):
+        for attr_name, attr_value in namespace.items():
+            if callable(attr_value) and not attr_name.startswith('_'):
+                if not attr_value.__doc__:
+                    raise TypeError(f"{name}.{attr_name} missing docstring")
+                if not hasattr(attr_value, '__annotations__'):
+                    raise TypeError(f"{name}.{attr_name} missing type hints")
+        return super().__new__(mcs, name, bases, namespace)
+
+class StrictBase(metaclass=ValidatedMeta):
+    pass
+
+class Compliant(StrictBase):
+    def process(self, data: str) -> int:
+        """Process and count items."""
+        return len(data)
+
+# class Noncompliant(StrictBase):
+#     def process(self, data):  # ✗ no type hints, no docstring
+#         return len(data)
+
+# ── Singleton via metaclass ──
+class SingletonMeta(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+class Logger(metaclass=SingletonMeta):
+    def log(self, msg):
+        print(f"[LOG] {msg}")
+
+# Always the same instance
+logger1 = Logger()
+logger2 = Logger()
+assert logger1 is logger2  # same object
+
+# ── Abstract base classes via metaclass ──
+class AbstractMeta(type):
+    def __new__(mcs, name, bases, namespace):
+        abstract_methods = {
+            attr_name for attr_name, attr_value in namespace.items()
+            if getattr(attr_value, '__isabstractmethod__', False)
+        }
+        for base in bases:
+            abstract_methods.update(getattr(base, '__abstractmethods__', set()))
+
+        if abstract_methods and not namespace.get('_allow_abstract'):
+            raise TypeError(f"Can't instantiate {name}: abstract methods {abstract_methods}")
+
+        namespace['__abstractmethods__'] = frozenset(abstract_methods)
+        return super().__new__(mcs, name, bases, namespace)`,
+        tips: [
+          'Only one metaclass per class hierarchy — if two metaclasses are mixed, they must share a common ancestor.',
+          'Metaclasses are typically replaced by class decorators (__init_subclass__, or descriptors) — use them only when you must control class creation itself.',
+          '__new__ receives the class name, bases, and namespace dict — modify it before calling super().__new__().',
+          'Singleton pattern via metaclass is overkill — prefer a factory function or module-level instance instead.',
+        ],
+        mistake: 'Using metaclasses for functionality that class decorators or __init_subclass__ can handle — metaclasses are complex and limit inheritance. Prefer simpler approaches.',
+        shorthand: {
+          verbose: `class Meta(type):
+    def __new__(mcs, name, bases, namespace):
+        namespace['_created_by_meta'] = True
+        return super().__new__(mcs, name, bases, namespace)
+
+class MyClass(metaclass=Meta):
+    pass`,
+          concise: `class Meta(type):
+    def __new__(mcs, name, bases, namespace):
+        namespace['_created_by_meta'] = True
+        return super().__new__(mcs, name, bases, namespace)`
+        },
+      },
+      {
+        id: 'descriptor-protocol',
+        fn: 'Descriptor Protocol — Custom Attributes',
+        desc: 'Implement __get__, __set__, __delete__ to create reusable attribute behaviors — properties, validators, lazy attributes.',
+        category: 'Metaprogramming',
+        subtitle: '__get__, __set__, __delete__, __set_name__, cached_property',
+        signature: 'def __get__(self, obj, objtype): ...  |  def __set__(self, obj, value): ...',
+        descLong: 'Descriptors intercept attribute access via __get__ (read), __set__ (write), __delete__ (delete). They\'re the mechanism behind @property, @staticmethod, @classmethod, and @cached_property. __set_name__ (Python 3.6+) auto-receives the attribute name. Data descriptors (define __set__) override instance __dict__; non-data descriptors don\'t. Use for: validation, lazy computation, computed fields, type checking.',
+        code: `from functools import cached_property
+import time
+
+# Basic descriptor — validation
+class Validated:
+    def __init__(self, validator, error_msg="Invalid"):
+        self.validator = validator
+        self.error_msg = error_msg
+        self.name = None
+        self.private_name = None
+
+    def __set_name__(self, owner, name):
+        self.name = name
+        self.private_name = f'_{name}'
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return getattr(obj, self.private_name, None)
+
+    def __set__(self, obj, value):
+        if not self.validator(value):
+            raise ValueError(f"{self.name}: {self.error_msg} (got {value!r})")
+        setattr(obj, self.private_name, value)
+
+    def __delete__(self, obj):
+        delattr(obj, self.private_name)
+
+class User:
+    email = Validated(
+        lambda v: '@' in v,
+        "must contain @"
+    )
+    age = Validated(
+        lambda v: isinstance(v, int) and 0 <= v <= 150,
+        "must be int 0-150"
+    )
+
+    def __init__(self, email, age):
+        self.email = email
+        self.age = age
+
+user = User("alice@example.com", 30)
+# user.email = "invalid"  # ValueError: email: must contain @
+
+# cached_property — compute once, reuse
+class DataProcessor:
+    def __init__(self, data):
+        self._data = data
+
+    @cached_property
+    def processed(self):
+        """Expensive computation, cached after first access."""
+        print("Computing...")
+        time.sleep(1)
+        return [x.upper() for x in self._data]
+
+proc = DataProcessor(["a", "b", "c"])
+result1 = proc.processed  # computing (1 sec)
+result2 = proc.processed  # instant (cached)
+# result1 is result2  # True
+
+# Lazy property — compute on demand
+class LazyProperty:
+    def __init__(self, fn):
+        self.fn = fn
+        self.name = fn.__name__
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        value = self.fn(obj)
+        setattr(obj, self.name, value)  # cache in __dict__
+        return value
+
+class Config:
+    def __init__(self, config_file):
+        self.file = config_file
+
+    @LazyProperty
+    def settings(self):
+        """Load from disk only when accessed."""
+        with open(self.file) as f:
+            return json.load(f)
+
+# Typed property — auto-cast on assignment
+class TypedProperty:
+    def __init__(self, type_):
+        self.type_ = type_
+        self.name = None
+        self.private_name = None
+
+    def __set_name__(self, owner, name):
+        self.name = name
+        self.private_name = f'_{name}'
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return getattr(obj, self.private_name, None)
+
+    def __set__(self, obj, value):
+        setattr(obj, self.private_name, self.type_(value))
+
+class Temperature:
+    celsius = TypedProperty(float)
+
+    def __init__(self, c):
+        self.celsius = c
+
+t = Temperature("23.5")  # auto-cast to float
+print(t.celsius)  # 23.5 (float)`,
+        tips: [
+          '__set_name__ (Python 3.6+) eliminates manual name passing — the descriptor automatically knows its attribute name.',
+          'Descriptors are how @property, @classmethod, @staticmethod work internally — they\'re just objects with __get__, __set__, __delete__.',
+          '@cached_property is perfect for expensive one-time computations — computed on first access, then cached in __dict__.',
+          'Data descriptors (__set__) take precedence over instance __dict__ — non-data descriptors don\'t, so cached values override them.',
+        ],
+        mistake: 'Using @property when @cached_property would be better — @property recalculates every time. Use @cached_property for pure functions with expensive computation.',
+        shorthand: {
+          verbose: `class Descriptor:
+    def __set_name__(self, owner, name):
+        self.name = name
+        self.private_name = f'_{name}'
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return getattr(obj, self.private_name, None)
+
+    def __set__(self, obj, value):
+        setattr(obj, self.private_name, value)`,
+          concise: `@cached_property
+def expensive_value(self):
+    return sum(expensive_computation())`
+        },
+      },
+      {
+        id: 'slots',
+        fn: '__slots__ — Memory Optimization',
+        desc: 'Prevent dynamic attributes and reduce memory with __slots__ — trades flexibility for efficiency.',
+        category: 'Metaprogramming',
+        subtitle: '__slots__, memory savings, prevents dynamic attributes',
+        signature: '__slots__ = ("x", "y", "z")  # read-only tuple of attribute names',
+        descLong: '__slots__ defines the exact attributes a class instances can have. Eliminates the instance __dict__ to save memory (~40-50% savings per instance). Instances can\'t have dynamic attributes added. Useful for large collections of small objects. Trade-off: less flexible, inheritance is tricky, no __dict__ for introspection.',
+        code: `# Without __slots__ — every instance has a __dict__
+class PointOld:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+# With __slots__ — only x and y allowed, no __dict__
+class PointNew:
+    __slots__ = ('x', 'y')
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+# Memory comparison
+import sys
+old = PointOld(1, 2)
+new = PointNew(1, 2)
+print(sys.getsizeof(old.__dict__))  # ~280 bytes for __dict__
+print(hasattr(new, '__dict__'))     # False — no __dict__
+
+# Slots prevent dynamic attributes
+old.z = 3  # OK — adds to __dict__
+# new.z = 3  # AttributeError: 'PointNew' object has no attribute 'z'
+
+# Slots with methods
+class Vector3:
+    __slots__ = ('x', 'y', 'z')
+
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def magnitude(self):
+        return (self.x**2 + self.y**2 + self.z**2) ** 0.5
+
+v = Vector3(3, 4, 0)
+print(v.magnitude())  # 5.0
+
+# Inheritance with slots
+class Point2D:
+    __slots__ = ('x', 'y')
+
+class Point3D(Point2D):
+    __slots__ = ('z',)  # add to parent's slots
+
+p = Point3D()
+p.x = 1  # from parent
+p.z = 3  # from child
+# p.w = 4  # AttributeError
+
+# Slots with defaults (Python 3.10+)
+class Config:
+    __slots__ = {
+        'name': None,
+        'debug': False,
+        'timeout': 30.0,
+    }
+
+c = Config()
+print(c.name)  # None (default)
+
+# Class with __dict__ despite __slots__
+class FlexiblePoint:
+    __slots__ = ('x', 'y', '__dict__')  # keep __dict__ for dynamic attrs
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+fp = FlexiblePoint(1, 2)
+fp.metadata = "custom"  # OK — goes in __dict__`,
+        tips: [
+          '__slots__ saves ~40-50% per instance when you have thousands of small objects.',
+          'Include "__dict__" in __slots__ if you want to allow some dynamic attributes alongside slots.',
+          'Inheritance: define __slots__ in each class; the union of parent and child slots is used.',
+          '__slots__ breaks pickling, deepcopy, and some introspection — only use when you really need the memory savings.',
+        ],
+        mistake: 'Using __slots__ prematurely for small, dynamic classes — the complexity overhead outweighs memory savings. Use __slots__ only for classes you instantiate thousands of times.',
+        shorthand: {
+          verbose: `class Point:
+    __slots__ = ('x', 'y')
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y`,
+          concise: `@dataclass(slots=True)  # Python 3.10+
+class Point:
+    x: float
+    y: float`
+        },
+      },
+      {
+        id: 'abstract-base-classes',
+        fn: 'Abstract Base Classes — Contracts & Enforcement',
+        desc: 'Define interfaces with abc.ABC and @abstractmethod — enforce that subclasses implement required methods.',
+        category: 'Metaprogramming',
+        subtitle: 'abc.ABC, @abstractmethod, @abstractproperty, ABCMeta',
+        signature: 'class Base(ABC): @abstractmethod def method(self): ...',
+        descLong: 'The abc module (abstract base classes) enables defining interfaces — classes that can\'t be instantiated directly. Subclasses must implement all @abstractmethod methods or they can\'t be instantiated. @abstractproperty (deprecated, use @property + @abstractmethod) enforces properties. ABCMeta is the metaclass powering ABC. Use for: plugin interfaces, defining contracts, enforcing method implementation.',
+        code: `from abc import ABC, abstractmethod, ABCMeta
+from collections.abc import Sequence, Mapping
+
+# Basic abstract class
+class Animal(ABC):
+    @abstractmethod
+    def speak(self) -> str:
+        """All subclasses must implement speak()."""
+        ...
+
+    @abstractmethod
+    def move(self) -> None:
+        ...
+
+    def describe(self) -> str:
+        """Concrete method (optional to override)."""
+        return f"An animal that says: {self.speak()}"
+
+# Can't instantiate abstract class
+# a = Animal()  # TypeError: Can't instantiate abstract Animal
+
+class Dog(Animal):
+    def speak(self) -> str:
+        return "Woof"
+
+    def move(self) -> None:
+        print("Running on four legs")
+
+class Duck(Animal):
+    def speak(self) -> str:
+        return "Quack"
+
+    def move(self) -> None:
+        print("Swimming and flying")
+
+dog = Dog()
+print(dog.describe())  # "An animal that says: Woof"
+
+# Abstract properties
+class Shape(ABC):
+    @property
+    @abstractmethod
+    def area(self) -> float:
+        """Subclasses must provide area property."""
+        ...
+
+class Circle(Shape):
+    def __init__(self, radius):
+        self.radius = radius
+
+    @property
+    def area(self) -> float:
+        return 3.14 * self.radius ** 2
+
+circle = Circle(5)
+print(circle.area)  # 78.5
+
+# Custom abstract class (without ABC)
+class Plugin(metaclass=ABCMeta):
+    @abstractmethod
+    def execute(self, data):
+        pass
+
+class MyPlugin(Plugin):
+    def execute(self, data):
+        return data.upper()
+
+# Using built-in abstract types
+class DataStore(ABC):
+    @abstractmethod
+    def get(self, key: str):
+        ...
+
+    @abstractmethod
+    def set(self, key: str, value):
+        ...
+
+class DictStore(DataStore):
+    def __init__(self):
+        self._data = {}
+
+    def get(self, key: str):
+        return self._data.get(key)
+
+    def set(self, key: str, value):
+        self._data[key] = value
+
+# Check if class implements interface
+store = DictStore()
+assert isinstance(store, DataStore)  # True
+assert issubclass(DictStore, DataStore)  # True`,
+        tips: [
+          'ABC classes can\'t be instantiated — they\'re contracts. Subclasses must implement all @abstractmethod methods.',
+          '@abstractmethod can have a default implementation using super() — subclasses can extend it.',
+          'ABC.register() lets you register unrelated classes as implementing the interface (without inheritance).',
+          'Use collections.abc for built-in abstract types (Sequence, Mapping, Iterable) — prefer over writing your own.',
+        ],
+        mistake: 'Using ABC when a Protocol or duck typing would be simpler — ABC requires explicit inheritance. Protocol enables structural typing with less coupling.',
+        shorthand: {
+          verbose: `class DataStore(ABC):
+    @abstractmethod
+    def get(self, key: str):
+        pass
+
+    @abstractmethod
+    def set(self, key: str, value):
+        pass`,
+          concise: `class DataStore(Protocol):
+    def get(self, key: str) -> Any: ...
+    def set(self, key: str, value: Any) -> None: ...`
+        },
+      },
+    ],
+  },
+  {
+    id: 'advanced-patterns-py',
+    title: 'Advanced Patterns',
+    entries: [
+      {
+        id: 'singleton-pattern',
+        fn: 'Singleton Pattern — Global Unique Instance',
+        desc: 'Ensure a class has only one instance — via metaclass, module-level, or __new__ override.',
+        category: 'Design Patterns',
+        subtitle: 'Singleton via metaclass, module-level, __new__ override',
+        signature: 'class SingletonMeta(type): _instances = {}  |  _instance = None in __new__',
+        descLong: 'The Singleton pattern guarantees exactly one instance of a class. Common approaches: (1) metaclass intercepts __call__ to return cached instance, (2) module-level instance accessed as a constant, (3) __new__ override returns the singleton. Module-level singletons are simpler and Pythonic. Metaclass singletons work across multiple inheritance. Thread-safe singletons require locking (threading.Lock).',
+        code: `import threading
+
+# ── Approach 1: Module-level singleton (simplest, Pythonic) ──
+class Logger:
+    def __init__(self):
+        self._logs = []
+
+    def log(self, msg):
+        self._logs.append(msg)
+
+    def get_logs(self):
+        return self._logs
+
+# Exported as singleton
+_logger = Logger()
+
+def get_logger():
+    return _logger
+
+# Usage: always get the same instance
+logger1 = get_logger()
+logger2 = get_logger()
+assert logger1 is logger2  # True
+
+# ── Approach 2: Metaclass singleton ──
+class SingletonMeta(type):
+    _instances = {}
+    _lock = threading.Lock()
+
+    def __call__(cls, *args, **kwargs):
+        with cls._lock:  # thread-safe
+            if cls not in cls._instances:
+                cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+class Database(metaclass=SingletonMeta):
+    def __init__(self, host="localhost"):
+        self.host = host
+        self.connected = False
+
+    def connect(self):
+        print(f"Connecting to {self.host}")
+        self.connected = True
+
+db1 = Database("prod.example.com")
+db2 = Database("other.com")  # ignores host, returns db1
+assert db1 is db2  # True
+assert db1.host == "prod.example.com"  # original
+
+# ── Approach 3: __new__ override ──
+class Cache:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
+        self._data = {}
+        self._initialized = True
+
+    def get(self, key):
+        return self._data.get(key)
+
+    def set(self, key, value):
+        self._data[key] = value
+
+cache1 = Cache()
+cache2 = Cache()
+cache1.set("key", "value")
+assert cache2.get("key") == "value"  # same instance
+
+# ── Deprecation warning: use module-level instead ──
+import logging
+logger = logging.getLogger(__name__)  # built-in singleton per logger name`,
+        tips: [
+          'Module-level singletons (assigning _instance at module scope) are the most Pythonic — no metaclass complexity.',
+          'Metaclass singletons are thread-safe if you use threading.Lock() in __call__.',
+          '__new__ override singletons must check _initialized to avoid re-running __init__ on each call.',
+          'Logging uses module-level singletons — logging.getLogger(__name__) returns the same Logger per module name.',
+        ],
+        mistake: 'Using metaclass singletons when module-level or dependency injection would be simpler — singleton pattern is often overused. Consider passing dependencies instead.',
+        shorthand: {
+          verbose: `class SingletonMeta(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]`,
+          concise: `# At module level
+_instance = ClassName()
+
+def get_instance():
+    return _instance`
+        },
+      },
+      {
+        id: 'observer-pattern',
+        fn: 'Observer Pattern — Event System & Pub/Sub',
+        desc: 'Notify multiple observers of state changes — simple pub/sub with callbacks and weakref.',
+        category: 'Design Patterns',
+        subtitle: 'Observer, event system, callbacks, weakref, publish-subscribe',
+        signature: 'subject.subscribe(callback)  |  subject.notify()  |  weakref.WeakSet()',
+        descLong: 'Observer pattern decouples event producers from consumers. Subjects maintain a list of observers and notify them of changes. Callbacks enable flexible observer registration. weakref prevents memory leaks when observers disappear. Use for: UI event handling, state changes, real-time updates, logging hooks.',
+        code: `from weakref import WeakSet
+from typing import Callable, Any
+
+# Simple event system
+class Subject:
+    def __init__(self):
+        self._observers: WeakSet = WeakSet()
+
+    def subscribe(self, callback: Callable):
+        self._observers.add(callback)
+
+    def unsubscribe(self, callback: Callable):
+        self._observers.discard(callback)
+
+    def notify(self, event: str, **data):
+        for observer in self._observers:
+            observer(event, **data)
+
+class EventEmitter(Subject):
+    """Base class for observable objects."""
+    pass
+
+# Usage
+class User(EventEmitter):
+    def __init__(self, name):
+        super().__init__()
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if value != self._name:
+            self.notify("name_changed", old=self._name, new=value)
+            self._name = value
+
+class Logger:
+    def on_user_event(self, event, **data):
+        print(f"[USER EVENT] {event}: {data}")
+
+class Analytics:
+    def on_user_event(self, event, **data):
+        print(f"[ANALYTICS] Tracked: {event}")
+
+# Set up observers
+user = User("Alice")
+logger = Logger()
+analytics = Analytics()
+
+user.subscribe(logger.on_user_event)
+user.subscribe(analytics.on_user_event)
+
+user.name = "Bob"  # fires both callbacks
+
+# ── Publisher-Subscriber pattern ──
+class EventBus:
+    def __init__(self):
+        self._subscribers = {}
+
+    def subscribe(self, event_type: str, callback: Callable):
+        if event_type not in self._subscribers:
+            self._subscribers[event_type] = []
+        self._subscribers[event_type].append(callback)
+
+    def unsubscribe(self, event_type: str, callback: Callable):
+        if event_type in self._subscribers:
+            self._subscribers[event_type].remove(callback)
+
+    def publish(self, event_type: str, **data):
+        if event_type in self._subscribers:
+            for callback in self._subscribers[event_type]:
+                callback(**data)
+
+# Global event bus
+event_bus = EventBus()
+
+class OrderService:
+    def place_order(self, order_id, total):
+        # ... place order logic ...
+        event_bus.publish("order_placed", order_id=order_id, total=total)
+
+class EmailService:
+    def __init__(self):
+        event_bus.subscribe("order_placed", self.send_confirmation)
+
+    def send_confirmation(self, order_id, total):
+        print(f"Email: Order " + str(order_id) + " confirmed ($" + str(total) + ")")
+
+class NotificationService:
+    def __init__(self):
+        event_bus.subscribe("order_placed", self.notify_user)
+
+    def notify_user(self, order_id, total):
+        print(f"Push: Your order {order_id} is being processed")
+
+# Usage
+order = OrderService()
+email = EmailService()
+notif = NotificationService()
+
+order.place_order("ORD-123", 99.99)
+# Output:
+# Email: Order ORD-123 confirmed ($ amount)
+# Push: Your order ORD-123 is being processed`,
+        tips: [
+          'Use WeakSet for observers to prevent memory leaks — when observers are deleted elsewhere, they automatically disappear from the set.',
+          'Event buses decouple publishers and subscribers — services don\'t need to know about each other.',
+          'Callbacks (functions) automatically work with WeakSet — methods work if you hold a reference to the object.',
+          'Publish-subscribe is better than observer when you have many event types — avoids giant observer lists.',
+        ],
+        mistake: 'Using strong references (set or list) for observers — if observers are deleted, they stay in memory. Use WeakSet or manually unsubscribe.',
+        shorthand: {
+          verbose: `class Subject:
+    def __init__(self):
+        self._observers = []
+
+    def subscribe(self, callback):
+        self._observers.append(callback)
+
+    def notify(self, **data):
+        for obs in self._observers:
+            obs(**data)`,
+          concise: `from weakref import WeakSet
+
+class Subject:
+    def __init__(self):
+        self._observers = WeakSet()
+
+    def subscribe(self, callback):
+        self._observers.add(callback)`
+        },
+      },
+      {
+        id: 'mixin-pattern',
+        fn: 'Mixin Pattern — Composable Behaviors',
+        desc: 'Use mixin classes to compose reusable behaviors via multiple inheritance — cleaner than deep hierarchies.',
+        category: 'Design Patterns',
+        subtitle: 'Mixin classes, multiple inheritance, MRO (Method Resolution Order)',
+        signature: 'class MyClass(MixinA, MixinB, BaseClass): ...  |  super().__init_subclass__()',
+        descLong: 'Mixins are classes that add specific behaviors without being main base classes. Multiple inheritance enables composing behaviors. Method Resolution Order (MRO) determines which method runs — left-to-right in class definitions. Use super() for cooperative inheritance. Mixins are perfect for: timestamping, serialization, caching, logging, validation. Avoid deep hierarchies; use mixins to flatten complexity.',
+        code: `from datetime import datetime
+import json
+
+# Mixin: auto-timestamp creation/modification
+class TimestampMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.created_at = datetime.now()
+        self.updated_at = datetime.now()
+
+    def mark_updated(self):
+        self.updated_at = datetime.now()
+
+# Mixin: JSON serialization
+class JSONMixin:
+    def to_json(self):
+        return json.dumps(self.__dict__, default=str)
+
+    @classmethod
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
+
+# Mixin: repr generation
+class ReprMixin:
+    def __repr__(self):
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{self.__class__.__name__}({attrs})'
+
+# Compose behaviors
+class User(TimestampMixin, JSONMixin, ReprMixin):
+    def __init__(self, name, email):
+        self.name = name
+        self.email = email
+        super().__init__()
+
+user = User("Alice", "alice@example.com")
+print(repr(user))  # User(name='Alice', email='alice@example.com', created_at=..., updated_at=...)
+print(user.to_json())  # {"name": "Alice", "email": "alice@example.com", ...}
+
+# Mixin: equality & hashing
+class EqualityMixin:
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(tuple(sorted(self.__dict__.items())))
+
+class Product(EqualityMixin, ReprMixin):
+    def __init__(self, id, name):
+        self.id = id
+        self.name = name
+
+p1 = Product(1, "Widget")
+p2 = Product(1, "Widget")
+assert p1 == p2  # True
+products = {p1}  # hashable
+products.add(p2)  # same hash, so only one in set
+
+# Method Resolution Order (MRO)
+class A:
+    def method(self):
+        return "A"
+
+class B(A):
+    def method(self):
+        return "B -> " + super().method()
+
+class C(A):
+    def method(self):
+        return "C -> " + super().method()
+
+class D(B, C):
+    pass
+
+d = D()
+print(d.method())  # "B -> C -> A"
+print(D.__mro__)   # (D, B, C, A, object)`,
+        tips: [
+          'MRO (Method Resolution Order) is left-to-right, depth-first — use D.__mro__ or help(D) to see it.',
+          'Always use super() in mixins for cooperative multiple inheritance — it respects MRO and enables chaining.',
+          'Mixins don\'t have __init__; they call super().__init__() to pass control up the MRO chain.',
+          'Use abstract methods in mixins to enforce required methods in concrete subclasses.',
+        ],
+        mistake: 'Mixing mixin order badly — put mixins before base classes. class MyClass(MixinA, MixinB, BaseClass) is better than class MyClass(BaseClass, MixinA, MixinB).',
+        shorthand: {
+          verbose: `class TimestampMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.created_at = datetime.now()
+
+class User(TimestampMixin, JSONMixin):
+    def __init__(self, name):
+        self.name = name
+        super().__init__()`,
+          concise: `@dataclass(frozen=True)
+class User(TimestampMixin, JSONMixin):
+    name: str
+    created_at: datetime = field(default_factory=datetime.now)`
+        },
+      },
+      {
+        id: 'dataclass-advanced',
+        fn: 'Dataclasses Advanced — Frozen, Post Init, Inheritance',
+        desc: '@dataclass(frozen=True) for immutability, __post_init__ for validation, field() for flexibility.',
+        category: 'Dataclasses',
+        subtitle: 'frozen=True, __post_init__, field(default_factory=), inheritance, KW_ONLY',
+        signature: '@dataclass(frozen=True)  |  def __post_init__(self): ...  |  field(default_factory=...)',
+        descLong: 'Advanced @dataclass features: frozen=True creates immutable instances, __post_init__ runs after __init__ for validation, field(default_factory=...) for mutable defaults, KW_ONLY for keyword-only parameters, inheritance with field ordering. Frozen dataclasses are hashable and safe for use as dict keys. Use __post_init__ for computed fields or validation.',
+        code: `from dataclasses import dataclass, field, asdict, replace, KW_ONLY, Field
+from typing import ClassVar
+import time
+
+# Frozen (immutable) dataclass
+@dataclass(frozen=True)
+class Point:
+    x: float
+    y: float
+
+    def distance(self, other: "Point") -> float:
+        return ((self.x - other.x)**2 + (self.y - other.y)**2) ** 0.5
+
+p = Point(3.0, 4.0)
+# p.x = 5  # FrozenInstanceError — can't modify
+p_new = replace(p, x=5.0)  # create new instance
+
+# Hashable (usable as dict key or in set)
+points_dict = {p: "origin"}
+points_set = {p, Point(1, 2), Point(3, 4)}
+
+# __post_init__ for validation and computed fields
+@dataclass
+class User:
+    name: str
+    age: int
+    email: str
+    _normalized_name: str = field(init=False, repr=False)
+
+    def __post_init__(self):
+        # Validation
+        if not self.name:
+            raise ValueError("name cannot be empty")
+        if not (0 <= self.age <= 150):
+            raise ValueError(f"invalid age: {self.age}")
+        if '@' not in self.email:
+            raise ValueError("invalid email")
+
+        # Computed field
+        self._normalized_name = self.name.lower().strip()
+
+user = User("Alice Smith", 30, "alice@example.com")
+print(user._normalized_name)  # "alice smith"
+
+# field() with default_factory
+@dataclass
+class Config:
+    name: str
+    options: list = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
+
+c1 = Config("app")
+c2 = Config("app")
+c1.options.append("opt1")
+assert c2.options == []  # independent lists
+
+# KW_ONLY (Python 3.10+) — keyword-only fields
+@dataclass
+class Request:
+    url: str
+    method: str = "GET"
+    _: KW_ONLY
+    timeout: float = 30.0
+    retries: int = 3
+
+# req = Request("http://api.local", "POST")  # OK
+# req = Request("http://api.local", "POST", 5.0)  # Error: timeout must be kwarg
+
+# Inheritance
+@dataclass
+class Animal:
+    name: str
+    age: int = 0
+
+@dataclass
+class Dog(Animal):
+    breed: str = "Unknown"
+
+dog = Dog("Buddy", age=5, breed="Golden")
+
+# Field ordering: fields without defaults must come before fields with defaults
+@dataclass
+class OrderedExample:
+    required: str
+    optional: str = "default"
+
+# Metadata on fields
+@dataclass
+class Tagged:
+    value: int = field(metadata={"unit": "meters"})
+    name: str = field(metadata={"max_length": 50})
+
+t = Tagged(100, "distance")
+print(Tagged.__dataclass_fields__["value"].metadata)  # {"unit": "meters"}
+
+# Avoid mutable defaults
+@dataclass
+class GoodConfig:
+    items: list = field(default_factory=list)
+
+@dataclass
+class BadConfig:
+    items: list = []  # ✗ SHARED across instances!
+
+# Class variables (not fields)
+@dataclass
+class CountedObject:
+    name: str
+    _count: ClassVar[int] = 0  # shared across instances
+
+    def __post_init__(self):
+        CountedObject._count += 1
+
+c1 = CountedObject("obj1")
+c2 = CountedObject("obj2")
+print(CountedObject._count)  # 2`,
+        tips: [
+          'frozen=True + dataclass creates an immutable, hashable object perfect for dict keys.',
+          '__post_init__ is perfect for validation — raise exceptions before the object is used.',
+          'Use field(init=False) to exclude computed fields from __init__ — they\'re initialized in __post_init__.',
+          'replace() creates a shallow copy with overrides — immutable dataclasses need this for "updates".',
+        ],
+        mistake: 'Using mutable defaults without field(default_factory=) — @dataclass class C: items: list = [] is a shared mutable bug. Always use field(default_factory=list).',
+        shorthand: {
+          verbose: `@dataclass
+class User:
+    name: str
+    age: int
+
+    def __post_init__(self):
+        if not self.name:
+            raise ValueError("name required")
+        if self.age < 0:
+            raise ValueError("age invalid")`,
+          concise: `@dataclass(frozen=True)
+class User:
+    name: str
+    age: int = field(gt=0)  # requires pydantic`
+        },
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

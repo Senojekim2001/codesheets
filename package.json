@@ -1,0 +1,23 @@
+{
+  "name": "codesheets",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "postbuild": "node scripts/generate-sitemap.js",
+    "start": "next start",
+    "deploy": "npm run build && aws s3 sync ./out s3://codesheets.dev --delete && aws cloudfront create-invalidation --distribution-id $CF_DIST_ID --paths '/*'"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "jspdf": "^4.2.1",
+    "next": "14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "eslint-config-next": "14.1.0"
+  }
+}

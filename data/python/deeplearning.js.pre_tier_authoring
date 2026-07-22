@@ -1,0 +1,1860 @@
+export const meta = {
+  id: 'deeplearning',
+  label: 'Deep Learning',
+  icon: '🧠',
+  description: 'PyTorch deep learning — tensors, neural networks, training loops, CNNs, NLP.',
+}
+
+export const sections = [
+  {
+    id: 'tensors-autograd',
+    title: 'Tensors & Autograd',
+    entries: [
+      {
+        id: 'tensor-creation',
+        fn: 'torch.tensor',
+        desc: 'Create a tensor from data.',
+        category: 'Tensor Creation',
+        subtitle: 'Initialize tensors from lists',
+        signature: 'torch.tensor(data, dtype=None, device=None)',
+        descLong: 'Create a PyTorch tensor from Python lists, arrays, or scalars. The fundamental building block of all PyTorch operations. Automatically infers data type unless specified.',
+        code: `import torch
+# Create tensor from Python list
+t1 = torch.tensor([1.0, 2.0, 3.0])
+print(f"1D tensor: {t1}")
+# Create 2D tensor with explicit dtype
+t2 = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32)
+print(f"2D tensor:\\n{t2}")
+# Create scalar tensor
+scalar = torch.tensor(5.0)
+print(f"Scalar: {scalar}")
+# Check properties
+print(f"Shape: {t1.shape}, Device: {t1.device}, Dtype: {t1.dtype}")
+`,
+        tips: [
+          'Use dtype=torch.float32 for neural network computations',
+          'torch.tensor() copies data; use torch.as_tensor() for zero-copy',
+          'Always check shape with .shape and dtype with .dtype',
+        ],
+        mistake: 'Creating tensors without specifying dtype leads to int64 by default, causing type mismatches in networks expecting float32.',
+        shorthand: {
+          verbose: `import torch
+t1 = torch.tensor([1.0, 2.0, 3.0])
+print(f"1D tensor: {t1}")
+t2 = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32)`,
+          concise: `print(f"Shape: {t1.shape}, Device: {t1.device}, Dtype: {t1.dtype}")`
+        }
+      },
+      {
+        id: 'tensor-operations',
+        fn: 'Tensor Operations',
+        desc: 'Element-wise and matrix operations.',
+        category: 'Tensor Ops',
+        subtitle: 'Add, multiply, matmul tensors',
+        signature: 'tensor1 + tensor2 | tensor1 @ tensor2 | torch.matmul()',
+        descLong: 'PyTorch supports standard mathematical operations: element-wise operations, matrix multiplication via @ operator, and broadcasting. These form the backbone of neural network computations.',
+        code: `import torch
+import torch.nn as nn
+
+# Create sample tensors
+a = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+b = torch.tensor([[5.0, 6.0], [7.0, 8.0]])
+# Element-wise operations
+add_result = a + b
+mul_result = a * b
+print(f"Addition:\\n{add_result}")
+print(f"Element-wise multiplication:\\n{mul_result}")
+# Matrix multiplication
+matmul_result = a @ b  # or torch.matmul(a, b)
+print(f"Matrix multiplication:\\n{matmul_result}")
+# Broadcasting example
+scalar_mul = a * 2.0
+print(f"Scalar multiplication:\\n{scalar_mul}")
+# In-place operations (modify tensor in place)
+a.add_(b)  # a = a + b
+print(f"In-place addition:\\n{a}")`,
+        tips: [
+          'Use @ for matrix multiplication, * for element-wise',
+          'In-place ops (ending with _) save memory but break computation graph',
+          'Broadcasting automatically expands shapes to match dimensions',
+        ],
+        mistake: 'Confusing * (element-wise) with @ (matrix multiplication) causes incorrect network outputs.',
+        shorthand: {
+          verbose: `import torch
+a = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+b = torch.tensor([[5.0, 6.0], [7.0, 8.0]])
+add_result = a + b`,
+          concise: `print(f"In-place addition:\\n{a}")`
+        }
+      },
+      {
+        id: 'tensor-reshaping',
+        fn: 'Reshape & View',
+        desc: 'Change tensor shape without copying.',
+        category: 'Shape Manipulation',
+        subtitle: 'reshape(), view(), squeeze(), unsqueeze()',
+        signature: 'tensor.reshape(shape) | tensor.view(shape) | tensor.squeeze() | tensor.unsqueeze(dim)',
+        descLong: 'Reshape tensors to different dimensions: view() creates a view (same memory), reshape() may copy, squeeze() removes size-1 dims, unsqueeze() adds size-1 dims. Essential for feeding data to networks.',
+        code: `import torch
+# Original tensor
+t = torch.arange(24)  # [0, 1, 2, ..., 23]
+print(f"Original shape: {t.shape}")
+# reshape changes shape (may copy)
+reshaped = t.reshape(2, 3, 4)
+print(f"Reshaped to (2,3,4):\\n{reshaped.shape}")
+
+# view creates view on same memory (must be contiguous)
+viewed = t.view(6, 4)
+print(f"Viewed as (6,4):\\n{viewed.shape}")
+# Flatten: reshape to 1D
+flattened = t.reshape(-1)
+print(f"Flattened shape: {flattened.shape}")
+# squeeze: remove dimensions of size 1
+t_with_dims = torch.tensor([[[1, 2, 3]]])  # shape (1, 1, 3)
+squeezed = t_with_dims.squeeze()
+print(f"Squeezed shape: {squeezed.shape}")
+# unsqueeze: add dimension of size 1 at position
+unsqueezed = squeezed.unsqueeze(0)  # add at dim 0
+print(f"Unsqueezed shape: {unsqueezed.shape}")`,
+        tips: [
+          'Use -1 in reshape to auto-infer one dimension',
+          'view() is faster when possible but requires contiguous tensors',
+          'squeeze/unsqueeze are batch dimension helpers',
+        ],
+        mistake: 'Using view() on non-contiguous tensors causes errors; use reshape() or contiguous() first.',
+        shorthand: {
+          verbose: `import torch
+t = torch.arange(24)  # [0, 1, 2, ..., 23]
+print(f"Original shape: {t.shape}")
+reshaped = t.reshape(2, 3, 4)`,
+          concise: `print(f"Unsqueezed shape: {unsqueezed.shape}")`
+        }
+      },
+      {
+        id: 'autograd-backward',
+        fn: 'Autograd & backward()',
+        desc: 'Automatic gradient computation.',
+        category: 'Gradients',
+        subtitle: 'Backpropagation through computation graph',
+        signature: 'tensor.backward() | tensor.grad',
+        descLong: 'PyTorch autograd automatically computes gradients via backpropagation. Tensors with requires_grad=True track operations for gradient computation. Call backward() to compute gradients, access via .grad attribute.',
+        code: `import torch
+import torch.nn as nn
+
+# Create tensor that requires gradients
+x = torch.tensor([2.0, 3.0], requires_grad=True)
+print(f"x: {x}, requires_grad: {x.requires_grad}")
+# Perform operations (builds computation graph)
+y = x ** 2  # y = x^2
+z = y.sum()  # z = sum(y)
+print(f"z: {z}")
+# Backward pass: compute gradients
+z.backward()
+print(f"Gradients: {x.grad}")
+
+# Expected: dz/dx = 2*x = [4.0, 6.0]
+assert torch.allclose(x.grad, torch.tensor([4.0, 6.0]))
+# Create another computation for multi-step example
+x2 = torch.tensor([1.0, 2.0], requires_grad=True)
+y2 = x2 * 3  # y = 3x
+z2 = (y2 ** 2).sum()  # z = sum((3x)^2)
+z2.backward()
+print(f"Gradients after 2-step: {x2.grad}")
+# Expected: dz2/dx = 18*x = [18.0, 36.0]
+`,
+        tips: [
+          'Only leaf tensors have .grad; intermediate tensors lose gradients by default',
+          'Call .backward() only on scalar losses',
+          'Zero gradients with optimizer.zero_grad() before each training step',
+        ],
+        mistake: 'Calling backward() multiple times accumulates gradients instead of replacing them.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'gradient-zeroing',
+        fn: 'zero_grad()',
+        desc: 'Clear accumulated gradients.',
+        category: 'Training Setup',
+        subtitle: 'Reset gradients before backprop',
+        signature: 'optimizer.zero_grad() | tensor.grad.zero_()',
+        descLong: 'PyTorch accumulates gradients by default. Must zero gradients at start of each training step to avoid accumulation. Essential in training loops before backward() calls.',
+        code: `import torch
+import torch.optim as optim
+# Define model and optimizer
+model = torch.nn.Linear(5, 1)
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+# Simulate 3 training steps
+for step in range(3):
+    # Forward pass
+    x = torch.randn(4, 5)
+    y = model(x).sum()
+    # WITHOUT zero_grad: gradients accumulate (WRONG)
+    if step == 0:
+        print("Step 1: First backward")
+        y.backward()
+        grad_step1 = model.weight.grad.clone()
+
+        print("Step 2: Second backward (NO ZERO)")
+        y.backward()  # Gradients accumulated!
+        grad_step2 = model.weight.grad.clone()
+        print(f"Gradients increased: {torch.allclose(grad_step2, grad_step1)}")
+        # NOW zero gradients
+        optimizer.zero_grad()
+        print(f"After zero_grad: {model.weight.grad}")`,
+        tips: [
+          'Always zero_grad() at start of loop: zero → forward → backward',
+          'Alternatively: gradient accumulation is intentional for multi-batch updates',
+          'Manual grad zeroing: tensor.grad.zero_() (in-place)',
+        ],
+        mistake: 'Forgetting zero_grad() in training loop causes gradients to accumulate, breaking learning.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'gpu-device',
+        fn: '.to(device)',
+        desc: 'Move tensors to device.',
+        category: 'Device Management',
+        subtitle: 'CPU to GPU or GPU to CPU',
+        signature: 'tensor.to(device) | tensor.cuda() | tensor.cpu()',
+        descLong: 'Move tensors and models to different devices (CPU/GPU) for computation. PyTorch requires all tensors in an operation to be on same device. Use .to() for flexibility or .cuda()/.cpu() for explicit device choice.',
+        code: `import torch
+import torch.nn as nn
+
+# Check device availability
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"CUDA device count: {torch.cuda.device_count()}")
+# Create tensor on CPU
+x_cpu = torch.randn(1000, 1000)
+print(f"Original device: {x_cpu.device}")
+# Move to GPU (if available)
+if torch.cuda.is_available():
+    x_gpu = x_cpu.to('cuda')
+    print(f"After .to('cuda'): {x_gpu.device}")
+    # Or use .cuda() shortcut
+    x_gpu2 = x_cpu.cuda()
+    print(f"Using .cuda(): {x_gpu2.device}")
+    # Move back to CPU
+    x_back = x_gpu.cpu()
+    print(f"Back to CPU: {x_back.device}")
+# For model inference/training on specific device
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = torch.nn.Linear(10, 5)
+model = model.to(device)
+x_input = torch.randn(32, 10).to(device)
+output = model(x_input)
+print(f"Output on {output.device}")
+`,
+        tips: [
+          'Always move both model and data to same device before forward pass',
+          'Use device variable for code that works on CPU or GPU',
+          'Moving tensors is non-blocking; use torch.cuda.synchronize() if timing',
+        ],
+        mistake: 'Mixing tensors on CPU and GPU causes "expected ... to be the same device" error.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'no-grad-context',
+        fn: 'torch.no_grad()',
+        desc: 'Disable gradient tracking.',
+        category: 'Inference',
+        subtitle: 'Speed up inference, save memory',
+        signature: 'with torch.no_grad(): ...',
+        descLong: 'Context manager that disables autograd during inference or validation. Reduces memory usage and speeds up computation since gradients are not tracked. Use in validation/test loops.',
+        code: `import torch
+import torch.nn as nn
+
+# Create simple model
+model = nn.Linear(10, 1)
+# Training data
+x = torch.randn(100, 10)
+# WITH gradient tracking (training)
+print("Training mode (gradients tracked):")
+output_train = model(x)
+loss = output_train.sum()
+loss.backward()
+print(f"Model has gradients: {model.weight.grad is not None}")
+# Reset gradients
+model.weight.grad = None
+# WITHOUT gradient tracking (inference)
+print("\\nInference mode (no gradients):")
+with torch.no_grad():
+    output_inference = model(x)
+    # This operation doesn't create computation graph
+    loss_no_grad = output_inference.sum()
+print(f"No computation graph: {output_inference.requires_grad}")
+# Speed comparison
+import time
+x_large = torch.randn(10000, 10)
+# With gradients
+start = time.time()
+with torch.enable_grad():
+    _ = model(x_large)
+time_with_grad = time.time() - start
+# Without gradients
+time_no_grad = time.time() - start
+print(f"With grad: {time_with_grad:.4f}s, Without grad: {time_no_grad:.4f}s")`,
+        tips: [
+          'Always use no_grad() in validation/test loops to save memory',
+          'Also saves computation time since gradient graph not maintained',
+          'Use torch.enable_grad() to force gradients inside no_grad context',
+        ],
+        mistake: 'Computing validation loss inside training loop without no_grad() wastes memory and slows training.',
+        shorthand: {
+          verbose: `import torch
+import torch.nn as nn
+model = nn.Linear(10, 1)
+x = torch.randn(100, 10)`,
+          concise: `print(f"With grad: {time_with_grad:.4f}s, Without grad: {time_no_grad:.4f}s")`
+        }
+      },
+    ],
+  },
+  {
+    id: 'building-networks',
+    title: 'Building Networks',
+    entries: [
+      {
+        id: 'nn-module',
+        fn: 'nn.Module',
+        desc: 'Base class for all neural networks.',
+        category: 'Model Definition',
+        subtitle: 'Extend nn.Module to define custom networks',
+        signature: 'class MyModel(nn.Module):\n    def __init__(self):\n        super().__init__()\n    def forward(self, x):',
+        descLong: 'nn.Module is the base class for all PyTorch models. Define layers in __init__ and forward pass logic in forward(). Automatically handles parameter registration and training/eval modes.',
+        code: `import torch
+import torch.nn as nn
+
+# Define custom model by extending nn.Module
+class SimpleNet(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        # Define layers in __init__
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_size, output_size)
+    def forward(self, x):
+        # Define forward pass
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        return x
+# Create model instance
+model = SimpleNet(input_size=10, hidden_size=64, output_size=5)
+print(f"Model architecture:\\n{model}")
+# Forward pass
+x = torch.randn(32, 10)  # batch_size=32, input_size=10
+y = model(x)
+print(f"Output shape: {y.shape}")
+# Access parameters
+for name, param in model.named_parameters():
+    print(f"{name}: {param.shape}")
+`,
+        tips: [
+          'Always call super().__init__() first in __init__',
+          'Define layers as class attributes (self.layer) not local variables',
+          'forward() method defines computation; call model(x) not model.forward(x)',
+        ],
+        mistake: 'Defining layers as local variables (x = Linear(10, 5)) prevents parameter registration.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'nn-linear',
+        fn: 'nn.Linear',
+        desc: 'Fully connected layer.',
+        category: 'Layer Types',
+        subtitle: 'Dense/affine transformation',
+        signature: 'nn.Linear(in_features, out_features, bias=True)',
+        descLong: 'Applies linear transformation: y = xW^T + b. in_features is input dimension, out_features is output dimension. Contains learnable weight matrix and bias vector. Fundamental building block of neural networks.',
+        code: `import torch
+import torch.nn as nn
+
+# Create linear layer
+linear = nn.Linear(in_features=10, out_features=5)
+print(f"Weight shape: {linear.weight.shape}")  # (5, 10)
+print(f"Bias shape: {linear.bias.shape}")      # (5,)
+y = linear(x)
+print(f"Output shape: {y.shape}")  # (32, 5)
+# Without bias
+linear_no_bias = nn.Linear(10, 5, bias=False)
+y_no_bias = linear_no_bias(x)
+print(f"Bias disabled, still works: {y_no_bias.shape}")
+# Multiple linear layers form MLP
+mlp = nn.Sequential(
+    nn.Linear(10, 64),
+    nn.ReLU(),
+    nn.Linear(64, 32),
+    nn.Linear(32, 5),
+)
+output = mlp(x)
+print(f"MLP output shape: {output.shape}")`,
+        tips: [
+          'Input shape: (batch_size, in_features), output: (batch_size, out_features)',
+          'Weight transposed internally; weight.shape is (out_features, in_features)',
+          'Use bias=False for specific architectures or to reduce parameters',
+        ],
+        mistake: 'Confusing Linear(10, 5) input expectation: needs (batch, 10) not (batch, 10, 1).',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'nn-sequential',
+        fn: 'nn.Sequential',
+        desc: 'Stack layers sequentially.',
+        category: 'Model Composition',
+        subtitle: 'Compose layers in order',
+        signature: 'nn.Sequential(layer1, layer2, ...)',
+        descLong: 'Container module that chains layers in sequence. Input of each layer fed to next. Simplifies model definition when layers are purely sequential (no branching/skip connections).',
+        code: `import torch
+import torch.nn as nn
+
+# Sequential model: output of layer i → input of layer i+1
+model = nn.Sequential(
+    nn.Linear(20, 128),
+    nn.Linear(128, 64),
+    nn.Dropout(0.5),
+    nn.Linear(64, 10),
+# Forward pass
+x = torch.randn(32, 20)
+output = model(x)
+print(f"Output shape: {output.shape}")
+# Access individual layers by index
+first_layer = model[0]
+print(f"First layer: {first_layer}")
+# Named Sequential for readability
+named_model = nn.Sequential(
+    ('linear1', nn.Linear(20, 128)),
+    ('relu1', nn.ReLU()),
+    ('linear2', nn.Linear(128, 64)),
+    ('relu2', nn.ReLU()),
+    ('output', nn.Linear(64, 10)),
+
+# Access by name
+output_linear = named_model[0]
+output_by_name = named_model.linear1
+print(f"Access by index: {output_linear}\\nAccess by name: {output_by_name}")
+`,
+        tips: [
+          'Sequential works for linear/sequential architectures only',
+          'For complex models with branches, use nn.Module instead',
+          'Can mix indexed and named access in Sequential',
+        ],
+        mistake: 'Using Sequential for models with skip connections or multiple paths fails.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'activation-functions',
+        fn: 'Activation Functions',
+        desc: 'Non-linearities: ReLU, Sigmoid, Tanh.',
+        category: 'Activations',
+        subtitle: 'ReLU, Sigmoid, Tanh, Softmax',
+        signature: 'nn.ReLU() | nn.Sigmoid() | nn.Tanh() | F.softmax()',
+        descLong: 'Activation functions introduce non-linearity, enabling networks to learn complex patterns. ReLU most common in hidden layers, Sigmoid/Tanh for bounded outputs, Softmax for multi-class probabilities.',
+        code: `import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+x = torch.tensor([-2.0, -1.0, 0.0, 1.0, 2.0])
+
+# ReLU: max(0, x) - most common
+relu = nn.ReLU()
+print(f"ReLU: {relu(x)}")
+
+# Sigmoid: 1/(1+e^-x) - for binary classification
+sigmoid = nn.Sigmoid()
+print(f"Sigmoid: {sigmoid(x)}")
+
+# Tanh: (e^x - e^-x)/(e^x + e^-x) - bounded [-1, 1]
+tanh = nn.Tanh()
+print(f"Tanh: {tanh(x)}")
+
+# Softmax: probability distribution over classes
+logits = torch.tensor([[1.0, 2.0, 3.0]])
+softmax = nn.Softmax(dim=1)
+print(f"Softmax: {softmax(logits)}")
+print(f"Sums to 1: {softmax(logits).sum()}")
+
+# In a network
+model = nn.Sequential(
+    nn.Linear(10, 64),
+    nn.ReLU(),  # Hidden layer activation
+    nn.Linear(64, 32),
+    nn.ReLU(),
+    nn.Linear(32, 10),
+    nn.Softmax(dim=1),  # Output probabilities
+)
+
+x_input = torch.randn(5, 10)
+output = model(x_input)
+print(f"Network output (probabilities): {output}")
+`,
+        tips: [
+          'ReLU is default for hidden layers; fast and effective',
+          'Softmax always applied to classification logits before loss',
+          'Don\'t apply Softmax explicitly; CrossEntropyLoss includes it',
+        ],
+        mistake: 'Applying Softmax before CrossEntropyLoss applies it twice, causing wrong gradients.',
+        shorthand: {
+          verbose: `model = nn.Sequential(
+    nn.Linear(10, 64),
+    nn.ReLU(),
+    nn.Linear(64, 10),
+    nn.Softmax(dim=1)  # Wrong with CrossEntropyLoss
+)`,
+          concise: `model = nn.Sequential(
+    nn.Linear(10, 64),
+    nn.ReLU(),
+    nn.Linear(64, 10)  # No Softmax
+)
+loss = nn.CrossEntropyLoss()  # Includes Softmax`
+        }
+      },
+      {
+        id: 'nn-conv2d',
+        fn: 'nn.Conv2d',
+        desc: '2D convolutional layer.',
+        category: 'Convolutional Layers',
+        subtitle: 'Image processing with learned filters',
+        signature: 'nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)',
+        descLong: 'Applies 2D convolution with learnable kernels. Detects local patterns (edges, textures) via sliding window. Essential for image processing. Output size: (input - kernel_size + 2*padding) / stride + 1',
+        code: `import torch
+import torch.nn as nn
+# 2D convolution: in_channels=3 (RGB), out_channels=16, 3x3 kernel
+conv = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+# Input: (batch_size, channels, height, width)
+x = torch.randn(2, 3, 32, 32)  # 2 images, RGB, 32x32
+y = conv(x)
+print(f"Input shape: {x.shape}")
+print(f"Output shape: {y.shape}")
+# Conv parameters
+print(f"Weight shape: {conv.weight.shape}")  # (out_ch, in_ch, kernel_h, kernel_w)
+# Convolution with different stride and padding
+conv_strided = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1)
+y_strided = conv_strided(x)
+print(f"Strided output shape: {y_strided.shape}")
+# CNN architecture
+cnn = nn.Sequential(
+    nn.Conv2d(3, 32, kernel_size=3, padding=1),
+    nn.MaxPool2d(kernel_size=2),
+    nn.Conv2d(32, 64, kernel_size=3, padding=1),
+    nn.AdaptiveAvgPool2d((1, 1)),  # Global average pooling
+    nn.Flatten(),
+    nn.Linear(64, 10),
+output = cnn(x)
+print(f"CNN output: {output.shape}")`,
+        tips: [
+          'padding=1 preserves spatial dimensions for 3x3 kernels',
+          'Stride>1 reduces spatial dimensions (useful for downsampling)',
+          'Weight shape: (out_channels, in_channels, kernel_h, kernel_w)',
+        ],
+        mistake: 'Forgetting padding for early conv layers shrinks spatial dimensions too quickly.',
+        shorthand: {
+          verbose: `import torch
+import torch.nn as nn
+conv = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+x = torch.randn(2, 3, 32, 32)  # 2 images, RGB, 32x32`,
+          concise: `print(f"CNN output: {output.shape}")`
+        }
+      },
+      {
+        id: 'nn-lstm',
+        fn: 'nn.LSTM',
+        desc: 'Long Short-Term Memory layer.',
+        category: 'Recurrent Layers',
+        subtitle: 'Sequence modeling with memory',
+        signature: 'nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)',
+        descLong: 'Recurrent layer for sequential data. LSTM cells maintain hidden state and cell state, capturing long-range dependencies. Processes sequences of variable length. batch_first=True: (batch, seq_len, features).',
+        code: `import torch
+import torch.nn as nn
+
+# LSTM configuration
+input_size = 20  # feature dimension
+hidden_size = 64  # hidden state dimension
+num_layers = 2
+batch_size = 32
+seq_len = 50
+# Create LSTM
+lstm = nn.LSTM(
+    input_size=input_size,
+    hidden_size=hidden_size,
+    num_layers=num_layers,
+    batch_first=True  # (batch, seq, features) instead of (seq, batch, features)
+)
+# Input: (batch, seq_length, input_size)
+x = torch.randn(batch_size, seq_len, input_size)
+# Forward pass: returns (output, (h_n, c_n))
+output, (h_n, c_n) = lstm(x)
+print(f"Output shape: {output.shape}")      # (batch, seq, hidden_size)
+print(f"h_n shape: {h_n.shape}")            # (num_layers, batch, hidden_size)
+print(f"c_n shape: {c_n.shape}")            # (num_layers, batch, hidden_size)
+# Use output for all timesteps or only last timestep
+last_hidden = output[:, -1, :]  # Last timestep output
+print(f"Last hidden shape: {last_hidden.shape}")
+# Sequence classification: LSTM → classifier
+class SeqClassifier(nn.Module):
+    def __init__(self, input_size, hidden_size, num_classes):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+    def forward(self, x):
+        _, (h_n, _) = self.lstm(x)
+        last_hidden = h_n[-1]  # Last layer's hidden state
+        output = self.fc(last_hidden)
+        return output
+model = SeqClassifier(input_size=20, hidden_size=64, num_classes=10)
+x_seq = torch.randn(32, 50, 20)
+logits = model(x_seq)
+print(f"Logits shape: {logits.shape}")
+`,
+        tips: [
+          'batch_first=True matches most data loaders (batch, seq, features)',
+          'Use h_n[-1] for classification (last layer\'s hidden state)',
+          'For sequence-to-sequence, use all outputs (output tensor)',
+        ],
+        mistake: 'Forgetting batch_first=True causes shape mismatch with data loaders.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'training-loop',
+    title: 'Training Loop',
+    entries: [
+      {
+        id: 'loss-functions',
+        fn: 'Loss Functions',
+        desc: 'CrossEntropyLoss, MSELoss, others.',
+        category: 'Loss Computation',
+        subtitle: 'Measure model error',
+        signature: 'nn.CrossEntropyLoss() | nn.MSELoss() | nn.BCELoss()',
+        descLong: 'Loss functions quantify prediction error. CrossEntropyLoss for multi-class classification, MSELoss for regression, BCELoss for binary classification. Output of network fed to loss function for training.',
+        code: `import torch
+import torch.nn as nn
+
+# Classification: CrossEntropyLoss
+# Expects: logits (before Softmax), target class indices
+criterion_ce = nn.CrossEntropyLoss()
+logits = torch.randn(32, 10)  # batch_size=32, num_classes=10
+targets = torch.randint(0, 10, (32,))  # class indices [0, 9]
+loss_ce = criterion_ce(logits, targets)
+print(f"CrossEntropyLoss: {loss_ce.item():.4f}")
+# Regression: MSELoss
+# Expects: predictions and targets of same shape
+criterion_mse = nn.MSELoss()
+predictions = torch.randn(32, 1)
+targets_reg = torch.randn(32, 1)
+loss_mse = criterion_mse(predictions, targets_reg)
+print(f"MSELoss: {loss_mse.item():.4f}")
+# Binary classification: BCEWithLogitsLoss
+# Expects: logits and binary targets [0, 1]
+criterion_bce = nn.BCEWithLogitsLoss()
+logits_binary = torch.randn(32, 1)
+targets_binary = torch.randint(0, 2, (32, 1)).float()
+loss_bce = criterion_bce(logits_binary, targets_binary)
+print(f"BCEWithLogitsLoss: {loss_bce.item():.4f}")
+# L1 Loss: mean absolute error
+criterion_l1 = nn.L1Loss()
+loss_l1 = criterion_l1(predictions, targets_reg)
+print(f"L1Loss: {loss_l1.item():.4f}")
+# Custom weighted loss
+class WeightedLoss(nn.Module):
+    def __init__(self, weights):
+        super().__init__()
+        self.weights = weights
+    def forward(self, logits, targets):
+        base_loss = nn.functional.cross_entropy(logits, targets, reduction='none')
+        weighted = base_loss * self.weights[targets]
+        return weighted.mean()
+weights = torch.tensor([1.0, 2.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+weighted_loss = WeightedLoss(weights)
+loss_weighted = weighted_loss(logits, targets)
+print(f"Weighted loss: {loss_weighted.item():.4f}")
+`,
+        tips: [
+          'CrossEntropyLoss includes Softmax; don\'t apply Softmax before',
+          'MSELoss for continuous outputs, CrossEntropyLoss for classification',
+          'BCEWithLogitsLoss combines Sigmoid + BCE for numerical stability',
+        ],
+        mistake: 'Applying Softmax before CrossEntropyLoss double-applies it, breaking training.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'optimizers',
+        fn: 'Optimizers (SGD, Adam)',
+        desc: 'Update model parameters.',
+        category: 'Optimization',
+        subtitle: 'SGD, Adam, AdamW, RMSprop',
+        signature: 'optim.SGD(params, lr) | optim.Adam(params, lr) | optim.AdamW(params, lr)',
+        descLong: 'Optimizers update model parameters using gradients. SGD: simple stochastic gradient descent. Adam: adaptive learning rates (momentum + RMSprop). Learning rate controls step size of updates.',
+        code: `
+import torch.optim as optim
+# Simple model for example
+model = nn.Linear(10, 5)
+criterion = nn.MSELoss()
+# SGD: Stochastic Gradient Descent
+optimizer_sgd = optim.SGD(model.parameters(), lr=0.01)
+
+# Adam: Adaptive Moment Estimation (most popular)
+optimizer_adam = optim.Adam(model.parameters(), lr=0.001)
+# AdamW: Adam with weight decay (L2 regularization)
+optimizer_adamw = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
+# Simple training step
+x = torch.randn(32, 10)
+y = torch.randn(32, 5)
+# Training step with SGD
+optimizer_sgd.zero_grad()          # Clear old gradients
+y_pred = model(x)                  # Forward pass
+loss = criterion(y_pred, y)         # Compute loss
+loss.backward()                     # Backward pass
+optimizer_sgd.step()                # Update weights
+print(f"Loss after SGD step: {loss.item():.4f}")
+# Training step with Adam
+optimizer_adam.zero_grad()
+y_pred = model(x)
+loss = criterion(y_pred, y)
+loss.backward()
+optimizer_adam.step()
+print(f"Loss after Adam step: {loss.item():.4f}")
+# Learning rate scheduling
+scheduler = optim.lr_scheduler.StepLR(optimizer_adam, step_size=10, gamma=0.1)
+# Using scheduler in training loop
+for epoch in range(5):
+    y_pred = model(x)
+    loss = criterion(y_pred, y)
+    optimizer_adam.zero_grad()
+    loss.backward()
+    optimizer_adam.step()
+    scheduler.step()  # Decay learning rate
+    print(f"Epoch {epoch}, Loss: {loss.item():.4f}, LR: {scheduler.get_last_lr()}")`,
+        tips: [
+          'Adam best for most deep learning tasks; SGD with momentum for vision',
+          'Lower learning rate (0.001-0.0001) for Adam, higher (0.01-0.1) for SGD',
+          'Always zero_grad() before backward() to avoid accumulation',
+        ],
+        mistake: 'Using same learning rate for SGD and Adam causes poor convergence.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'dataloader',
+        fn: 'DataLoader',
+        desc: 'Batch data efficiently.',
+        category: 'Data Loading',
+        subtitle: 'Batching, shuffling, multi-processing',
+        signature: 'DataLoader(dataset, batch_size, shuffle=True, num_workers)',
+        descLong: 'DataLoader batches data, handles shuffling, and enables parallel data loading. Wraps a Dataset to provide mini-batches for training. Essential for efficient training on large datasets.',
+        code: `import torch
+from torch.utils.data import TensorDataset, DataLoader, Dataset
+# Create dummy dataset
+X = torch.randn(1000, 10)  # 1000 samples, 10 features
+y = torch.randint(0, 5, (1000,))  # 1000 labels
+# Option 1: TensorDataset (simple)
+dataset = TensorDataset(X, y)
+# DataLoader: batches, shuffles, optionally multi-processes
+train_loader = DataLoader(
+    dataset,
+    batch_size=32,
+    shuffle=True,           # Shuffle data
+    num_workers=2,          # Parallel data loading
+)
+print(f"Total batches: {len(train_loader)}")
+print(f"Samples: {len(dataset)}")
+
+# Iterate through batches
+for batch_idx, (x_batch, y_batch) in enumerate(train_loader):
+    print(f"Batch {batch_idx}: x shape {x_batch.shape}, y shape {y_batch.shape}")
+    if batch_idx >= 2:
+        break
+# Custom Dataset class
+class CustomDataset(Dataset):
+    def __init__(self, features, labels):
+        self.features = features
+        self.labels = labels
+    def __len__(self):
+        return len(self.features)
+    def __getitem__(self, idx):
+        return self.features[idx], self.labels[idx]
+custom_dataset = CustomDataset(X, y)
+custom_loader = DataLoader(
+    custom_dataset,
+    shuffle=True,
+# Iterate custom loader
+x_batch, y_batch = next(iter(custom_loader))
+print(f"Custom loader batch: {x_batch.shape}, {y_batch.shape}")
+`,
+        tips: [
+          'Always shuffle=True for training, False for validation',
+          'num_workers=0 for debugging, >0 for production',
+          'pin_memory=True speeds up data transfer to GPU',
+        ],
+        mistake: 'Using shuffle=True on validation/test data randomizes evaluation metrics.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'training-loop-pattern',
+        fn: 'Training Loop Pattern',
+        desc: 'Standard epoch-based training.',
+        category: 'Training',
+        subtitle: 'Complete training loop example',
+        signature: 'for epoch in range(num_epochs):\n    for batch in train_loader:',
+        descLong: 'Standard training loop: iterate epochs, batches, forward pass, compute loss, backward, optimize. Includes validation loop for monitoring. Essential pattern for all PyTorch training.',
+        code: `
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+# Setup
+model = nn.Sequential(
+    nn.Linear(20, 64),
+    nn.ReLU(),
+    nn.Linear(64, 10),
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+# Create dummy data
+X_train = torch.randn(500, 20)
+y_train = torch.randint(0, 10, (500,))
+train_dataset = TensorDataset(X_train, y_train)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+X_val = torch.randn(100, 20)
+y_val = torch.randint(0, 10, (100,))
+val_dataset = TensorDataset(X_val, y_val)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+# Training loop
+num_epochs = 5
+for epoch in range(num_epochs):
+    # Training phase
+    model.train()  # Enable dropout, batch norm training
+    train_loss = 0.0
+    for x_batch, y_batch in train_loader:
+        # Forward pass
+        logits = model(x_batch)
+        loss = criterion(logits, y_batch)
+        # Backward pass
+        optimizer.zero_grad()  # Clear gradients
+        loss.backward()         # Compute gradients
+        optimizer.step()        # Update parameters
+        train_loss += loss.item()
+    train_loss /= len(train_loader)
+    # Validation phase
+    model.eval()  # Disable dropout, batch norm eval
+    val_loss = 0.0
+    correct = 0
+    with torch.no_grad():  # No gradient computation
+        for x_batch, y_batch in val_loader:
+            logits = model(x_batch)
+            loss = criterion(logits, y_batch)
+            val_loss += loss.item()
+
+            # Accuracy
+            preds = logits.argmax(dim=1)
+            correct += (preds == y_batch).sum().item()
+    val_loss /= len(val_loader)
+    accuracy = correct / len(y_val)
+    print(f"Epoch {epoch+1}/{num_epochs}")
+    print(f"  Train Loss: {train_loss:.4f}")
+    print(f"  Val Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}")`,
+        tips: [
+          'model.train() enables dropout/batch norm; model.eval() disables',
+          'Always use torch.no_grad() in validation to save memory',
+          'Step scheduler after backward() in training loop',
+        ],
+        mistake: 'Forgetting model.eval() in validation causes wrong metrics (dropout affects output).',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'model-train-eval',
+        fn: 'model.train() vs model.eval()',
+        desc: 'Toggle training and evaluation modes.',
+        category: 'Model Modes',
+        subtitle: 'Different behavior for training/testing',
+        signature: 'model.train() | model.eval()',
+        descLong: 'Training mode: Dropout active, BatchNorm uses running stats. Eval mode: Dropout inactive, BatchNorm uses accumulated stats. Critical for correct validation/test evaluation.',
+        code: `import torch
+import torch.nn as nn
+# Model with Dropout and BatchNorm
+model = nn.Sequential(
+    nn.Linear(20, 64),
+    nn.BatchNorm1d(64),
+    nn.ReLU(),
+    nn.Dropout(0.5),
+    nn.Linear(64, 10),
+)
+x = torch.randn(32, 20)
+# Training mode (default)
+model.train()
+print("Training mode enabled:")
+output_train1 = model(x)
+output_train2 = model(x)
+print(f"  Output 1: {output_train1[0, :3]}")
+print(f"  Output 2: {output_train2[0, :3]}")
+print(f"  Different (due to Dropout): {not torch.allclose(output_train1, output_train2)}")
+# Evaluation mode
+model.eval()
+print("\\nEvaluation mode enabled:")
+with torch.no_grad():
+    output_eval1 = model(x)
+    output_eval2 = model(x)
+print(f"  Output 1: {output_eval1[0, :3]}")
+print(f"  Output 2: {output_eval2[0, :3]}")
+print(f"  Same (no Dropout): {torch.allclose(output_eval1, output_eval2)}")
+
+# Check which layers are affected
+print("\\nLayers affected by train/eval:")
+for name, module in model.named_modules():
+    if isinstance(module, (nn.Dropout, nn.BatchNorm1d)):
+        print(f"  {name}: {type(module).__name__}")
+`,
+        tips: [
+          'Always call model.eval() before validation/testing',
+          'Dropout disabled in eval; BatchNorm uses running stats',
+          'Forgetting eval() causes valid metrics to look worse than actual',
+        ],
+        mistake: 'Running validation with model.train() applies Dropout, causing metrics to be noisy.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'save-load-model',
+        fn: 'torch.save / torch.load',
+        desc: 'Save and load model checkpoints.',
+        category: 'Checkpointing',
+        subtitle: 'Persist model state',
+        signature: 'torch.save(model.state_dict(), path) | model.load_state_dict(torch.load(path))',
+        descLong: 'Save model parameters and training state for later use. torch.save() saves state_dict (parameters). torch.load() restores. Essential for resuming training and inference.',
+        code: `import torch
+import torch.nn as nn
+
+import os
+# Define model
+model = nn.Sequential(
+    nn.Linear(10, 64),
+    nn.Linear(64, 5),
+# Save model state_dict (parameters only)
+save_path = '/tmp/model_checkpoint.pth'
+torch.save(model.state_dict(), save_path)
+print(f"Model saved to {save_path}")
+# Load state_dict into new model
+model_loaded = nn.Sequential(
+model_loaded.load_state_dict(torch.load(save_path))
+print("Model loaded successfully")
+# Verify parameters match
+for p1, p2 in zip(model.parameters(), model_loaded.parameters()):
+    assert torch.allclose(p1, p2), "Parameters don't match!"
+print("✓ Parameters match")
+# Save complete checkpoint (for resuming training)
+checkpoint = {
+    'epoch': 42,
+    'model_state_dict': model.state_dict(),
+    'optimizer_state_dict': torch.optim.SGD(model.parameters(), lr=0.01).state_dict(),
+    'loss': 0.123,
+}
+checkpoint_path = '/tmp/checkpoint.pth'
+torch.save(checkpoint, checkpoint_path)
+# Load checkpoint
+checkpoint_loaded = torch.load(checkpoint_path)
+model_new = nn.Sequential(
+    nn.ReLU(),
+)
+model_new.load_state_dict(checkpoint_loaded['model_state_dict'])
+start_epoch = checkpoint_loaded['epoch']
+print(f"Resumed from epoch {start_epoch}")
+# Save entire model (not recommended, compatibility issues)
+entire_model_path = '/tmp/entire_model.pth'
+torch.save(model, entire_model_path)
+model_from_file = torch.load(entire_model_path)
+print(f"Loaded entire model: {type(model_from_file)}")`,
+        tips: [
+          'Save state_dict (parameters), not entire model for compatibility',
+          'Include optimizer state and epoch in checkpoint for training resume',
+          'Always verify architecture matches before loading state_dict',
+        ],
+        mistake: 'Saving entire model instead of state_dict causes compatibility issues across versions.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'cnns-vision',
+    title: 'CNNs & Vision',
+    entries: [
+      {
+        id: 'conv2d-architecture',
+        fn: 'CNN Architecture',
+        desc: 'Build complete CNN for images.',
+        category: 'CNN Design',
+        subtitle: 'Conv + Pool + Flatten pattern',
+        signature: 'Conv2d → ReLU → MaxPool2d → ... → Flatten → Linear',
+        descLong: 'Typical CNN: convolutional layers extract features, pooling reduces spatial dims, flatten converts to vector, fully connected layers classify. Spatial dimensions shrink with stride/pooling; channels increase with depth.',
+        code: `import torch
+import torch.nn as nn
+
+# Build CNN from scratch
+class CNN(nn.Module):
+    def __init__(self, num_classes=10):
+        super().__init__()
+        # Conv block 1: 3 channels → 32 filters
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2)
+        # Conv block 2: 32 → 64 filters
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2)
+        # Global average pooling instead of flatten
+        self.gap = nn.AdaptiveAvgPool2d((1, 1))
+        # Classification head
+        self.fc = nn.Linear(64, num_classes)
+    def forward(self, x):
+        # x: (batch, 3, 32, 32) for CIFAR-10
+        x = self.pool1(self.relu1(self.conv1(x)))  # (batch, 32, 16, 16)
+        x = self.pool2(self.relu2(self.conv2(x)))  # (batch, 64, 8, 8)
+        x = self.gap(x)  # (batch, 64, 1, 1)
+        x = x.view(x.size(0), -1)  # (batch, 64)
+        x = self.fc(x)  # (batch, 10)
+        return x
+# Create model and test
+model = CNN(num_classes=10)
+x = torch.randn(4, 3, 32, 32)  # CIFAR-10 image format
+output = model(x)
+print(f"Output shape: {output.shape}")  # (4, 10)
+# Alternative: Using Sequential
+cnn_sequential = nn.Sequential(
+    nn.Conv2d(3, 32, 3, padding=1),
+    nn.MaxPool2d(2),
+    nn.Conv2d(32, 64, 3, padding=1),
+    nn.ReLU(),
+    nn.AdaptiveAvgPool2d((1, 1)),
+    nn.Flatten(),
+    nn.Linear(64, 10),
+)
+output_seq = cnn_sequential(x)
+print(f"Sequential output: {output_seq.shape}")
+`,
+        tips: [
+          'padding=1 preserves spatial dims for 3x3 kernels',
+          'MaxPool2d(2) halves spatial dimensions',
+          'AdaptiveAvgPool2d((1,1)) pools to single value regardless of input size',
+        ],
+        mistake: 'Not using padding in early layers causes spatial dimensions to shrink too fast.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'maxpool2d',
+        fn: 'nn.MaxPool2d',
+        desc: 'Max pooling for spatial reduction.',
+        category: 'Pooling',
+        subtitle: 'Downsample feature maps',
+        signature: 'nn.MaxPool2d(kernel_size, stride, padding)',
+        descLong: 'Takes maximum value in local window. Reduces spatial dimensions (height/width) while preserving important features. Stride often equals kernel_size for non-overlapping windows.',
+        code: `import torch
+import torch.nn as nn
+
+# Input feature map
+x = torch.randn(1, 3, 8, 8)  # batch=1, channels=3, h=8, w=8
+print(f"Input shape: {x.shape}")
+# MaxPool2d with kernel_size=2, stride=2 (non-overlapping)
+pool = nn.MaxPool2d(kernel_size=2, stride=2)
+y = pool(x)
+print(f"After MaxPool2d(2): {y.shape}")  # (1, 3, 4, 4)
+# With stride=1 (overlapping windows)
+pool_overlap = nn.MaxPool2d(kernel_size=2, stride=1)
+y_overlap = pool_overlap(x)
+print(f"With stride=1: {y_overlap.shape}")  # (1, 3, 7, 7)
+# Visualize pooling effect on simple 2D tensor
+simple = torch.tensor([[
+    [1.0, 2.0, 3.0, 4.0],
+    [5.0, 6.0, 7.0, 8.0],
+    [9.0, 10.0, 11.0, 12.0],
+    [13.0, 14.0, 15.0, 16.0],
+]]).unsqueeze(0)  # (1, 1, 4, 4)
+print(f"\\nOriginal:\\n{simple[0, 0]}")
+pooled = nn.MaxPool2d(2)(simple)
+print(f"After MaxPool2d(2):\\n{pooled[0, 0]}")
+# Max of [1,2,5,6]=6, [3,4,7,8]=8, [9,10,13,14]=14, [11,12,15,16]=16
+# Average pooling alternative
+avg_pool = nn.AvgPool2d(kernel_size=2)
+avg_pooled = avg_pool(simple)
+print(f"After AvgPool2d(2):\\n{avg_pooled[0, 0]}")`,
+        tips: [
+          'MaxPool2d(2, 2) is standard: 2x2 kernel, stride 2',
+          'Reduces computation and parameters in following layers',
+          'No learnable parameters; purely spatial reduction',
+        ],
+        mistake: 'Using stride=kernel_size unnecessarily; stride < kernel_size is valid.',
+        shorthand: {
+          verbose: `import torch
+import torch.nn as nn
+x = torch.randn(1, 3, 8, 8)  # batch=1, channels=3, h=8, w=8
+print(f"Input shape: {x.shape}")`,
+          concise: `print(f"After AvgPool2d(2):\\n{avg_pooled[0, 0]}")`
+        }
+      },
+      {
+        id: 'batchnorm2d',
+        fn: 'nn.BatchNorm2d',
+        desc: 'Batch normalization for conv layers.',
+        category: 'Normalization',
+        subtitle: 'Normalize across batch dimension',
+        signature: 'nn.BatchNorm2d(num_features, momentum=0.1, eps=1e-05)',
+        descLong: 'Normalizes activations per channel. During training: normalizes by batch statistics. During eval: uses running mean/var. Accelerates training, allows higher learning rates, reduces internal covariate shift.',
+        code: `import torch
+import torch.nn as nn
+# BatchNorm2d for conv layer output
+bn = nn.BatchNorm2d(num_features=32)
+# Input: (batch, channels, height, width)
+x = torch.randn(16, 32, 28, 28)
+# Forward pass
+y = bn(x)
+print(f"Output shape: {y.shape}")  # Same shape
+# Check running statistics (accumulated during training)
+print(f"Running mean shape: {bn.running_mean.shape}")
+print(f"Running var shape: {bn.running_var.shape}")
+# CNN with BatchNorm
+class CNNWithBN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 32, 3, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.relu = nn.ReLU()
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.pool = nn.MaxPool2d(2)
+        self.fc = nn.Linear(64 * 8 * 8, 10)
+    def forward(self, x):
+        # Conv → BN → ReLU pattern
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.pool(x)
+        x = self.relu(self.bn2(self.conv2(x)))
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
+
+model = CNNWithBN()
+x_input = torch.randn(4, 3, 32, 32)
+output = model(x_input)
+print(f"\\nModel output: {output.shape}")
+# BN accumulates statistics in training mode
+model.train()
+for _ in range(10):
+    _ = model(x_input)
+# Check accumulated running stats
+print(f"Running mean after training: {model.bn1.running_mean[:5]}")
+`,
+        tips: [
+          'Place BN after Conv, before ReLU for best results',
+          'BN momentum: typically 0.1 (running_stat = momentum * stat + (1-momentum) * new)',
+          'In eval mode, BN uses accumulated running statistics, not batch stats',
+        ],
+        mistake: 'Using BN without proper train/eval modes causes validation metrics to be incorrect.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'dropout',
+        fn: 'nn.Dropout',
+        desc: 'Regularization via random node dropping.',
+        category: 'Regularization',
+        subtitle: 'Prevent overfitting',
+        signature: 'nn.Dropout(p=0.5)',
+        descLong: 'Randomly zeros activations during training (probability p). Reduces co-adaptation of neurons. Disabled during evaluation. Simple but effective regularization. Often 0.5 for fully connected, 0.2-0.3 for conv.',
+        code: `import torch
+import torch.nn as nn
+# Create model with Dropout
+model = nn.Sequential(
+    nn.Linear(100, 200),
+    nn.ReLU(),
+    nn.Dropout(0.5),  # Drop 50% of activations
+    nn.Linear(200, 100),
+    nn.Dropout(0.5),
+    nn.Linear(100, 10),
+)
+x = torch.randn(32, 100)
+# Training mode: Dropout active
+output1 = model(x)
+output2 = model(x)
+print("Training mode (Dropout active):")
+print(f"  Outputs different: {not torch.allclose(output1, output2)}")
+# Eval mode: Dropout disabled
+model.eval()
+with torch.no_grad():
+    output1_eval = model(x)
+    output2_eval = model(x)
+print("Eval mode (Dropout disabled):")
+print(f"  Outputs identical: {torch.allclose(output1_eval, output2_eval)}")
+# Effect on activations
+linear = nn.Linear(100, 50)
+relu = nn.ReLU()
+dropout = nn.Dropout(0.5)
+# Training
+x_in = torch.randn(10, 100)
+hidden = relu(linear(x_in))
+print(f"\\nActivations before Dropout: {hidden.sum().item():.2f}")
+hidden_dropped = dropout(hidden)
+print(f"Activations after Dropout (train): {hidden_dropped.sum().item():.2f}")
+print(f"Fraction dropped: {(hidden == 0).sum() / hidden.numel():.2%}")
+
+# Eval
+dropout.eval()
+hidden_eval = dropout(hidden)
+print(f"After Dropout (eval): {hidden_eval.sum().item():.2f}")
+print(f"In eval, all activations preserved")`,
+        tips: [
+          'Typical p=0.5 for FC layers, p=0.2-0.3 for conv',
+          'Always disable in eval mode (model.eval() handles this)',
+          'Alternative: use weight decay (L2 regularization) instead of/with Dropout',
+        ],
+        mistake: 'Forgetting model.eval() before validation causes Dropout to remain active.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'torchvision-transforms',
+        fn: 'torchvision Transforms',
+        desc: 'Image augmentation and preprocessing.',
+        category: 'Data Augmentation',
+        subtitle: 'Normalize, crop, rotate, flip images',
+        signature: 'transforms.Compose([...]) | transforms.ToTensor() | transforms.Normalize()',
+        descLong: 'torchvision.transforms provides composable image transformations. ToTensor converts PIL images to tensors. Normalize with ImageNet statistics. Augmentation (rotate, flip, crop) during training improves robustness.',
+        code: `import torch
+from torchvision import transforms
+from PIL import Image
+import numpy as np
+# Create dummy image for demo
+dummy_array = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+dummy_image = Image.fromarray(dummy_array)
+# Compose transformations
+train_transforms = transforms.Compose([
+    transforms.RandomCrop(224, padding=32),  # Random crop
+    transforms.RandomHorizontalFlip(p=0.5),  # Flip horizontally
+    transforms.RandomRotation(20),            # Random rotation
+    transforms.ToTensor(),                    # PIL → Tensor [0,1]
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],  # ImageNet mean
+        std=[0.229, 0.224, 0.225],   # ImageNet std
+    ),
+])
+# Val transforms (no augmentation, only normalization)
+val_transforms = transforms.Compose([
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+# Apply transforms
+x_train = train_transforms(dummy_image)
+x_val = val_transforms(dummy_image)
+print(f"Train transform output: {x_train.shape}")  # (3, 224, 224)
+print(f"Val transform output: {x_val.shape}")      # (3, 224, 224)
+# Normalize tensor
+normalize = transforms.Normalize(
+    mean=[0.5, 0.5, 0.5],  # For custom dataset
+    std=[0.2, 0.2, 0.2],
+)
+x = torch.randn(3, 224, 224)
+x_norm = normalize(x)
+print(f"\\nNormalization applied: mean={x_norm.mean():.4f}, std={x_norm.std():.4f}")
+# Common augmentations
+augment_heavy = transforms.Compose([
+    transforms.RandomResizedCrop(224),      # Crop + resize
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomVerticalFlip(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),  # Color variations
+    transforms.RandomAffine(degrees=30),    # Rotation + shear
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+print("\\nHeavy augmentation includes:")
+print("  - RandomResizedCrop")
+print("  - HorizontalFlip / VerticalFlip")
+print("  - ColorJitter")
+print("  - RandomAffine")
+`,
+        tips: [
+          'Use ImageNet mean/std when transferring from ImageNet pretrained models',
+          'Heavy augmentation (flip, rotate, crop) only for training',
+          'CenterCrop + no augmentation for validation/test',
+        ],
+        mistake: 'Applying augmentation to validation data invalidates generalization evaluation.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'transfer-learning',
+        fn: 'Transfer Learning',
+        desc: 'Use pretrained models as feature extractors.',
+        category: 'Pretrained Models',
+        subtitle: 'Fine-tune or freeze backbone',
+        signature: 'torchvision.models.resnet50(pretrained=True)',
+        descLong: 'Load pretrained model (ImageNet weights), replace classification head, fine-tune. Leverages learned features, reduces training time, improves performance on small datasets.',
+        code: `import torch
+import torch.nn as nn
+import torchvision.models as models
+
+# Load pretrained ResNet50
+pretrained_model = models.resnet50(pretrained=True)
+print(f"Loaded pretrained ResNet50")
+# View original head
+print(f"Original fc layer: {pretrained_model.fc}")
+# Replace classification head for new task (10 classes instead of 1000)
+num_classes = 10
+pretrained_model.fc = nn.Linear(pretrained_model.fc.in_features, num_classes)
+print(f"Replaced fc layer: {pretrained_model.fc}")
+# Option 1: Fine-tune all layers
+model = pretrained_model
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+# Option 2: Freeze backbone, train only head
+for param in model.parameters():
+    param.requires_grad = False  # Freeze backbone
+# Unfreeze and wrap the new head
+model.fc.weight.requires_grad = True
+model.fc.bias.requires_grad = True
+# Only optimize head parameters
+optimizer = torch.optim.Adam(model.fc.parameters(), lr=0.001)
+print("\\nFrozen layers:")
+for name, param in model.named_parameters():
+    if not param.requires_grad:
+        print(f"  {name}")
+    else:
+        print(f"  {name} (trainable)")
+# Training on new task
+x_input = torch.randn(4, 3, 224, 224)
+output = model(x_input)
+print(f"\\nOutput shape: {output.shape}")  # (4, 10)
+# Pretrained models available in torchvision
+model_options = [
+    'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152',
+    'vgg16', 'vgg19',
+    'mobilenet_v2',
+    'efficientnet_b0',
+]
+print(f"\\nAvailable pretrained models: {', '.join(model_options[:5])}...")`,
+        tips: [
+          'Use lower learning rate (0.0001 vs 0.001) when fine-tuning',
+          'Freeze backbone for small datasets, fine-tune for large datasets',
+          'Always use ImageNet normalization when loading ImageNet pretrained',
+        ],
+        mistake: 'Using high learning rate when fine-tuning pretrained model overwrites learned features.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'nlp-sequences',
+    title: 'NLP & Sequences',
+    entries: [
+      {
+        id: 'embedding-layer',
+        fn: 'nn.Embedding',
+        desc: 'Lookup table for word embeddings.',
+        category: 'Word Embeddings',
+        subtitle: 'Map token IDs to dense vectors',
+        signature: 'nn.Embedding(num_embeddings, embedding_dim)',
+        descLong: 'Learnable lookup table: maps integer token IDs to dense vectors. Input: token IDs [0, vocab_size), output: embedding vectors. First layer in NLP models. Automatically learns word representations.',
+        code: `import torch
+import torch.nn as nn
+
+# Create embedding layer
+# Vocabulary size: 1000, embedding dimension: 300
+embedding = nn.Embedding(num_embeddings=1000, embedding_dim=300)
+# Input: token IDs (integer indices)
+token_ids = torch.tensor([[1, 5, 3], [2, 7, 9]])  # (batch_size=2, seq_len=3)
+print(f"Token IDs shape: {token_ids.shape}")
+# Forward pass: IDs → embeddings
+embeddings = embedding(token_ids)
+print(f"Embeddings shape: {embeddings.shape}")  # (2, 3, 300)
+# Each token gets 300-dimensional vector
+print(f"Embedding for token 1: {embeddings[0, 0, :5]}")
+# Embedding weights (learnable)
+print(f"\\nEmbedding weight shape: {embedding.weight.shape}")  # (1000, 300)
+# Verify: each token ID indexes into weight matrix
+token_1_embedding = embedding.weight[1]
+print(f"Direct lookup token 1: {token_1_embedding[:5]}")
+assert torch.allclose(embeddings[0, 0], token_1_embedding)
+# Common use: in NLP model
+class TextClassifier(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, num_classes):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.lstm = nn.LSTM(embedding_dim, 128, batch_first=True)
+        self.fc = nn.Linear(128, num_classes)
+    def forward(self, token_ids):
+        # token_ids: (batch, seq_len)
+        x = self.embedding(token_ids)  # (batch, seq_len, embedding_dim)
+        _, (h_n, _) = self.lstm(x)     # h_n: (1, batch, 128)
+        logits = self.fc(h_n[-1])       # (batch, num_classes)
+        return logits
+model = TextClassifier(vocab_size=1000, embedding_dim=300, num_classes=5)
+x = torch.randint(0, 1000, (32, 50))  # batch_size=32, seq_len=50
+output = model(x)
+print(f"\\nClassifier output: {output.shape}")  # (32, 5)
+`,
+        tips: [
+          'Embedding maps integers [0, vocab_size) to dense vectors',
+          'Learnable; weights updated via backprop like any parameter',
+          'Common dims: 100 (small), 300 (standard), 768 (large)',
+        ],
+        mistake: 'Input token IDs must be in range [0, num_embeddings); out of range causes error.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'rnn-patterns',
+        fn: 'RNN / GRU Patterns',
+        desc: 'Recurrent networks for sequences.',
+        category: 'Recurrent Layers',
+        subtitle: 'RNN, GRU for sequence processing',
+        signature: 'nn.RNN(input_size, hidden_size) | nn.GRU(input_size, hidden_size)',
+        descLong: 'RNN (vanilla): updates hidden state with gradient vanishing issue. GRU: improved, fewer params than LSTM. Both process sequences step-by-step, maintaining hidden state across timesteps.',
+        code: `import torch
+import torch.nn as nn
+# RNN: vanilla recurrent network
+rnn = nn.RNN(
+    input_size=100,      # embedding dimension
+    hidden_size=128,     # hidden state dimension
+    num_layers=2,
+    batch_first=True,    # (batch, seq, features) instead of (seq, batch, features)
+)
+x = torch.randn(32, 50, 100)  # (batch, seq_len, input_size)
+output_rnn, h_n_rnn = rnn(x)
+print(f"RNN output shape: {output_rnn.shape}")    # (32, 50, 128)
+print(f"RNN hidden state shape: {h_n_rnn.shape}") # (2, 32, 128) - num_layers, batch, hidden_size
+# GRU: Gated Recurrent Unit (fewer params, similar performance)
+gru = nn.GRU(
+    input_size=100,
+    hidden_size=128,
+    batch_first=True,
+output_gru, h_n_gru = gru(x)
+print(f"\\nGRU output shape: {output_gru.shape}")    # (32, 50, 128)
+print(f"GRU hidden state shape: {h_n_gru.shape}")   # (2, 32, 128)
+
+# Sequence classification with GRU
+class GRUClassifier(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, hidden_size, num_classes):
+        self.gru = nn.GRU(embedding_dim, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+        x = self.embedding(token_ids)          # (batch, seq, embedding_dim)
+        _, h_n = self.gru(x)                   # h_n: (1, batch, hidden_size)
+        logits = self.fc(h_n[-1])              # (batch, num_classes)
+model = GRUClassifier(vocab_size=1000, embedding_dim=100, hidden_size=128, num_classes=5)
+x = torch.randint(0, 1000, (32, 50))
+# Bidirectional RNN
+bi_rnn = nn.RNN(
+    input_size=100, hidden_size=128,
+    bidirectional=True,
+)
+output_bi, h_bi = bi_rnn(x)
+print(f"\\nBidirectional RNN output shape: {output_bi.shape}")  # (32, 50, 256) - 128*2`,
+        tips: [
+          'GRU has fewer parameters than LSTM; good for smaller datasets',
+          'Bidirectional=True processes left→right and right→left',
+          'Use hidden state for classification, all outputs for sequence tagging',
+        ],
+        mistake: 'Forgetting batch_first=True causes dimension mismatch with data loaders.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'lstm-patterns',
+        fn: 'LSTM Patterns',
+        desc: 'Long-term dependencies in sequences.',
+        subtitle: 'Sequence modeling with cell state',
+        signature: 'nn.LSTM(input_size, hidden_size, batch_first=True)',
+        descLong: 'LSTM (Long Short-Term Memory): solves vanishing gradient via cell state (memory). Input/forget/output gates control information flow. More parameters than RNN/GRU but captures long-range dependencies.',
+        code: `import torch
+import torch.nn as nn
+# LSTM configuration
+input_size = 100
+hidden_size = 128
+batch_size = 32
+seq_len = 50
+lstm = nn.LSTM(
+    input_size=input_size,
+    hidden_size=hidden_size,
+x = torch.randn(batch_size, seq_len, input_size)
+print(f"Input shape: {x.shape}")
+# Forward pass returns (output, (h_n, c_n))
+output, (h_n, c_n) = lstm(x)
+print(f"Output shape: {output.shape}")      # (batch, seq, hidden_size)
+print(f"h_n shape: {h_n.shape}")            # (2, batch, hidden_size)
+print(f"c_n shape (cell state): {c_n.shape}")  # (2, batch, hidden_size)
+# Sequence-to-sequence model
+class Seq2SeqDecoder(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.embedding = nn.Embedding(input_size, 100)
+        self.lstm = nn.LSTM(100, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+    def forward(self, x, hidden_state=None):
+        # x: (batch, seq_len)
+        x = self.embedding(x)  # (batch, seq_len, 100)
+        output, hidden_state = self.lstm(x, hidden_state)
+        logits = self.fc(output)  # (batch, seq_len, output_size)
+        return logits, hidden_state
+model = Seq2SeqDecoder(input_size=1000, hidden_size=128, output_size=1000)
+token_ids = torch.randint(0, 1000, (32, 50))
+logits, (h, c) = model(token_ids)
+print(f"\\nSeq2Seq logits shape: {logits.shape}")  # (32, 50, 1000)
+# Many-to-one: encode sequence → single output
+class LSTMEncoder(nn.Module):
+    def __init__(self, input_size, hidden_size, num_classes):
+    def forward(self, x):
+        x = self.embedding(x)  # (batch, seq, 100)
+        _, (h_n, _) = self.lstm(x)  # h_n: (1, batch, hidden_size)
+        output = self.fc(h_n[-1])  # (batch, num_classes)
+        return output
+encoder = LSTMEncoder(input_size=1000, hidden_size=128, num_classes=10)
+output = encoder(token_ids)
+print(f"Encoder output (classification): {output.shape}")  # (32, 10)
+`,
+        tips: [
+          'LSTM cell state persists across sequence; critical for long dependencies',
+          'Use h_n for classification, all outputs for seq2seq',
+          'Stack multiple LSTM layers for deeper models',
+        ],
+        mistake: 'Not resetting hidden state between sequences causes information leakage.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'attention-mechanism',
+        fn: 'Attention Mechanism',
+        desc: 'Weighted focus on sequence parts.',
+        category: 'Attention',
+        subtitle: 'Query-key-value attention basics',
+        signature: 'Scaled dot-product attention',
+        descLong: 'Attention computes weighted sum of values based on similarity between queries and keys. Scaled dot-product: Attention(Q,K,V) = softmax(QK^T/√d)V. Enables focus on relevant sequence parts.',
+        code: `import torch.nn.functional as F
+
+# Simplified attention mechanism
+class SimpleAttention(nn.Module):
+    def __init__(self, hidden_size):
+        self.scale = hidden_size ** 0.5
+        self.query_proj = nn.Linear(hidden_size, hidden_size)
+        self.key_proj = nn.Linear(hidden_size, hidden_size)
+        self.value_proj = nn.Linear(hidden_size, hidden_size)
+    def forward(self, query, key, value, mask=None):
+        # query: (batch, query_len, hidden)
+        # key: (batch, seq_len, hidden)
+        # value: (batch, seq_len, hidden)
+        Q = self.query_proj(query)  # (batch, query_len, hidden)
+        K = self.key_proj(key)      # (batch, seq_len, hidden)
+        V = self.value_proj(value)  # (batch, seq_len, hidden)
+        # Compute attention scores
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / self.scale  # (batch, query_len, seq_len)
+        # Apply mask if provided (for causal attention)
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, float('-inf'))
+        # Softmax to get attention weights
+        attn_weights = F.softmax(scores, dim=-1)  # (batch, query_len, seq_len)
+        # Weighted sum of values
+        output = torch.matmul(attn_weights, V)  # (batch, query_len, hidden)
+        return output, attn_weights
+# Test attention
+attn = SimpleAttention(hidden_size=128)
+query = torch.randn(32, 10, 128)   # 32 queries
+key = torch.randn(32, 50, 128)     # 50 key-value pairs (sequence)
+value = torch.randn(32, 50, 128)
+output, weights = attn(query, key, value)
+print(f"Attention output: {output.shape}")       # (32, 10, 128)
+print(f"Attention weights: {weights.shape}")     # (32, 10, 50)
+print(f"Weights sum to 1: {weights.sum(dim=-1)[0, 0]}")
+# Multi-head attention (PyTorch built-in)
+mha = nn.MultiheadAttention(
+    embed_dim=128,
+    num_heads=8,
+    batch_first=True,
+)
+query = torch.randn(32, 10, 128)
+key = torch.randn(32, 50, 128)
+output, attn_weights = mha(query, key, value)
+print(f"\\nMulti-head output: {output.shape}")  # (32, 10, 128)
+# Self-attention (Q=K=V)
+class SelfAttention(nn.Module):
+        super().__init__()
+        self.attn = nn.MultiheadAttention(hidden_size, num_heads=8, batch_first=True)
+        # Self-attention: query = key = value = x
+        output, _ = self.attn(x, x, x)
+self_attn = SelfAttention(hidden_size=128)
+x = torch.randn(32, 50, 128)
+output = self_attn(x)
+print(f"Self-attention output: {output.shape}")  # (32, 50, 128)`,
+        tips: [
+          'Scaled dot-product: divide by √d for numerical stability',
+          'Multi-head attention allows attending to different subspaces',
+          'Self-attention: query = key = value for intra-sequence focus',
+        ],
+        mistake: 'Forgetting to scale attention scores causes gradient instability.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'tokenization-padding',
+        fn: 'Tokenization & Padding',
+        desc: 'Convert text to token IDs and pad sequences.',
+        category: 'Text Preprocessing',
+        subtitle: 'Word/subword tokenization, sequence padding',
+        signature: 'torch.nn.utils.rnn.pad_sequence() | torch.nn.utils.rnn.pack_padded_sequence()',
+        descLong: 'Tokenization: text → token IDs using vocabulary. Padding: extend sequences to uniform length for batching. pack_padded_sequence: efficient handling of variable-length sequences in RNNs.',
+        code: `import numpy as np
+import torch
+from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
+# Simple vocabulary
+vocab = {'<PAD>': 0, '<UNK>': 1, 'hello': 2, 'world': 3, 'pytorch': 4}
+def text_to_ids(text, vocab):
+    """Convert text to token IDs"""
+    tokens = text.lower().split()
+    return torch.tensor([vocab.get(t, vocab['<UNK>']) for t in tokens])
+# Example texts of different lengths
+texts = [
+    'hello world',
+    'pytorch is great',
+    'hello',
+]
+# Tokenize
+token_ids = [text_to_ids(text, vocab) for text in texts]
+print("Token sequences (variable length):")
+for i, ids in enumerate(token_ids):
+    print(f"  {i}: {ids.tolist()}")
+
+# Pad sequences to same length (manual)
+max_len = max(len(seq) for seq in token_ids)
+padded_manual = torch.zeros(len(token_ids), max_len, dtype=torch.long)
+for i, seq in enumerate(token_ids):
+    padded_manual[i, :len(seq)] = seq
+print(f"\\nPadded sequences (manual):\\n{padded_manual}")
+# Pad sequences (using torch utility)
+padded_torch = pad_sequence(token_ids, batch_first=True, padding_value=0)
+print(f"\\nPadded sequences (torch):\\n{padded_torch}")
+# Pack padded sequence for RNN efficiency
+lengths = torch.tensor([len(seq) for seq in token_ids])
+packed = pack_padded_sequence(
+    padded_torch,
+    lengths,
+    enforce_sorted=False,  # Sequences don't need to be sorted
+print(f"\\nPacked sequence data shape: {packed.data.shape}")
+print(f"Batch sizes: {packed.batch_sizes}")
+# Unpack for output processing
+unpacked, _ = pad_packed_sequence(packed, batch_first=True)
+print(f"Unpacked shape: {unpacked.shape}")
+# Real NLP pipeline example
+class NLPModel(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, hidden_size, num_classes):
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
+        self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+    def forward(self, padded_ids, lengths):
+        # padded_ids: (batch, max_len) - 0 for padding
+        x = self.embedding(padded_ids)  # (batch, max_len, embedding_dim)
+        # Pack to handle variable lengths
+        packed = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
+        lstm_out, (h_n, _) = self.lstm(packed)
+        # Use final hidden state for classification
+        logits = self.fc(h_n[-1])  # (batch, num_classes)
+        return logits
+model = NLPModel(vocab_size=10, embedding_dim=50, hidden_size=64, num_classes=3)
+output = model(padded_torch, lengths)
+print(f"\\nModel output shape: {output.shape}")  # (3, 3)`,
+        tips: [
+          'padding_idx=0 in Embedding prevents grad updates to padding embeddings',
+          'pack_padded_sequence skips padding; more efficient than processing',
+          'enforce_sorted=False allows unsorted sequences (slower but flexible)',
+        ],
+        mistake: 'Not using pack_padded_sequence causes RNN to process padding tokens.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'subword-tokenization',
+        fn: 'Subword Tokenization',
+        desc: 'BPE, WordPiece for OOV handling.',
+        category: 'Tokenization',
+        subtitle: 'Handle unknown words via subwords',
+        signature: 'tokenizer.encode() | tokenizer.decode()',
+        descLong: 'Subword tokenization (BPE, WordPiece) breaks OOV words into known subwords. BERT, GPT use WordPiece. Enables vocabulary coverage without massive vocab. Requires pretrained tokenizer.',
+        code: `import torch
+import torch.nn as nn
+# Simulate subword tokenization (simplified)
+# Real implementation: HuggingFace transformers
+class SubwordTokenizer:
+    """Simplified subword tokenizer"""
+    def __init__(self):
+        # Vocabulary includes words and subwords
+        self.vocab = {
+            '<PAD>': 0, '<UNK>': 1,
+            'hello': 2, 'world': 3, 'pytorch': 4,
+            '##world': 5, '##pytorch': 6,  # ## prefix for subwords
+            'un': 7, '##known': 8,          # unknown word: un + ##known
+        self.id2token = {v: k for k, v in self.vocab.items()}
+    def encode(self, text):
+        """Convert text to token IDs"""
+        tokens = text.lower().split()
+        ids = []
+        for token in tokens:
+            if token in self.vocab:
+                ids.append(self.vocab[token])
+            else:
+                # Simplified: try to find subword pieces
+                ids.append(self.vocab.get(token, self.vocab['<UNK>']))
+        return torch.tensor(ids)
+    def decode(self, ids):
+        """Convert token IDs back to text"""
+        tokens = [self.id2token[id.item()] for id in ids]
+        # Remove ## prefix for subwords
+        text = ' '.join(token.replace('##', '') for token in tokens)
+        return text
+
+tokenizer = SubwordTokenizer()
+# Test
+text = 'hello world'
+token_ids = tokenizer.encode(text)
+decoded = tokenizer.decode(token_ids)
+print(f"Text: {text}")
+print(f"Tokens: {token_ids.tolist()}")
+print(f"Decoded: {decoded}")
+# Vocabulary coverage benefit
+print(f"\\nVocab size: {len(tokenizer.vocab)}")
+print(f"Can handle rare words via subwords")
+# Real example with HuggingFace (if available)
+try:
+    from transformers import AutoTokenizer
+    # Load pretrained BERT tokenizer
+    tokenizer_hf = AutoTokenizer.from_pretrained('bert-base-uncased')
+    text = 'PyTorch is amazing'
+    tokens = tokenizer_hf.tokenize(text)
+    token_ids = tokenizer_hf.encode(text)
+    print(f"\\nHuggingFace Tokenizer:")
+    print(f"Text: {text}")
+    print(f"Subword tokens: {tokens}")
+    print(f"Token IDs: {token_ids}")
+except ImportError:
+    print("\\nHuggingFace transformers not available")
+    print("Install with: pip install transformers")`,
+        tips: [
+          'Subword tokenization handles OOV and rare words well',
+          'WordPiece (BERT), BPE (GPT), SentencePiece common algorithms',
+          'Always use matching tokenizer with pretrained model',
+        ],
+        mistake: 'Using custom tokenizer vocab different from pretrained model causes wrong embeddings.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

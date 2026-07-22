@@ -1,0 +1,1226 @@
+/**
+ * data/python/stats.js
+ * Statistics & Hypothesis Testing
+ * scipy, numpy, pandas, statsmodels — comprehensive statistical analysis toolkit
+ */
+
+export const meta = {
+  id: 'stats',
+  label: 'Statistics',
+  icon: '📊',
+  description: 'Descriptive statistics, distributions, hypothesis testing, regression with scipy, numpy, pandas, statsmodels.',
+}
+
+export const sections = [
+  {
+    id: 'descriptive-stats-py',
+    title: 'Descriptive Statistics',
+    entries: [
+      {
+        id: 'descriptive-stats',
+        fn: 'mean, median, mode, variance, std',
+        desc: 'Calculate mean, median, mode, variance, and standard deviation.',
+        category: 'Central Tendency',
+        subtitle: 'Summarize data distribution with basic statistics',
+        signature: 'scipy.stats.describe(), np.mean(), np.median(), scipy.stats.mode()',
+        descLong: 'Compute fundamental summary statistics to understand data center and spread. scipy.stats.describe() provides all at once; individual functions offer flexibility.',
+        code: `import numpy as np
+import pandas as pd
+from scipy import stats
+# Sample data
+data = np.array([2, 4, 4, 4, 5, 5, 7, 9, 10, 15])
+# Basic statistics with scipy.stats.describe()
+desc = stats.describe(data)
+print(f'Count: {desc.nobs}')
+print(f'Mean: {desc.mean:.2f}')
+print(f'Variance: {desc.variance:.2f}')
+print(f'Skewness: {desc.skewness:.2f}')
+print(f'Kurtosis: {desc.kurtosis:.2f}')
+# Individual calculations
+print(f'\\nMedian: {np.median(data):.2f}')
+print(f'Mode: {stats.mode(data, keepdims=True).mode[0]}')
+print(f'Std Dev: {np.std(data, ddof=1):.2f}')
+print(f'Range: {data.max() - data.min()}')
+`,
+        tips: [
+          'Use ddof=1 for sample std (Bessel correction), ddof=0 for population',
+          'scipy.stats.describe() is efficient for all descriptive stats at once',
+          'Keep raw statistics separate from interpretation — context matters',
+        ],
+        mistake: 'Using ddof=0 (population) when computing sample statistics, underestimating variability.',
+        shorthand: {
+          verbose: `import numpy as np
+import pandas as pd
+from scipy import stats
+data = np.array([2, 4, 4, 4, 5, 5, 7, 9, 10, 15])`,
+          concise: `print(f'Range: {data.max() - data.min()}')`
+        }
+      },
+      {
+        id: 'standard-deviation',
+        fn: 'std, var, sem, coefficient of variation',
+        desc: 'Compute standard deviation, variance, SEM, and coefficient of variation.',
+        category: 'Dispersion',
+        subtitle: 'Measure variability and uncertainty',
+        signature: 'np.std(), np.var(), scipy.stats.sem(), cv = std / mean',
+        descLong: 'Measure data spread around the center. Standard error of mean (SEM) quantifies uncertainty in sample mean. Coefficient of variation enables comparison across scales.',
+        code: `import numpy as np
+# Sample datasets
+data1 = np.array([10, 12, 11, 13, 12, 11, 10])
+data2 = np.array([100, 120, 110, 130, 120, 110, 100])
+# Variance and standard deviation
+print('Data 1:')
+print(f'Variance: {np.var(data1, ddof=1):.2f}')
+print(f'Std Dev (sample): {np.std(data1, ddof=1):.2f}')
+print('\\nData 2:')
+print(f'Variance: {np.var(data2, ddof=1):.2f}')
+print(f'Std Dev (sample): {np.std(data2, ddof=1):.2f}')
+# Standard error of the mean
+sem1 = stats.sem(data1)
+sem2 = stats.sem(data2)
+print(f'\\nStandard Error of Mean (Data 1): {sem1:.4f}')
+print(f'Standard Error of Mean (Data 2): {sem2:.4f}')
+# Coefficient of variation (compare variability across different scales)
+cv1 = np.std(data1, ddof=1) / np.mean(data1)
+cv2 = np.std(data2, ddof=1) / np.mean(data2)
+print(f'\\nCoefficient of Variation (Data 1): {cv1:.4f}')
+print(f'Coefficient of Variation (Data 2): {cv2:.4f}')`,
+        tips: [
+          'CV > std for comparing variability across datasets with different scales/units',
+          'SEM decreases with larger sample size (sqrt(n) relationship)',
+          'Variance is std^2; use std for same units as original data',
+        ],
+        mistake: 'Confusing std with SEM; SEM is std/sqrt(n), used for mean uncertainty.',
+        shorthand: {
+          verbose: `import numpy as np
+from scipy import stats
+data1 = np.array([10, 12, 11, 13, 12, 11, 10])
+data2 = np.array([100, 120, 110, 130, 120, 110, 100])`,
+          concise: `print(f'Coefficient of Variation (Data 2): {cv2:.4f}')`
+        }
+      },
+      {
+        id: 'percentiles-iqr',
+        fn: 'np.percentile, IQR, boxplot',
+        desc: 'Calculate percentiles, IQR, and boxplot statistics.',
+        category: 'Distribution Position',
+        subtitle: 'Quartiles and percentile-based summaries',
+        signature: 'np.percentile(data, q), iqr = q75 - q25',
+        descLong: 'Partition data into equal-probability regions. IQR (Interquartile Range) captures central 50%; outliers identified as values beyond 1.5*IQR from quartiles.',
+        code: `import numpy as np
+import pandas as pd
+# Sample data
+data = np.array([2, 4, 4, 5, 5, 7, 8, 9, 10, 15, 20, 25, 30, 100])
+# Percentiles
+p25 = np.percentile(data, 25)
+p50 = np.percentile(data, 50)
+p75 = np.percentile(data, 75)
+p95 = np.percentile(data, 95)
+print(f'25th percentile (Q1): {p25}')
+print(f'50th percentile (Q2/Median): {p50}')
+print(f'75th percentile (Q3): {p75}')
+print(f'95th percentile: {p95}')
+
+# Interquartile range and outlier detection
+iqr = p75 - p25
+lower_bound = p25 - 1.5 * iqr
+upper_bound = p75 + 1.5 * iqr
+print(f'\\nIQR: {iqr}')
+print(f'Outlier bounds: [{lower_bound}, {upper_bound}]')
+outliers = data[(data < lower_bound) | (data > upper_bound)]
+print(f'Outliers detected: {outliers}')
+# Using pandas for 5-number summary
+df = pd.DataFrame({'data': data})
+print(f'\\nPandas describe:')
+print(df.describe())
+`,
+        tips: [
+          'IQR method: outliers are beyond Q1 - 1.5*IQR or Q3 + 1.5*IQR',
+          'Percentiles are more robust than mean/std for skewed distributions',
+          'pd.describe() includes min, 25%, 50%, 75%, max, mean, std automatically',
+        ],
+        mistake: 'Using percentiles without context; always check full distribution visually too.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'correlation',
+        fn: 'pearsonr, spearmanr, kendalltau',
+        desc: 'Compute Pearson, Spearman, and Kendall correlations.',
+        category: 'Association',
+        subtitle: 'Measure linear and rank-based relationships',
+        signature: 'scipy.stats.pearsonr(x, y), spearmanr(x, y), kendalltau(x, y)',
+        descLong: 'Pearson measures linear association (-1 to 1). Spearman and Kendall use ranks, robust to outliers and nonlinearity. All return coefficient and p-value.',
+        code: `import numpy as np
+from scipy import stats
+# Create sample data with different relationships
+np.random.seed(42)
+x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+y = 2 * x + np.random.normal(0, 2, 10)  # Linear with noise
+# Add one outlier
+y[-1] = 50
+# Pearson correlation (linear)
+pearson_r, pearson_p = stats.pearsonr(x, y)
+print(f'Pearson r: {pearson_r:.4f}, p-value: {pearson_p:.4f}')
+# Spearman correlation (rank-based, robust to outliers)
+spearman_r, spearman_p = stats.spearmanr(x, y)
+print(f'Spearman r: {spearman_r:.4f}, p-value: {spearman_p:.4f}')
+
+# Kendall tau (rank-based, more conservative)
+kendall_tau, kendall_p = stats.kendalltau(x, y)
+print(f'Kendall tau: {kendall_tau:.4f}, p-value: {kendall_p:.4f}')
+# Note how Spearman/Kendall less affected by outlier
+y_clean = y[:-1]
+x_clean = x[:-1]
+print(f'\\nWithout outlier:')
+print(f'Pearson r: {stats.pearsonr(x_clean, y_clean)[0]:.4f}')
+print(f'Spearman r: {stats.spearmanr(x_clean, y_clean)[0]:.4f}')`,
+        tips: [
+          'Pearson assumes linearity; use Spearman/Kendall for monotonic relationships',
+          'Spearman/Kendall robust to outliers; preferred for non-normal data',
+          'p-value < 0.05 typically indicates significant correlation',
+        ],
+        mistake: 'Using Pearson on monotonic but non-linear data; Spearman is more appropriate.',
+        shorthand: {
+          verbose: `import numpy as np
+from scipy import stats
+np.random.seed(42)
+x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])`,
+          concise: `print(f'Spearman r: {stats.spearmanr(x_clean, y_clean)[0]:.4f}')`
+        }
+      },
+      {
+        id: 'covariance',
+        fn: 'np.cov, pandas .cov(), .corr()',
+        desc: 'Calculate covariance and correlation matrices.',
+        category: 'Multivariate',
+        subtitle: 'Joint variability across multiple variables',
+        signature: 'np.cov(X.T), df.cov(), df.corr()',
+        descLong: 'Covariance measures joint variability; correlation is normalized covariance (-1 to 1). Matrices reveal all pairwise relationships in dataset.',
+        code: `import numpy as np
+import pandas as pd
+# Sample multivariate data
+data = {
+    'age': [25, 30, 35, 40, 45, 50],
+    'income': [40000, 50000, 60000, 75000, 85000, 95000],
+    'hours_worked': [35, 40, 45, 50, 45, 40]
+}
+df = pd.DataFrame(data)
+# Covariance matrix with numpy
+X = df.values
+cov_matrix = np.cov(X.T)
+print('Covariance matrix (numpy):')
+print(cov_matrix)
+# Correlation matrix with pandas
+corr_matrix = df.corr()
+print('\\nCorrelation matrix (pandas):')
+print(corr_matrix)
+# Manual covariance calculation
+cov_age_income = np.cov(df['age'], df['income'])[0, 1]
+print(f'\\nCovariance(age, income): {cov_age_income:.2f}')
+
+# Correlation from covariance
+std_age = df['age'].std()
+std_income = df['income'].std()
+corr_manual = cov_age_income / (std_age * std_income)
+print(f'Correlation(age, income): {corr_manual:.4f}')
+`,
+        tips: [
+          'Use .T with np.cov() — rows must be variables, columns observations',
+          'Correlation standardizes covariance to [-1, 1] for easier interpretation',
+          'Covariance values depend on scale of variables; hard to interpret directly',
+        ],
+        mistake: 'Forgetting .T in np.cov(X.T); without it, treats each column as variable.',
+        shorthand: {
+          verbose: `import numpy as np
+import pandas as pd
+data = {
+'age': [25, 30, 35, 40, 45, 50],`,
+          concise: `print(f'Correlation(age, income): {corr_manual:.4f}')`
+        }
+      },
+    ],
+  },
+  {
+    id: 'distributions-py',
+    title: 'Probability Distributions',
+    entries: [
+      {
+        id: 'normal-distribution',
+        fn: 'scipy.stats.norm',
+        desc: 'Work with normal distribution: pdf, cdf, ppf, rvs, fit.',
+        category: 'Distribution Functions',
+        subtitle: 'Gaussian bell curve operations',
+        signature: 'scipy.stats.norm.pdf(x, loc, scale), norm.cdf(), norm.ppf(), norm.rvs()',
+        descLong: 'Normal distribution is fundamental to statistics. pdf: probability density, cdf: cumulative probability, ppf: inverse cdf, rvs: random samples, fit: estimate parameters.',
+        code: `import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+# Create normal distribution with mean=0, std=1
+mu, sigma = 0, 1
+normal = stats.norm(loc=mu, scale=sigma)
+# Probability density function
+x = np.linspace(-4, 4, 100)
+pdf = normal.pdf(x)
+# Cumulative distribution function
+cdf = normal.cdf(x)
+# Percent point function (inverse CDF) - quantiles
+quantiles = [0.025, 0.5, 0.975]
+ppf_vals = normal.ppf(quantiles)
+print(f'Quantiles at {quantiles}:')
+print(ppf_vals)
+# Random samples
+samples = normal.rvs(size=1000)
+print(f'\\nRandom samples - mean: {samples.mean():.3f}, std: {samples.std():.3f}')
+# Fit normal distribution to data
+data = np.array([1.2, 2.1, 1.8, 2.3, 1.9, 2.2, 1.7, 2.4])
+fitted_mu, fitted_sigma = stats.norm.fit(data)
+print(f'\\nFitted parameters - mean: {fitted_mu:.3f}, std: {fitted_sigma:.3f}')
+
+# Probability of values in range
+prob_lt_0 = normal.cdf(0)
+prob_lt_2 = normal.cdf(2)
+prob_1to2 = normal.cdf(2) - normal.cdf(1)
+print(f'\\nP(X < 0): {prob_lt_0:.4f}')
+print(f'P(1 < X < 2): {prob_1to2:.4f}')
+`,
+        tips: [
+          'loc=mean, scale=std — don\'t confuse with variance',
+          'ppf() is inverse of cdf(); use for critical values in hypothesis testing',
+          'rvs(size=n) generates random samples; set random_state for reproducibility',
+        ],
+        mistake: 'Passing variance instead of std to scale parameter.',
+        shorthand: {
+          verbose: `import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+mu, sigma = 0, 1`,
+          concise: `print(f'P(1 < X < 2): {prob_1to2:.4f}')`
+        }
+      },
+      {
+        id: 'probability-distributions',
+        fn: 'binomial, poisson, exponential, uniform',
+        desc: 'Work with common discrete and continuous distributions.',
+        category: 'Distribution Families',
+        subtitle: 'Binomial, Poisson, Exponential, Uniform',
+        signature: 'scipy.stats.binom(), poisson(), expon(), uniform()',
+        descLong: 'Common distributions for modeling different phenomena. Binomial for count successes, Poisson for rare events, Exponential for waiting times, Uniform for equal probability.',
+        code: `
+# BINOMIAL: n trials, p probability of success
+binomial = stats.binom(n=10, p=0.3)
+print('Binomial (n=10, p=0.3):')
+print(f'  PMF at k=5: {binomial.pmf(5):.4f}')
+print(f'  CDF at k=5: {binomial.cdf(5):.4f}')
+print(f'  Mean: {binomial.mean():.2f}, Var: {binomial.var():.2f}')
+# POISSON: lambda = expected occurrences
+poisson = stats.poisson(mu=3)
+print('\\nPoisson (lambda=3):')
+print(f'  PMF at k=2: {poisson.pmf(2):.4f}')
+print(f'  CDF at k=4: {poisson.cdf(4):.4f}')
+print(f'  Mean: {poisson.mean():.2f}, Var: {poisson.var():.2f}')
+# EXPONENTIAL: rate parameter, models waiting times
+exponential = stats.expon(scale=2)  # scale=1/lambda
+print('\\nExponential (scale=2):')
+print(f'  PDF at x=1: {exponential.pdf(1):.4f}')
+print(f'  CDF at x=1: {exponential.cdf(1):.4f}')
+print(f'  Mean: {exponential.mean():.2f}')
+# UNIFORM: constant probability over interval
+uniform = stats.uniform(loc=0, scale=10)  # [0, 10]
+print('\\nUniform [0, 10]:')
+print(f'  PDF anywhere: {uniform.pdf(5):.4f}')
+print(f'  CDF at x=5: {uniform.cdf(5):.4f}')
+print(f'  Mean: {uniform.mean():.2f}')
+# Random samples from each
+print('\\nRandom samples:')
+print(f'  Binomial: {binomial.rvs(size=5)}')
+print(f'  Poisson: {poisson.rvs(size=5)}')
+print(f'  Exponential: {exponential.rvs(size=5).round(2)}')`,
+        tips: [
+          'Use pmf() for discrete, pdf() for continuous distributions',
+          'Poisson is limit of Binomial as n→∞, p→0, np=λ',
+          'Exponential is memoryless — P(X > s+t | X > s) = P(X > t)',
+        ],
+        mistake: 'Using pdf() instead of pmf() for discrete distributions (Binomial, Poisson).',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'confidence-intervals',
+        fn: 'scipy.stats.t.interval, bootstrap',
+        desc: 'Compute confidence intervals using t-distribution and bootstrap.',
+        category: 'Estimation',
+        subtitle: 'Estimate population parameters with uncertainty bounds',
+        signature: 'scipy.stats.t.interval(alpha, df, loc, scale), bootstrap resampling',
+        descLong: 'Confidence intervals estimate range containing true parameter with specified probability. t-distribution used for small samples; bootstrap provides non-parametric CI.',
+        code: `import numpy as np
+from scipy import stats
+
+# SAMPLE DATA
+data = np.array([22, 25, 23, 24, 26, 25, 24, 23, 25, 22])
+n = len(data)
+mean = data.mean()
+se = stats.sem(data)  # standard error
+# 95% Confidence Interval using t-distribution
+df = n - 1
+alpha = 0.05
+ci = stats.t.interval(1 - alpha, df, loc=mean, scale=se)
+print(f'95% CI (t-distribution): [{ci[0]:.2f}, {ci[1]:.2f}]')
+# Manual t-critical calculation
+t_crit = stats.t.ppf(1 - alpha/2, df)
+margin = t_crit * se
+ci_manual = (mean - margin, mean + margin)
+print(f'95% CI (manual): [{ci_manual[0]:.2f}, {ci_manual[1]:.2f}]')
+# BOOTSTRAP Confidence Interval
+np.random.seed(42)
+bootstrap_means = []
+n_boots = 10000
+for _ in range(n_boots):
+    resample = np.random.choice(data, size=n, replace=True)
+    bootstrap_means.append(resample.mean())
+bootstrap_means = np.array(bootstrap_means)
+ci_bootstrap = (
+    np.percentile(bootstrap_means, 2.5),
+    np.percentile(bootstrap_means, 97.5)
+)
+print(f'95% CI (bootstrap): [{ci_bootstrap[0]:.2f}, {ci_bootstrap[1]:.2f}]')
+print(f'\\nSample mean: {mean:.2f}')
+print(f'Bootstrap mean of means: {bootstrap_means.mean():.2f}')
+print(f'Bootstrap std of means: {bootstrap_means.std():.4f}')
+`,
+        tips: [
+          'Use t-distribution for small samples (n < 30), z-distribution for large samples',
+          'Bootstrap works without assuming normality; flexible and robust',
+          'CI narrower with larger sample size; wider with higher confidence level',
+        ],
+        mistake: 'Using z-scores instead of t-scores for small samples; t accounts for uncertainty in estimating std.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    result.append(x * 2)`,
+          concise: `result = [x * 2 for x in items]`
+        }
+      },
+      {
+        id: 'central-limit-theorem',
+        fn: 'CLT simulation',
+        desc: 'Demonstrate Central Limit Theorem with simulation.',
+        category: 'Theory',
+        subtitle: 'Distribution of sample means approaches normal',
+        signature: 'Simulate repeated sampling; plot distribution of means',
+        descLong: 'CLT: regardless of population distribution, sample mean distribution approaches normal as n increases. Foundation of inference and hypothesis testing.',
+        code: `import numpy as np
+
+import matplotlib.pyplot as plt
+# Non-normal population: exponential distribution
+population = stats.expon.rvs(scale=2, size=10000)
+
+print(f'Population (exponential):')
+print(f'  Mean: {population.mean():.2f}')
+print(f'  Std: {population.std():.2f}')
+print(f'  Skewness: {stats.skew(population):.2f}')
+# Draw many samples, compute mean of each
+sample_size = 30
+n_samples = 1000
+sample_means = []
+for _ in range(n_samples):
+    sample = np.random.choice(population, size=sample_size, replace=True)
+    sample_means.append(sample.mean())
+sample_means = np.array(sample_means)
+# Test normality of sample means
+print(f'\\nSample Means Distribution (n={sample_size}, samples={n_samples}):')
+print(f'  Mean: {sample_means.mean():.2f}')
+print(f'  Std: {sample_means.std():.2f}')
+print(f'  Skewness: {stats.skew(sample_means):.2f}')
+# Theoretical std of means
+theoretical_se = population.std() / np.sqrt(sample_size)
+print(f'  Theoretical SE: {theoretical_se:.2f}')
+# Normality test
+normality_stat, normality_p = stats.shapiro(sample_means)
+print(f'\\nShapiro-Wilk test (H0: normal):')
+print(f'  Test stat: {normality_stat:.4f}, p-value: {normality_p:.4f}')
+print(f'  Sample means appear normal: {normality_p > 0.05}')`,
+        tips: [
+          'CLT applies regardless of population shape; sample means converge to normal',
+          'Larger sample size needed for non-normal populations to see effect',
+          'SEM = population_std / sqrt(n); justifies z-tests and CIs',
+        ],
+        mistake: 'Confusing population normality requirement; CLT needs normal sample means, not population.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    result.append(x * 2)`,
+          concise: `result = [x * 2 for x in items]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'hypothesis-testing-py',
+    title: 'Hypothesis Testing',
+    entries: [
+      {
+        id: 't-test',
+        fn: 'ttest_1samp, ttest_ind, ttest_rel',
+        desc: 'One-sample, two-sample, and paired t-tests.',
+        category: 'Parametric Tests',
+        subtitle: 'Test if means differ significantly',
+        signature: 'scipy.stats.ttest_1samp(), ttest_ind(), ttest_rel()',
+        descLong: 'T-tests compare means. One-sample tests against constant; two-sample compares groups; paired tests related measurements. All return t-statistic and p-value.',
+        code: `import numpy as np
+from scipy import stats
+
+# ONE-SAMPLE t-test (vs. population mean)
+sample = np.array([22, 25, 23, 24, 26, 25, 24, 23, 25, 22])
+t_stat, p_val = stats.ttest_1samp(sample, popmean=24)
+print('ONE-SAMPLE t-test (H0: mean = 24):')
+print(f'  t-statistic: {t_stat:.4f}')
+print(f'  p-value: {p_val:.4f}')
+print(f'  Reject H0: {p_val < 0.05}')
+# TWO-SAMPLE t-test (independent groups)
+group1 = np.array([20, 22, 25, 24, 23])
+group2 = np.array([28, 26, 29, 27, 30])
+t_stat, p_val = stats.ttest_ind(group1, group2)
+print('\\nTWO-SAMPLE t-test (H0: groups have equal means):')
+# Check equal variance assumption (Levene test)
+levene_stat, levene_p = stats.levene(group1, group2)
+print(f'  Levene test (equal variance): p={levene_p:.4f}')
+print(f'  Variances equal: {levene_p > 0.05}')
+# PAIRED t-test (related observations)
+before = np.array([20, 22, 25, 24, 23])
+after = np.array([22, 25, 28, 26, 26])
+t_stat, p_val = stats.ttest_rel(before, after)
+print('\\nPAIRED t-test (H0: mean difference = 0):')
+print(f'  Mean difference: {(after - before).mean():.2f}')
+`,
+        tips: [
+          'Use ttest_ind with equal_var=False for Welch test (unequal variances)',
+          'Paired test uses differences; more powerful when data are correlated',
+          'p < 0.05: typically reject null hypothesis (difference is significant)',
+        ],
+        mistake: 'Using independent t-test on paired data; paired test has more power.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'anova-test',
+        fn: 'scipy.stats.f_oneway',
+        desc: 'One-way ANOVA to test if multiple group means differ.',
+        subtitle: 'Compare means across 3+ groups',
+        signature: 'scipy.stats.f_oneway(*groups)',
+        descLong: 'ANOVA tests if means differ across multiple groups. Returns F-statistic and p-value. Follow up with post-hoc tests if significant.',
+        code: `import numpy as np
+
+# Create three groups with different means
+group1 = np.array([10, 12, 11, 13, 12, 11])
+group2 = np.array([15, 17, 16, 18, 17, 16])
+group3 = np.array([20, 22, 21, 23, 22, 21])
+print('Group means:')
+print(f'  Group 1: {group1.mean():.2f}')
+print(f'  Group 2: {group2.mean():.2f}')
+print(f'  Group 3: {group3.mean():.2f}')
+# One-way ANOVA
+f_stat, p_val = stats.f_oneway(group1, group2, group3)
+print(f'\\nOne-way ANOVA:')
+print(f'  F-statistic: {f_stat:.4f}')
+print(f'  p-value: {p_val:.6f}')
+print(f'  Reject H0 (groups differ): {p_val < 0.05}')
+# Effect size (eta-squared)
+all_groups = np.concatenate([group1, group2, group3])
+grand_mean = all_groups.mean()
+
+# Sum of squares
+ss_between = (len(group1) * (group1.mean() - grand_mean)**2 +
+              len(group2) * (group2.mean() - grand_mean)**2 +
+              len(group3) * (group3.mean() - grand_mean)**2)
+ss_total = ((all_groups - grand_mean)**2).sum()
+eta_squared = ss_between / ss_total
+print(f'\\nEffect size (eta-squared): {eta_squared:.4f}')
+print(f'  Small: 0.01, Medium: 0.06, Large: 0.14')
+# Manual ANOVA with summary statistics
+n_groups = 3
+df_between = n_groups - 1
+df_within = len(all_groups) - n_groups
+ms_between = ss_between / df_between
+ss_within = ss_total - ss_between
+ms_within = ss_within / df_within
+f_manual = ms_between / ms_within
+print(f'\\nManual F calculation: {f_manual:.4f}')`,
+        tips: [
+          'Assumes normality and equal variances; use Levene test to check variances',
+          'If p < 0.05, means differ; use Tukey or Bonferroni for pairwise comparisons',
+          'Eta-squared = SS_between / SS_total; measures effect size',
+        ],
+        mistake: 'Running multiple t-tests instead of ANOVA; ANOVA controls Type I error rate.',
+        shorthand: {
+          verbose: `import numpy as np
+from scipy import stats
+group1 = np.array([10, 12, 11, 13, 12, 11])
+group2 = np.array([15, 17, 16, 18, 17, 16])`,
+          concise: `print(f'\\nManual F calculation: {f_manual:.4f}')`
+        }
+      },
+      {
+        id: 'chi-squared',
+        fn: 'scipy.stats.chi2_contingency',
+        desc: 'Chi-squared test of independence for categorical data.',
+        category: 'Non-parametric Tests',
+        subtitle: 'Test association between categorical variables',
+        signature: 'scipy.stats.chi2_contingency(contingency_table)',
+        descLong: 'Tests if two categorical variables are independent. Operates on contingency table (crosstab). Returns chi-squared stat, p-value, dof, expected frequencies.',
+        code: `import numpy as np
+import pandas as pd
+from scipy import stats
+# Contingency table: Product vs Customer Satisfaction
+data = {
+    'Very Satisfied': [30, 15, 20],
+    'Satisfied': [50, 40, 35],
+    'Unsatisfied': [20, 45, 45]
+}
+products = ['Product A', 'Product B', 'Product C']
+contingency = pd.DataFrame(data, index=products)
+print('Contingency Table:')
+print(contingency)
+print(f'\\nRow totals: {contingency.sum(axis=1).values}')
+print(f'Column totals: {contingency.sum(axis=0).values}')
+# Chi-squared test
+chi2, p_val, dof, expected = stats.chi2_contingency(contingency.values)
+print(f'\\nChi-squared test:')
+print(f'  Chi-squared statistic: {chi2:.4f}')
+print(f'  p-value: {p_val:.4f}')
+print(f'  Degrees of freedom: {dof}')
+print(f'  Reject H0 (variables independent): {p_val < 0.05}')
+
+print(f'\\nExpected frequencies:')
+expected_df = pd.DataFrame(expected, index=products, columns=data.keys())
+print(expected_df.round(2))
+# Check assumption: all expected frequencies >= 5
+min_expected = expected.min()
+print(f'\\nMinimum expected frequency: {min_expected:.2f}')
+print(f'Assumption met (all >= 5): {min_expected >= 5}')
+# Effect size (Cramér's V)
+n = contingency.values.sum()
+min_dim = min(contingency.shape[0] - 1, contingency.shape[1] - 1)
+cramers_v = np.sqrt(chi2 / (n * min_dim))
+print(f'\\nEffect size (Cramér\'s V): {cramers_v:.4f}')
+`,
+        tips: [
+          'All expected frequencies must be >= 5; combine categories if violated',
+          'Cramér\'s V measures effect size; 0.1=small, 0.3=medium, 0.5=large',
+          'Tests independence, not causation; verify with domain knowledge',
+        ],
+        mistake: 'Using on data with expected frequencies < 5; violates test assumptions.',
+        shorthand: {
+          verbose: `import numpy as np
+import pandas as pd
+from scipy import stats
+data = {`,
+          concise: `print(f'\\nEffect size (Cramér\'s V): {cramers_v:.4f}')`
+        }
+      },
+      {
+        id: 'mann-whitney',
+        fn: 'scipy.stats.mannwhitneyu',
+        desc: 'Mann-Whitney U test for non-parametric comparison of two groups.',
+        category: 'Non-parametric Tests',
+        subtitle: 'Compare medians without normality assumption',
+        signature: 'scipy.stats.mannwhitneyu(group1, group2)',
+        descLong: 'Non-parametric alternative to t-test. Works with ranks instead of raw values. Robust to outliers and doesn\'t assume normality. Tests if distributions differ.',
+        code: `import numpy as np
+from scipy import stats
+# Two groups with potential outlier
+group1 = np.array([10, 12, 11, 13, 12, 11, 10, 12])
+group2 = np.array([15, 17, 16, 18, 17, 16, 100])  # outlier: 100
+print('Group 1:', group1)
+print('Group 2:', group2)
+print(f'\\nGroup 1 median: {np.median(group1):.1f}')
+print(f'Group 2 median: {np.median(group2):.1f}')
+# Mann-Whitney U test
+u_stat, p_val = stats.mannwhitneyu(group1, group2, alternative='two-sided')
+print(f'\\nMann-Whitney U test:')
+print(f'  U-statistic: {u_stat:.2f}')
+print(f'  Groups differ: {p_val < 0.05}')
+# Compare to t-test (affected by outlier)
+t_stat, t_p = stats.ttest_ind(group1, group2)
+print(f'\\nt-test (for comparison):')
+print(f'  t-statistic: {t_stat:.4f}')
+print(f'  p-value: {t_p:.4f}')
+
+# Effect size (rank-biserial correlation)
+n1, n2 = len(group1), len(group2)
+r = 1 - (2*u_stat) / (n1 * n2)
+print(f'\\nEffect size (rank-biserial): {r:.4f}')
+# Alternative hypotheses
+u_stat_less, p_less = stats.mannwhitneyu(group1, group2, alternative='less')
+u_stat_greater, p_greater = stats.mannwhitneyu(group1, group2, alternative='greater')
+print(f'\\nOne-sided tests:')
+print(f'  H1: group1 < group2: p={p_less:.4f}')
+print(f'  H1: group1 > group2: p={p_greater:.4f}')`,
+        tips: [
+          'Use when data non-normal, has outliers, or ordinal scale',
+          'Tests if distributions differ; more general than just comparing means',
+          'Less powerful than t-test on normal data, but safer with non-normal',
+        ],
+        mistake: 'Using Mann-Whitney on normal data when t-test available; loses power.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'multiple-testing',
+        fn: 'statsmodels.stats.multitest.multipletests',
+        desc: 'Multiple testing correction (Bonferroni, Benjamini-Hochberg, etc.).',
+        category: 'Error Control',
+        subtitle: 'Control false positives with multiple comparisons',
+        signature: 'statsmodels.stats.multitest.multipletests(pvals, method)',
+        descLong: 'When running many tests, p-value threshold must be adjusted to control false positive rate. Bonferroni strict; Benjamini-Hochberg less conservative.',
+        code: `import numpy as np
+
+from statsmodels.stats.multitest import multipletests
+# Simulate 20 hypothesis tests (5 true effects, 15 null)
+np.random.seed(42)
+group_a = [np.random.normal(0, 1, 20) for _ in range(20)]
+group_b = [np.random.normal(0, 1, 20) for _ in range(20)]
+# Add true effect to first 5
+for i in range(5):
+    group_b[i] = group_b[i] + 2  # effect size = 2
+# Conduct t-tests
+p_values = []
+for i in range(20):
+    _, p = stats.ttest_ind(group_a[i], group_b[i])
+    p_values.append(p)
+p_values = np.array(p_values)
+print(f'Uncorrected p-values (first 10): {p_values[:10].round(4)}')
+print(f'Significant at 0.05 (uncorrected): {(p_values < 0.05).sum()} tests')
+# Bonferroni correction (strict)
+reject_bonf, pvals_bonf, _, _ = multipletests(p_values, alpha=0.05, method='bonferroni')
+print(f'\\nBonferroni correction:')
+print(f'  Corrected threshold: {0.05 / len(p_values):.4f}')
+print(f'  Significant: {reject_bonf.sum()} tests')
+# Benjamini-Hochberg correction (less strict, controls FDR)
+reject_bh, pvals_bh, _, _ = multipletests(p_values, alpha=0.05, method='fdr_bh')
+print(f'\\nBenjamini-Hochberg (FDR) correction:')
+print(f'  Significant: {reject_bh.sum()} tests')
+# Holm correction (step-down)
+reject_holm, pvals_holm, _, _ = multipletests(p_values, alpha=0.05, method='holm')
+print(f'\\nHolm correction (step-down):')
+print(f'  Significant: {reject_holm.sum()} tests')
+
+print(f'\\nTrue positives (first 5): {reject_bh[:5].sum()}/{5}')
+print(f'False positives (last 15): {reject_bh[5:].sum()}/{15}')
+`,
+        tips: [
+          'Bonferroni: use when controlling family-wise error rate; most conservative',
+          'Benjamini-Hochberg: use when controlling false discovery rate; more power',
+          'Always report number of tests conducted; supports reproducibility',
+        ],
+        mistake: 'Running many tests without adjustment; leads to false positives.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'regression-stats-py',
+    title: 'Regression & Modeling',
+    entries: [
+      {
+        id: 'simple-linear-regression',
+        fn: 'scipy.stats.linregress',
+        desc: 'Simple linear regression with full statistical output.',
+        category: 'Linear Models',
+        subtitle: 'Fit line y = a + bx with p-values and CI',
+        signature: 'scipy.stats.linregress(x, y)',
+        descLong: 'Fits y = intercept + slope*x. Returns slope, intercept, r-value, p-value, std error. Fast and simple for 1 predictor with full inference.',
+        code: `import numpy as np
+from scipy import stats
+# Sample data
+np.random.seed(42)
+x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+y = 2.5 * x + np.random.normal(0, 3, len(x))  # y = 2.5x + noise
+# Linear regression
+result = stats.linregress(x, y)
+print(f'Regression Results:')
+print(f'  Slope: {result.slope:.4f}')
+print(f'  Intercept: {result.intercept:.4f}')
+print(f'  R-squared: {result.rvalue**2:.4f}')
+print(f'  p-value (overall): {result.pvalue:.4e}')
+print(f'  Std error of slope: {result.stderr:.4f}')
+# Equation
+print(f'\\nEquation: y = {result.intercept:.2f} + {result.slope:.2f}*x')
+# Predictions
+y_pred = result.intercept + result.slope * x
+residuals = y - y_pred
+print(f'\\nResiduals stats:')
+print(f'  Mean: {residuals.mean():.4f}')
+print(f'  Std: {residuals.std():.4f}')
+print(f'  Min/Max: [{residuals.min():.2f}, {residuals.max():.2f}]')
+# Confidence interval for slope
+df = len(x) - 2
+t_crit = stats.t.ppf(0.975, df)
+ci_slope = (result.slope - t_crit * result.stderr,
+            result.slope + t_crit * result.stderr)
+print(f'\\n95% CI for slope: [{ci_slope[0]:.4f}, {ci_slope[1]:.4f}]')
+
+# Test if slope significantly different from 0
+t_stat = result.slope / result.stderr
+print(f'\\nt-test for slope:')
+print(f'  t-statistic: {t_stat:.4f}')
+print(f'  p-value: {result.pvalue:.4f}')
+`,
+        tips: [
+          'scipy.stats.linregress efficient for single predictor',
+          'R-squared measures goodness of fit; 0-1 scale',
+          'Check residual normality and homoscedasticity with plots',
+        ],
+        mistake: 'Not checking assumptions (normality, homoscedasticity, independence).',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'multiple-regression',
+        fn: 'statsmodels.formula.api.ols',
+        desc: 'Multiple regression with formula interface and detailed summary.',
+        subtitle: 'Fit y ~ x1 + x2 + ... with inference',
+        signature: 'statsmodels.formula.api.ols("y ~ x1 + x2").fit()',
+        descLong: 'statsmodels provides R-like formula API. Returns comprehensive summary: coefficients, p-values, confidence intervals, model statistics (R², F-test, AIC).',
+        code: `import numpy as np
+
+import pandas as pd
+import statsmodels.formula.api as smf
+n = 50
+df = pd.DataFrame({
+    'age': np.random.uniform(20, 60, n),
+    'experience': np.random.uniform(0, 30, n),
+    'salary': None
+})
+# Generate salary with known relationships
+df['salary'] = (30000 + 1500*df['age'] + 2000*df['experience'] +
+                np.random.normal(0, 5000, n))
+# Fit multiple regression
+model = smf.ols('salary ~ age + experience', data=df).fit()
+print(model.summary())
+# Key results
+print(f'\\nKey Parameters:')
+print(f'  R-squared: {model.rsquared:.4f}')
+print(f'  Adjusted R-squared: {model.rsquared_adj:.4f}')
+print(f'  F-statistic: {model.fvalue:.2f}, p-value: {model.f_pvalue:.2e}')
+print(f'  AIC: {model.aic:.2f}, BIC: {model.bic:.2f}')
+# Coefficient details
+print(f'\\nCoefficients:')
+print(model.params)
+print(f'\\nConfidence Intervals (95%):')
+print(model.conf_int())
+# Predictions
+pred_data = pd.DataFrame({'age': [30, 40, 50], 'experience': [5, 10, 15]})
+predictions = model.get_prediction(pred_data)
+print(f'\\nPredictions with CI:')
+print(predictions.summary_frame())`,
+        tips: [
+          'Use R-like formula syntax: "y ~ x1 + x2" or "y ~ x1 + x2 + x1:x2"',
+          'Adjusted R² penalizes additional predictors; use for model comparison',
+          'F-test overall model significance; t-tests individual coefficients',
+        ],
+        mistake: 'Including correlated predictors (multicollinearity); check VIF.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'logistic-regression-stats',
+        fn: 'statsmodels.formula.api.logit',
+        desc: 'Logistic regression for binary classification with inference.',
+        category: 'Linear Models',
+        subtitle: 'Probabilistic binary outcome model',
+        signature: 'statsmodels.formula.api.logit("y ~ x1 + x2").fit()',
+        descLong: 'Models P(y=1) using logistic function. Returns probabilities, coefficients as log-odds, odds ratios. Full inference: p-values, confidence intervals.',
+        code: `import pandas as pd
+import numpy as np
+from scipy.special import expit
+
+# Binary classification data
+np.random.seed(42)
+n = 100
+    'score': np.random.uniform(0, 100, n),
+# Generate binary outcome: higher age and score → higher prob of 1
+prob = expit(-3 + 0.05*df['age'] + 0.03*df['score'])
+df['purchased'] = (np.random.random(n) < prob).astype(int)
+# Fit logistic regression
+model = smf.logit('purchased ~ age + score', data=df).fit()
+# Odds ratios (exp of coefficients)
+odds_ratios = np.exp(model.params)
+print(f'\\nOdds Ratios:')
+print(odds_ratios)
+# Predictions: probabilities
+pred_data = pd.DataFrame({
+    'age': [30, 40, 50],
+    'score': [50, 70, 90]
+prob_pred = predictions.summary_frame()
+print(f'\\nPredicted probabilities:')
+print(prob_pred)
+# Classification
+pred_class = (prob_pred['mean'] > 0.5).astype(int)
+print(f'\\nPredicted classes (threshold=0.5):')
+print(pred_class.values)
+# Model fit statistics
+print(f'\\nModel Statistics:')
+print(f'  Log-Likelihood: {model.llf:.2f}')
+print(f'  AIC: {model.aic:.2f}')
+print(f'  BIC: {model.bic:.2f}')
+`,
+        tips: [
+          'Odds ratio > 1: higher x increases odds; < 1: decreases odds',
+          'Predicted values are probabilities [0, 1]; threshold at 0.5 for classification',
+          'Check goodness-of-fit with Hosmer-Lemeshow test',
+        ],
+        mistake: 'Interpreting logistic coefficients as linear effects; use odds ratios.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'cross-validation',
+        fn: 'sklearn.model_selection.cross_val_score, StratifiedKFold',
+        desc: 'Cross-validation for robust model evaluation.',
+        category: 'Model Evaluation',
+        subtitle: 'Estimate generalization performance',
+        signature: 'cross_val_score(model, X, y, cv=5)',
+        descLong: 'Partition data into folds, fit/evaluate repeatedly. Provides multiple performance estimates and standard error. More robust than single train/test split.',
+        code: `
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, StratifiedKFold, cross_validate
+
+# Load data
+iris = load_iris()
+X, y = iris.data, iris.target
+# 5-fold cross-validation
+scores = cross_val_score(LogisticRegression(max_iter=200), X, y, cv=5)
+print('5-Fold Cross-Validation:')
+print(f'  Scores: {scores.round(4)}')
+print(f'  Mean: {scores.mean():.4f}')
+print(f'  Std: {scores.std():.4f}')
+# Stratified K-fold (maintains class distribution)
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores_strat = cross_val_score(LogisticRegression(max_iter=200), X, y, cv=skf)
+print(f'\\nStratified 5-Fold:')
+print(f'  Scores: {scores_strat.round(4)}')
+print(f'  Mean: {scores_strat.mean():.4f}')
+# Multiple metrics with cross_validate
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+scoring = {
+    'accuracy': 'accuracy',
+    'precision_weighted': 'precision_weighted',
+    'recall_weighted': 'recall_weighted'
+}
+cv_results = cross_validate(LogisticRegression(max_iter=200), X, y,
+                            cv=5, scoring=scoring)
+print(f'\\nMultiple metrics (cross_validate):')
+for metric in ['accuracy', 'precision_weighted', 'recall_weighted']:
+    scores_metric = cv_results[f'test_{metric}']
+    print(f'  {metric}: {scores_metric.mean():.4f} (+/- {scores_metric.std():.4f})')`,
+        tips: [
+          'Use StratifiedKFold for classification to preserve class ratios',
+          'Larger k (e.g., 10) more reliable but slower; k=5 standard balance',
+          'Cross-validation gives better generalization estimate than single split',
+        ],
+        mistake: 'Tuning hyperparameters before cross-validation; causes optimistic bias.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'bootstrap',
+        fn: 'numpy bootstrap resampling',
+        desc: 'Bootstrap resampling for inference without assumptions.',
+        category: 'Resampling',
+        subtitle: 'Sample with replacement for confidence intervals',
+        signature: 'np.random.choice(data, size=n, replace=True)',
+        descLong: 'Sample original data with replacement. Repeat many times, compute statistic each time. Distribution of bootstrap statistics approximates sampling distribution.',
+        code: `import numpy as np
+from scipy import stats
+# Original data
+data = np.array([2.3, 1.8, 2.1, 2.5, 1.9, 2.2, 2.0, 2.4])
+# Compute original statistic
+original_mean = data.mean()
+print(f'Original sample mean: {original_mean:.4f}')
+# Bootstrap: resample with replacement
+np.random.seed(42)
+n_bootstrap = 10000
+bootstrap_means = []
+for _ in range(n_bootstrap):
+    resample = np.random.choice(data, size=len(data), replace=True)
+    bootstrap_means.append(resample.mean())
+bootstrap_means = np.array(bootstrap_means)
+# Confidence interval from bootstrap distribution
+ci_lower = np.percentile(bootstrap_means, 2.5)
+ci_upper = np.percentile(bootstrap_means, 97.5)
+print(f'\\nBootstrap 95% CI: [{ci_lower:.4f}, {ci_upper:.4f}]')
+# Standard error
+bootstrap_se = bootstrap_means.std()
+print(f'Bootstrap SE: {bootstrap_se:.4f}')
+
+# Compare to t-test CI
+ci_t = stats.t.interval(0.95, len(data)-1,
+                        loc=original_mean,
+                        scale=stats.sem(data))
+print(f't-test 95% CI: [{ci_t[0]:.4f}, {ci_t[1]:.4f}]')
+# Bootstrap for correlation
+x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+y = 1.5*x + np.random.normal(0, 2, len(x))
+bootstrap_corrs = []
+    idx = np.random.choice(len(x), size=len(x), replace=True)
+    x_boot, y_boot = x[idx], y[idx]
+    corr = np.corrcoef(x_boot, y_boot)[0, 1]
+    bootstrap_corrs.append(corr)
+bootstrap_corrs = np.array(bootstrap_corrs)
+ci_corr = (np.percentile(bootstrap_corrs, 2.5),
+           np.percentile(bootstrap_corrs, 97.5))
+print(f'\\nBootstrap 95% CI for correlation: [{ci_corr[0]:.4f}, {ci_corr[1]:.4f}]')
+`,
+        tips: [
+          'Replace=True essential for bootstrap; with replacement differs from original',
+          'Number of bootstrap samples 10000 typical; more for smoother estimates',
+          'Works for any statistic; very flexible, no distributional assumptions',
+        ],
+        mistake: 'Sampling without replacement; violates bootstrap principle.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    result.append(x * 2)`,
+          concise: `result = [x * 2 for x in items]`
+        }
+      },
+      {
+        id: 'effect-size',
+        fn: "Cohen's d, eta-squared",
+        desc: "Calculate effect sizes (Cohen's d, eta-squared, omega-squared).",
+        category: 'Effect Sizes',
+        subtitle: 'Practical significance vs. statistical significance',
+        signature: "d = (m1 - m2) / pooled_std, eta² = ss_between / ss_total",
+        descLong: "Effect sizes quantify magnitude of differences independent of sample size. Essential complement to p-values. Cohen's d for means, eta² for ANOVA.",
+        code: `import numpy as np
+
+# TWO-GROUP EFFECT SIZE: Cohen's d
+group1 = np.array([10, 12, 11, 13, 12, 11])
+group2 = np.array([15, 17, 16, 18, 17, 16])
+m1, s1 = group1.mean(), group1.std(ddof=1)
+m2, s2 = group2.mean(), group2.std(ddof=1)
+# Pooled standard deviation
+n1, n2 = len(group1), len(group2)
+s_pooled = np.sqrt(((n1-1)*s1**2 + (n2-1)*s2**2) / (n1 + n2 - 2))
+# Cohen's d
+cohens_d = (m2 - m1) / s_pooled
+print(f"Cohen's d: {cohens_d:.4f}")
+print(f"  Small: 0.2, Medium: 0.5, Large: 0.8")
+# ANOVA EFFECT SIZE: eta-squared
+group3 = np.array([20, 22, 21, 23, 22, 21])
+all_data = np.concatenate([group1, group2, group3])
+grand_mean = all_data.mean()
+ss_between = (n1 * (m1 - grand_mean)**2 +
+              n2 * (m2 - grand_mean)**2 +
+              len(group3) * (group3.mean() - grand_mean)**2)
+ss_total = ((all_data - grand_mean)**2).sum()
+eta_squared = ss_between / ss_total
+print(f'\\nEta-squared: {eta_squared:.4f}')
+print(f'  Small: 0.01, Medium: 0.06, Large: 0.14')
+# Omega-squared (less biased)
+ss_within = ss_total - ss_between
+df_between = 3 - 1
+df_within = len(all_data) - 3
+ms_within = ss_within / df_within
+omega_squared = (ss_between - df_between * ms_within) / (ss_total + ms_within)
+print(f'\\nOmega-squared: {omega_squared:.4f}')
+
+# Correlation effect size
+y = 2*x + np.random.normal(0, 2, len(x))
+r = np.corrcoef(x, y)[0, 1]
+r_squared = r**2
+print(f'\\nCorrelation r: {r:.4f}')
+print(f'  r-squared: {r_squared:.4f} (% variance explained)')`,
+        tips: [
+          'Always report effect sizes alongside p-values',
+          'Effect size interpretation context-dependent; consider domain importance',
+          'Eta² and omega² both used; omega² less biased with unequal group sizes',
+        ],
+        mistake: 'Reporting only p-values without effect sizes; hides practical significance.',
+        shorthand: {
+          verbose: `import numpy as np
+from scipy import stats
+group1 = np.array([10, 12, 11, 13, 12, 11])
+group2 = np.array([15, 17, 16, 18, 17, 16])`,
+          concise: `print(f'  r-squared: {r_squared:.4f} (% variance explained)')`
+        }
+      },
+      {
+        id: 'power-analysis',
+        fn: 'statsmodels.stats.power functions',
+        desc: 'Statistical power and sample size calculations.',
+        category: 'Study Design',
+        subtitle: 'Plan sample size to detect effects',
+        signature: 'statsmodels.stats.power.tt_solve_power(), tt_ind_solve_power()',
+        descLong: 'Power: probability of detecting true effect. Use to plan studies: given effect size and power, calculate required sample size.',
+        code: `import numpy as np
+from statsmodels.stats.power import (
+    ttest_power, tt_solve_power,
+    FTestAnovaPower
+)
+# POWER FOR T-TEST
+# Given: effect size, sample size per group, alpha
+effect_size = 0.5  # Cohen's d
+alpha = 0.05
+n_per_group = 64
+power = ttest_power(effect_size, n_per_group, alpha, alternative='two-sided')
+print(f'T-test power:')
+print(f'  Effect size: {effect_size}')
+print(f'  Sample size (per group): {n_per_group}')
+print(f'  Alpha: {alpha}')
+print(f'  Power: {power:.4f}')
+# Solve for sample size given desired power
+desired_power = 0.80
+n_needed = tt_solve_power(effect_size, nobs=None, alpha=alpha,
+                          power=desired_power, alternative='two-sided')
+print(f'\\nSample size for 80% power:')
+print(f'  n per group: {n_needed:.0f}')
+# ANOVA POWER
+anova_power = FTestAnovaPower()
+# Power with given effect size and sample size
+effect_f = 0.25  # f effect size for ANOVA
+k_groups = 3
+n_per_group = 40
+power_anova = anova_power.solve_power(effect_size=effect_f,
+                                      nobs=n_per_group,
+                                      k_groups=k_groups,
+                                      alpha=0.05)
+print(f'\\nANOVA power:')
+print(f'  Effect size (f): {effect_f}')
+print(f'  Number of groups: {k_groups}')
+print(f'  Power: {power_anova:.4f}')
+# Sample size for ANOVA
+n_anova_needed = anova_power.solve_power(effect_size=effect_f,
+                                         nobs=None,
+                                         k_groups=k_groups,
+                                         alpha=0.05,
+                                         power=0.80)
+print(f'\\nANOVA sample size for 80% power:')
+print(f'  n per group: {n_anova_needed:.0f}')
+`,
+        tips: [
+          'Higher power (0.80+) preferred; trade-off with sample size and cost',
+          'Power depends on effect size, sample size, alpha, and alternative hypothesis',
+          'Small studies underpowered; may miss real effects (Type II error)',
+        ],
+        mistake: 'Planning sample size without power analysis; risks underpowered studies.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'descriptive-stats-full',
+        fn: 'pandas.describe(), groupby stats',
+        desc: 'Comprehensive descriptive statistics with pandas groupby.',
+        category: 'Data Summaries',
+        subtitle: 'Full summary statistics by group',
+        signature: 'df.describe(), df.groupby().agg()',
+        descLong: 'pandas describe() provides count, mean, std, min, quartiles, max. groupby enables statistics by group. agg() applies multiple functions.',
+        code: `import numpy as np
+import pandas as pd
+
+# Create dataset
+np.random.seed(42)
+n = 100
+df = pd.DataFrame({
+    'group': np.repeat(['A', 'B', 'C'], n//3) + ['A'],
+    'age': np.random.normal(35, 10, n),
+    'income': np.random.normal(50000, 15000, n),
+    'score': np.random.uniform(0, 100, n)
+})
+# Overall descriptive statistics
+print('Overall Descriptive Statistics:')
+print(df.describe())
+print('\\nDataFrame info:')
+print(df.info())
+# Statistics by group
+print('\\nBy Group - Basic:')
+print(df.groupby('group')[['age', 'income', 'score']].describe())
+# Custom aggregation
+print('\\nCustom aggregations by group:')
+agg_funcs = {
+    'age': ['mean', 'std', 'min', 'max'],
+    'income': ['mean', 'median', ('IQR', lambda x: x.quantile(0.75) - x.quantile(0.25))],
+    'score': [np.mean, np.std]
+}
+grouped_stats = df.groupby('group').agg(agg_funcs)
+print(grouped_stats)
+# Percentiles by group
+print('\\nPercentiles by group:')
+percentiles = df.groupby('group').quantile([0.25, 0.5, 0.75])
+print(percentiles)
+# Apply multiple functions
+print('\\nMultiple functions:')
+print(df.groupby('group')[['age', 'income']].agg(['count', 'mean', 'std', 'min', 'max']))
+# Correlation by group
+print('\\nCorrelation within Group A:')
+print(df[df['group'] == 'A'][['age', 'income', 'score']].corr())`,
+        tips: [
+          'describe() includes count (non-null), so reveals missing values',
+          'groupby().agg() flexible; pass dict for group-specific aggregations',
+          'Use lambda functions for custom aggregations not in standard library',
+        ],
+        mistake: 'Not checking data types before aggregation; cast properly first.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

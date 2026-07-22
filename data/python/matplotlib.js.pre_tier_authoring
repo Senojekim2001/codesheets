@@ -1,0 +1,1148 @@
+/**
+ * data/python/matplotlib.js
+ * Matplotlib — data visualization reference
+ */
+
+export const meta = {
+  title: 'Matplotlib',
+  domain: 'python',
+  sheet: 'matplotlib',
+  icon: '📊',
+}
+
+export const sections = [
+{
+    id: 'chart-types',
+    title: 'Chart Types',
+    entries: [
+      {
+        id: 'line', fn: 'ax.plot()', desc: 'Line and scatter plots.',
+        category: 'Charts', subtitle: 'Connect data points with lines',
+        signature: 'ax.plot(x, y, fmt, **kwargs)',
+        descLong: 'plot() creates line charts by default. The format string controls line style, marker, and color in shorthand. Use keyword arguments for fine-grained control.',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+# Sales trend over time
+months = np.arange(1, 13)
+q1_sales = np.array([120, 135, 148, 155, 168, 175, 182, 190, 198, 205, 215, 230])
+q2_sales = np.array([110, 128, 140, 152, 165, 178, 188, 195, 208, 220, 230, 245])
+fig, ax = plt.subplots(figsize=(10, 6))
+# Basic line plot:
+ax.plot(months, q1_sales, label='Q1 Sales', linewidth=2)
+ax.plot(months, q2_sales, label='Q2 Sales', linewidth=2, linestyle='--')
+# Formatting:
+ax.set_xlabel('Month')
+ax.set_ylabel('Sales ($1000s)')
+ax.set_title('Sales Trend: Q1 vs Q2')
+ax.legend()
+ax.grid(True, alpha=0.3)
+plt.tight_layout()`,
+        tips: [
+          'Format string order: color + marker + linestyle → "r^--" (red triangle dashed)',
+          'label= + ax.legend() adds a legend — always label lines for multi-line charts',
+          'alpha=0.7 is useful for overlapping data',
+          'For pure scatter: ax.scatter() has better control over individual point properties',
+        ],
+        mistake: 'Forgetting ax.legend() after setting label= on plot calls. Labels are invisible without calling ax.legend().',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+months = np.arange(1, 13)
+q1_sales = np.array([120, 135, 148, 155, 168, 175, 182, 190, 198, 205, 215, 230])`,
+          concise: `plt.tight_layout()`
+        }
+      },
+      {
+        id: 'bar', fn: 'ax.bar()', desc: 'Vertical bar chart for categorical comparisons.',
+        category: 'Charts', subtitle: 'Compare categorical values — grouped and stacked variants',
+        signature: 'ax.bar(x, height, width=0.8, color=, label=)',
+        descLong: 'ax.bar() creates vertical bars. Use grouped bars by positioning with x offsets. Use bottom= for stacked bars. ax.bar_label() (matplotlib 3.4+) auto-labels bars.',
+        code: `import numpy as np
+categories = ["A", "B", "C", "D"]
+values    = [23, 45, 12, 67]
+# Basic:
+ax.bar(categories, values, color="steelblue", edgecolor="white")
+# Grouped bars:
+x = np.arange(len(categories))
+width = 0.35
+ax.bar(x - width/2, values,           width, label="2023")
+ax.bar(x + width/2, [30, 40, 20, 60], width, label="2024")
+ax.set_xticks(x)
+ax.set_xticklabels(categories)
+# Stacked bars:
+bars1 = ax.bar(categories, [10, 20, 5,  30], label="Q1")
+bars2 = ax.bar(categories, [13, 25, 7,  37],
+               bottom=[10, 20, 5, 30], label="Q2")
+# Auto value labels (matplotlib 3.4+):
+ax.bar_label(bars1, padding=2)
+ax.bar_label(bars2, padding=2)
+# Manual labels:
+for i, v in enumerate(values):
+    ax.text(i, v + 0.5, str(v), ha="center", fontsize=9)`,
+        tips: [
+          'ax.bar_label(container) auto-labels every bar — much cleaner than manual ax.text() loops',
+          'Rotate labels when they overlap: `ax.tick_params(axis="x", rotation=45)`',
+          'For stacked bars, pass the cumulative sum as `bottom=` for each subsequent series',
+          'Use string x values directly — matplotlib handles the tick positioning automatically',
+        ],
+        mistake: 'Using ax.bar() for long category names that overlap. Switch to ax.barh() for horizontal bars — labels are far more readable.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+categories = ["A", "B", "C", "D"]
+values    = [23, 45, 12, 67]`,
+          concise: `ax.text(i, v + 0.5, str(v), ha="center", fontsize=9)`
+        }
+      },
+      {
+        id: 'barh', fn: 'ax.barh()', desc: 'Horizontal bar chart — best for long category names.',
+        category: 'Charts', subtitle: 'Same as ax.bar() but rotated — use when labels are long',
+        signature: 'ax.barh(y, width, height=0.8, color=, label=)',
+        descLong: 'ax.barh() is the horizontal equivalent of ax.bar(). It is the better choice when category names are long, when ranking items, or when you have many categories. The x-axis becomes the value axis and y-axis becomes the category axis.',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+categories = ["Very Long Category A", "Long Category B",
+              "Category C", "D"]
+values = [23, 45, 12, 67]
+# Basic horizontal bar:
+ax.barh(categories, values, color="steelblue")
+ax.set_xlabel("Value")
+
+# Sort by value (often clearer):
+sorted_pairs = sorted(zip(values, categories))
+vals, cats   = zip(*sorted_pairs)
+ax.barh(cats, vals, color="steelblue")
+# Color by value:
+colors = ["#d62728" if v > 40 else "#1f77b4" for v in values]
+ax.barh(categories, values, color=colors)
+# Add value labels at end of bar:
+bars = ax.barh(categories, values)
+ax.bar_label(bars, padding=3, fmt="%.0f")
+# Grouped horizontal:
+x = np.arange(len(categories))
+width = 0.35
+ax.barh(x - width/2, values,           width, label="2023")
+ax.barh(x + width/2, [30, 40, 20, 60], width, label="2024")
+ax.set_yticks(x)
+ax.set_yticklabels(categories)`,
+        tips: [
+          'Sort categories by value before plotting — creates a natural ranking that is easier to read',
+          'ax.bar_label() works the same as with ax.bar() — labels appear at the end of each bar',
+          'Invert the y-axis so the highest value appears at the top: `ax.invert_yaxis()`',
+          'For many categories (10+), increase figure height: `fig, ax = plt.subplots(figsize=(8, 12))`',
+        ],
+        mistake: 'Plotting unsorted horizontal bars when ranking is the point. Always sort by value — unsorted rankings make comparisons much harder to read.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'hist', fn: 'ax.hist()', desc: 'Distribution histograms.',
+        category: 'Charts', subtitle: 'Visualize the distribution of a dataset',
+        signature: 'ax.hist(data, bins=10, **kwargs)',
+        descLong: 'hist() plots the frequency distribution of data. bins controls the number of bars. Use density=True for probability density. Multiple histograms can be overlaid with alpha for transparency.',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+data = np.random.randn(1000)
+# Basic histogram
+ax.hist(data, bins=30, color="steelblue", edgecolor="white")
+
+# Normalized (probability density)
+ax.hist(data, bins=30, density=True, alpha=0.7)
+# Custom bin edges
+ax.hist(data, bins=np.linspace(-4, 4, 30))
+# Overlapping histograms
+ax.hist(group_a, bins=30, alpha=0.6, label="Group A")
+ax.hist(group_b, bins=30, alpha=0.6, label="Group B")
+ax.legend()
+# Cumulative histogram
+ax.hist(data, bins=50, cumulative=True, density=True)
+# Horizontal histogram
+ax.hist(data, bins=30, orientation="horizontal")
+# Get counts and edges
+counts, edges, patches = ax.hist(data, bins=20)`,
+        tips: [
+          'bins="auto" lets matplotlib choose — often a good starting point',
+          'alpha=0.6 on overlapping histograms makes both visible',
+          'density=True gives probability density (area sums to 1), not raw counts',
+          'For comparing distributions, consider violin plots or KDE plots (seaborn)',
+        ],
+        mistake: 'Using too few or too many bins. Too few: hides the shape. Too many: looks noisy. Start with bins=30 and adjust visually.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+data = np.random.randn(1000)
+ax.hist(data, bins=30, color="steelblue", edgecolor="white")`,
+          concise: `counts, edges, patches = ax.hist(data, bins=20)`
+        }
+      },
+      {
+        id: 'scatter', fn: 'ax.scatter()', desc: 'Scatter plots with size and color encoding.',
+        category: 'Charts', subtitle: 'Plot points with optional size and color dimensions',
+        signature: 'ax.scatter(x, y, s=size, c=color, **kwargs)',
+        descLong: 'scatter() plots individual data points and lets you encode two additional dimensions through size (s=) and color (c=). A colorbar adds a legend for the color dimension.',
+        code: `import matplotlib.pyplot as plt
+import numpy as np
+# Product features and price
+np.random.seed(42)
+features = np.random.randn(30) * 2 + 5  # 0-10 scale
+price = features * 50 + np.random.randn(30) * 20 + 200  # price correlation
+fig, ax = plt.subplots(figsize=(10, 6))
+# Scatter plot:
+ax.scatter(features, price, s=100, alpha=0.6, color='darkblue', edgecolors='black')
+
+# Add regression line:
+z = np.polyfit(features, price, 1)
+p = np.poly1d(z)
+ax.plot(features, p(features), "r--", linewidth=2, label='Trend')
+ax.set_xlabel('Product Features (Score)')
+ax.set_ylabel('Price ($)')
+ax.set_title('Feature vs Price Relationship')
+ax.legend()
+ax.grid(True, alpha=0.3)
+plt.tight_layout()`,
+        tips: [
+          'alpha=0.5-0.7 is essential for overlapping points — reveals density',
+          'c= accepts a numeric array for color mapping; cmap= sets the colormap',
+          's= accepts a scalar (same size all) or array (individual sizes)',
+          'viridis, plasma, magma are perceptually uniform colormaps — prefer them over rainbow/jet',
+        ],
+        mistake: 'Using rainbow/jet colormap. It is not perceptually uniform and misleads viewers about data magnitude. Use viridis, plasma, or cividis instead.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+np.random.seed(42)
+features = np.random.randn(30) * 2 + 5  # 0-10 scale`,
+          concise: `plt.tight_layout()`
+        }
+      },
+      {
+        id: 'imshow',
+        fn: 'ax.imshow()',
+        desc: 'Display a 2D array as a color image or heatmap.',
+        category: 'Charts',
+        subtitle: 'Matrices, images, confusion matrices — raw array heatmap',
+        signature: 'ax.imshow(data, cmap="viridis", vmin=, vmax=, aspect="auto")',
+        descLong: 'ax.imshow() renders a 2D numpy array as a color image. Use it for raw array heatmaps, confusion matrices, and displaying image files. For annotated heatmaps from DataFrames, sns.heatmap() is easier — imshow() gives lower-level control.',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+# 2D array as heatmap:
+data = np.random.randn(10, 10)
+im = ax.imshow(data, cmap='RdBu_r', vmin=-3, vmax=3)
+fig.colorbar(im, ax=ax, label='Value')
+# Confusion matrix with annotations:
+cm = np.array([[50, 5], [3, 42]])
+ax.imshow(cm, cmap='Blues')
+for i in range(cm.shape[0]):
+    for j in range(cm.shape[1]):
+        ax.text(j, i, str(cm[i, j]),
+            ha='center', va='center', fontsize=14)
+
+# Display an image file (RGB):
+img = plt.imread('photo.jpg')
+ax.imshow(img)
+ax.axis('off')          # hide axes for images
+# Custom labels:
+ax.set_xticks(range(len(col_labels)))
+ax.set_xticklabels(col_labels, rotation=45, ha='right')
+ax.set_yticks(range(len(row_labels)))
+ax.set_yticklabels(row_labels)`,
+        tips: [
+          'Use cmap="RdBu_r" with vmin=-v, vmax=v for diverging data centered at zero',
+          'ax.axis("off") removes ticks and labels — standard for displaying images',
+          'For DataFrame heatmaps with annotations, sns.heatmap() is easier than imshow()',
+          'origin="upper" (default) puts row 0 at top; origin="lower" puts it at bottom',
+        ],
+        mistake: 'Using imshow() on a float array without setting vmin/vmax. The colormap auto-scales — two plots of the same variable at different ranges will show different colors, making comparison misleading.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+data = np.random.randn(10, 10)`,
+          concise: `ax.set_yticklabels(row_labels)`
+        }
+      },
+
+      {
+        id: 'twinx',
+        fn: 'ax.twinx()',
+        desc: 'Create a second y-axis sharing the same x-axis.',
+        subtitle: 'Plot two variables with different scales on the same chart',
+        signature: 'ax2 = ax.twinx() | ax2 = ax.twiny()',
+        descLong: 'ax.twinx() creates a new Axes that shares the x-axis but has an independent y-axis on the right side. Use it when two variables have very different scales but a meaningful relationship on the same x (e.g. temperature and rainfall over time).',
+        code: `import matplotlib.pyplot as plt
+fig, ax1 = plt.subplots(figsize=(10, 5))
+x = range(12)
+revenue = [10, 12, 8, 15, 18, 22, 25, 20, 18, 24, 28, 30]
+margin  = [0.15, 0.18, 0.12, 0.20, 0.22, 0.25, 0.28, 0.24, 0.21, 0.26, 0.30, 0.32]
+# First y-axis (left):
+color1 = 'steelblue'
+ax1.set_xlabel('Month')
+ax1.set_ylabel('Revenue ($M)', color=color1)
+ax1.plot(x, revenue, color=color1, linewidth=2)
+ax1.tick_params(axis='y', labelcolor=color1)
+# Second y-axis (right):
+ax2 = ax1.twinx()
+color2 = 'coral'
+ax2.set_ylabel('Margin (%)', color=color2)
+ax2.plot(x, margin, color=color2, linewidth=2, linestyle='--')
+ax2.tick_params(axis='y', labelcolor=color2)
+# Combined legend:
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+plt.title('Revenue and Margin by Month')
+plt.tight_layout()
+plt.show()`,
+        tips: [
+          'Color-code each axis and its labels to match the corresponding line — critical for readability',
+          'For a combined legend, collect handles from both axes: `ax1.get_legend_handles_labels()` + `ax2.get_legend_handles_labels()`',
+          '`ax.twiny()` shares the y-axis and creates a second x-axis on top — less common',
+          'Use sparingly — twin axes can confuse readers. Consider two separate subplots for complex data',
+        ],
+        mistake: 'Forgetting to color-code the y-axis labels to match the lines. With two y-axes, readers cannot tell which scale belongs to which line without color coding.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+fig, ax1 = plt.subplots(figsize=(10, 5))
+x = range(12)
+revenue = [10, 12, 8, 15, 18, 22, 25, 20, 18, 24, 28, 30]`,
+          concise: `plt.show()`
+        }
+      },
+      {
+        id: 'fill-between',
+        fn: 'ax.fill_between()',
+        desc: 'Fill the area between two curves or a curve and a baseline.',
+        category: 'Charts',
+        subtitle: 'Confidence intervals, uncertainty bands, area charts',
+        signature: 'ax.fill_between(x, y1, y2=0, alpha=0.3)',
+        descLong: 'fill_between() fills the region between two lines (or between a line and a constant baseline). Most commonly used for confidence intervals, uncertainty bands around time series, and area charts.',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 10, 100)
+y = np.sin(x)
+upper = y + 0.3
+lower = y - 0.3
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+# Confidence band around a line:
+axes[0].plot(x, y, color='steelblue', linewidth=2)
+axes[0].fill_between(x, lower, upper,
+    alpha=0.3, color='steelblue', label='95% CI')
+axes[0].set_title('Confidence band')
+axes[0].legend()
+# Area chart (fill to zero):
+axes[1].fill_between(x, y, alpha=0.4, color='teal')
+axes[1].plot(x, y, color='teal')
+axes[1].set_title('Area chart')
+# Conditional fill (different colors above/below threshold):
+threshold = 0
+axes[2].plot(x, y, color='black', linewidth=1)
+axes[2].fill_between(x, y, threshold,
+    where=(y >= threshold), color='green', alpha=0.4, label='above')
+    where=(y < threshold),  color='red',   alpha=0.4, label='below')
+axes[2].axhline(y=threshold, color='black', linewidth=0.5)
+axes[2].legend()
+plt.tight_layout()`,
+        tips: [
+          '`alpha=0.2-0.4` keeps the fill from obscuring the data underneath',
+          '`where=` accepts a boolean array — enables conditional filling above/below a threshold',
+          '`interpolate=True` ensures the fill transitions correctly at crossing points',
+          'For a stacked area chart, pass cumulative sums as the y1/y2 values',
+        ],
+        mistake: 'Using `fill_between()` without `alpha<1`. A solid fill at full opacity hides the data lines underneath. Always use `alpha=0.2-0.4` for overlay fills.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+x = np.linspace(0, 10, 100)
+y = np.sin(x)`,
+          concise: `plt.tight_layout()`
+        }
+      },
+      {
+        id: 'errorbar',
+        fn: 'ax.errorbar()',
+        desc: 'Plot data points with error bars showing uncertainty.',
+        category: 'Charts',
+        subtitle: 'Show mean ± std, CI, or measurement uncertainty',
+        signature: 'ax.errorbar(x, y, yerr=std, fmt="o", capsize=5)',
+        descLong: 'errorbar() plots data points with vertical and/or horizontal error bars. yerr= and xerr= accept a scalar (symmetric), a 2-row array (asymmetric), or a column of values. Commonly used for scientific data, survey results, and model performance.',
+        code: `import matplotlib.pyplot as plt
+x     = [1, 2, 3, 4, 5]
+y     = [2.1, 3.5, 2.8, 4.2, 3.9]
+yerr  = [0.3, 0.4, 0.2, 0.5, 0.3]
+
+# Basic error bars:
+ax.errorbar(x, y, yerr=yerr,
+    fmt='o',          # marker style ('o'=circle, 's'=square, '-o'=line+marker)
+    capsize=5,        # cap width in points
+    color='steelblue',
+    ecolor='gray',    # error bar color
+    linewidth=2,
+    elinewidth=1,
+)
+# Asymmetric error bars (2-row array: [lower, upper]):
+yerr_asym = [[0.1, 0.2, 0.1, 0.3, 0.2],   # lower errors
+             [0.4, 0.5, 0.3, 0.6, 0.4]]    # upper errors
+ax.errorbar(x, y, yerr=yerr_asym, fmt='s', capsize=5)
+# Both x and y errors:
+ax.errorbar(x, y, xerr=0.1, yerr=yerr, fmt='o')
+# Line + markers + error band:
+    fmt='-o',
+    capsize=4,
+    capthick=1.5,
+    markersize=6,
+)`,
+        tips: [
+          '`fmt="o"` for points only, `fmt="-o"` for line + points, `fmt="none"` for error bars only',
+          '`capsize=5` adds horizontal caps to the error bars — standard in scientific plots',
+          'For asymmetric errors, pass a 2D array: `yerr=[[lower_errs], [upper_errs]]`',
+          '`ecolor=` sets error bar color independently from the marker/line color',
+        ],
+        mistake: 'Passing `yerr=std_column` from a DataFrame without converting to a numpy array. Pandas Series sometimes cause unexpected shapes. Use `yerr=df["std"].values`.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+x     = [1, 2, 3, 4, 5]
+y     = [2.1, 3.5, 2.8, 4.2, 3.9]
+yerr  = [0.3, 0.4, 0.2, 0.5, 0.3]`,
+          concise: `)`
+        }
+      },
+      {
+        id: 'axhline',
+        fn: 'ax.axhline()',
+        desc: 'Draw a horizontal reference line spanning the full axes width.',
+        category: 'Charts',
+        subtitle: 'Baselines, thresholds, mean lines',
+        signature: 'ax.axhline(y=0, color=, linestyle=, linewidth=)',
+        descLong: 'axhline() draws a horizontal line at a given y value. Unlike a manually plotted line, it always spans the full width regardless of data or zoom. axhspan() shades a horizontal band between two y values.',
+        code: `import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+ax.plot(x, y)
+# Zero baseline:
+ax.axhline(y=0, color='black', linewidth=0.8)
+# Threshold:
+ax.axhline(y=100, color='red', linewidth=1,
+    linestyle='--', label='target')
+# Mean line from data:
+ax.axhline(y=df['score'].mean(),
+    color='gray', linestyle=':', label='mean')
+# Shaded band:
+ax.axhspan(ymin=80, ymax=100,
+    alpha=0.15, color='green', label='target range')
+ax.legend()
+plt.tight_layout()`,
+        tips: [
+          'axhline(y=df["col"].mean()) adds a mean line without needing x coordinates',
+          'axhspan(ymin, ymax, alpha=0.1) shades a horizontal band for target ranges',
+          'The line auto-extends when the axis is zoomed — unlike ax.plot([x0,x1],[y,y])',
+          'Use zorder= to control whether the line appears above or below chart elements',
+        ],
+        mistake: 'Using ax.plot([x_min, x_max], [y, y]) for a reference line. It does not extend when axis limits change. Use ax.axhline(y=val) which always spans full width.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+ax.plot(x, y)
+ax.axhline(y=0, color='black', linewidth=0.8)`,
+          concise: `plt.tight_layout()`
+        }
+      },
+      {
+        id: 'axvline',
+        fn: 'ax.axvline()',
+        desc: 'Draw a vertical reference line spanning the full axes height.',
+        subtitle: 'Event markers, cutoffs, period boundaries',
+        signature: 'ax.axvline(x=0, color=, linestyle=, linewidth=)',
+        descLong: 'axvline() draws a vertical line at a given x value spanning the full height of the axes. axvspan() shades a vertical band between two x values — useful for highlighting time periods.',
+        code: `import pandas as pd
+import matplotlib.pyplot as plt
+ax.plot(dates, values)
+# Event marker:
+ax.axvline(x=pd.Timestamp('2020-03-01'),
+    color='red', linestyle='--', linewidth=1.5,
+    label='policy change')
+
+# Shaded period:
+ax.axvspan(
+    xmin=pd.Timestamp('2020-01-01'),
+    xmax=pd.Timestamp('2021-01-01'),
+    alpha=0.15, color='orange', label='COVID period',
+)
+# Multiple events from a list:
+events = [pd.Timestamp('2019-01'), pd.Timestamp('2021-06')]
+for event in events:
+    ax.axvline(x=event, color='gray', linestyle=':', alpha=0.7)`,
+        tips: [
+          'axvspan(xmin, xmax, alpha=0.1) shades a time period — standard for recession/event highlighting',
+          'For datetime x-axis, pass pd.Timestamp or ISO string to x=',
+          'Use label= on reference lines and include in ax.legend() for an annotated chart',
+          'zorder=0 puts the line behind data; zorder=3 puts it in front',
+        ],
+        mistake: 'Forgetting that axvspan uses the same x-axis units as the data. If your x-axis is datetime, pass datetime values — not integers.',
+        shorthand: {
+          verbose: `import pandas as pd
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+ax.plot(dates, values)`,
+          concise: `plt.tight_layout()`
+        }
+      },
+
+    ],
+  },
+  {
+    id: 'figures-layouts',
+    title: 'Figures & Layouts',
+    entries: [
+      {
+        id: 'gridspec',
+        fn: 'GridSpec',
+        desc: 'Create subplots with variable sizes and spans.',
+        category: 'Layouts',
+        subtitle: 'Spans rows/columns for dashboard-style figures',
+        signature: 'gs = GridSpec(nrows, ncols) | ax = fig.add_subplot(gs[0, :])',
+        descLong: 'GridSpec creates a grid layout where individual subplots can span multiple rows or columns. More flexible than plt.subplots() for dashboard-style figures. subplot_mosaic() is a simpler string-based alternative (matplotlib 3.3+).',
+        code: `import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import numpy as np
+# GridSpec — variable subplot sizes:
+fig = plt.figure(figsize=(12, 8))
+gs  = gridspec.GridSpec(2, 3, figure=fig,
+    hspace=0.4, wspace=0.3)
+ax_top   = fig.add_subplot(gs[0, :])     # full top row
+ax_bl    = fig.add_subplot(gs[1, 0])     # bottom-left
+ax_bm    = fig.add_subplot(gs[1, 1])     # bottom-middle
+ax_br    = fig.add_subplot(gs[1, 2])     # bottom-right
+ax_top.plot(np.random.randn(100).cumsum())
+ax_top.set_title('Full width plot')
+ax_bl.hist(np.random.randn(200), bins=20)
+ax_bm.scatter(np.random.rand(50), np.random.rand(50))
+ax_br.bar([1,2,3], [3,1,4])
+# subplot_mosaic() — string layout (simpler, matplotlib 3.3+):
+fig, axes = plt.subplot_mosaic(
+    [['top',  'top', 'right'],
+     ['left', 'mid', 'right']],
+    figsize=(12, 8),
+)
+axes['top'].plot(x, y)
+axes['left'].hist(data)
+axes['mid'].scatter(x, y)
+axes['right'].bar(cats, vals)
+plt.tight_layout()
+plt.show()`,
+        tips: [
+          '`gs[0, :]` spans the full first row; `gs[:, 0]` spans the full first column',
+          '`subplot_mosaic()` with ASCII art layout is cleaner for most dashboard designs',
+          '`hspace` and `wspace` in GridSpec control vertical and horizontal spacing between plots',
+          'Use `fig.add_subplot(gs[row_slice, col_slice])` for spanning — standard slice syntax works',
+        ],
+        mistake: 'Using `plt.subplots(2, 3)` when you need one plot to span multiple cells. Switch to `GridSpec` or `subplot_mosaic()` when any panel needs to span rows or columns.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import numpy as np
+fig = plt.figure(figsize=(12, 8))`,
+          concise: `plt.show()`
+        }
+      },
+      {
+        id: 'subplot-mosaic',
+        fn: 'plt.subplot_mosaic()',
+        desc: 'Create complex asymmetric subplot layouts with readable ASCII art.',
+        subtitle: 'Named panels in a string — far cleaner than GridSpec',
+        signature: 'fig, axes = plt.subplot_mosaic("AB\nCC")',
+        descLong: 'plt.subplot_mosaic() (matplotlib 3.3+) creates complex layouts using an ASCII art string. Repeated letters span multiple cells. Returns a dict of named Axes — much more readable than GridSpec index arithmetic.',
+        code: `import matplotlib.pyplot as plt
+# String layout — repeated letters span cells:
+    "AB\nCC",
+    figsize=(10, 8),
+axes['A'].plot(x1, y1, label='series A')
+axes['B'].scatter(x2, y2)
+axes['C'].bar(categories, values)
+# More complex:
+    "AAB\nCDB",
+# With size ratios:
+    height_ratios=[2, 1],
+    width_ratios=[1, 2],
+# Leave a gap with '.':
+    "A.\nBC",
+    figsize=(8, 6),
+# vs old GridSpec:
+# gs = gridspec.GridSpec(2, 2)
+# ax1 = fig.add_subplot(gs[0, :])   harder to read
+plt.tight_layout()`,
+        tips: [
+          'Axes are a dict: axes["A"], axes["B"] — not axes[0,0]. Named access is self-documenting',
+          'Repeated letters create spanning panels: "AA\nBC" makes A span both columns of row 1',
+          '"." in the layout string leaves an empty cell — useful for unequal numbers of panels',
+          'height_ratios= and width_ratios= control relative panel sizes',
+        ],
+        mistake: 'Still using plt.subplot(2,2,1) for asymmetric layouts. You have to track index arithmetic manually. Use subplot_mosaic() for any non-uniform grid.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+fig, axes = plt.subplot_mosaic(
+"AB\nCC",
+figsize=(10, 8),`,
+          concise: `plt.tight_layout()`
+        }
+      },
+
+    
+      {
+        id: 'anatomy', fn: 'Figure & Axes', desc: 'Create figures and subplots — the two-level structure.',
+        category: 'Basics', subtitle: 'Figure contains Axes; Axes contains the plot',
+        signature: 'fig, ax = plt.subplots(nrows, ncols)',
+        descLong: 'Matplotlib has two layers: Figure (the whole canvas) and Axes (individual plot area). Always use the object-oriented interface (fig, ax = plt.subplots()) rather than plt.plot() for anything beyond a quick test — it gives explicit control.',
+        code: `import matplotlib.pyplot as plt
+import numpy as np
+# OOP interface — recommended
+fig, ax = plt.subplots()
+ax.plot([1, 2, 3], [4, 5, 6])
+ax.set_title("My Plot")
+ax.set_xlabel("X axis")
+ax.set_ylabel("Y axis")
+plt.show()
+# Multiple subplots
+fig, axes = plt.subplots(2, 3, figsize=(12, 8))
+ax1 = axes[0, 0]   # top-left
+ax2 = axes[1, 2]   # bottom-right
+# Quick interface (fine for exploration)
+plt.plot([1, 2, 3], [4, 5, 6])
+plt.title("Quick Plot")
+# Save
+fig.savefig("plot.png", dpi=150, bbox_inches="tight")
+fig.savefig("plot.svg")           # vector format`,
+        tips: [
+          'Always use fig, ax = plt.subplots() — the OOP interface avoids subtle state bugs',
+          'figsize=(width, height) in inches — (10, 6) is a good default',
+          'bbox_inches="tight" prevents labels from being clipped in saved files',
+          'Use plt.show() in scripts; in Jupyter, figures display inline automatically',
+        ],
+        mistake: 'Mixing the functional (plt.plot) and OOP (ax.plot) interfaces in the same figure. Pick one style and stick with it — mixing causes confusing bugs.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import numpy as np
+fig, ax = plt.subplots()
+ax.plot([1, 2, 3], [4, 5, 6])`,
+          concise: `fig.savefig("plot.svg")           # vector format`
+        }
+      },
+      {
+        id: 'subplots',
+        fn: 'plt.subplots()',
+        desc: 'Create a Figure and one or more Axes in a grid layout.',
+        category: 'Basics',
+        subtitle: 'The standard entry point — always use instead of plt.figure()',
+        signature: 'fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,6))',
+        descLong: 'plt.subplots() is the standard way to create matplotlib figures. It returns a Figure and one or more Axes objects. figsize= controls the size in inches. The axes array is 1D for a single row/column and 2D for a grid.',
+        code: `import matplotlib.pyplot as plt
+# Single plot:
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# 1 row, 3 columns:
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+axes[0].plot(x, y1)
+axes[1].bar(cats, vals)
+axes[2].scatter(x, y2)
+# 2×2 grid:
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+axes[0, 0].plot(x, y)    # top-left
+axes[0, 1].bar(x, y)     # top-right
+axes[1, 0].hist(data)    # bottom-left
+axes[1, 1].scatter(x, y) # bottom-right
+# Shared axes:
+fig, axes = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
+# Flatten for easy iteration:
+fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+for ax, col in zip(axes.flat, df.columns):
+    ax.hist(df[col], bins=20)
+    ax.set_title(col)
+plt.tight_layout()   # prevent overlap
+plt.show()`,
+        tips: [
+          '`axes.flat` iterates over all axes in a grid regardless of shape — cleaner than nested loops',
+          '`sharex=True` / `sharey=True` links axis limits across subplots — great for comparisons',
+          'Always call `plt.tight_layout()` before `plt.show()` — prevents label overlap',
+          '`plt.subplots_adjust(hspace=0.4)` gives fine control over spacing between subplots',
+        ],
+        mistake: 'Using `plt.figure()` + `fig.add_subplot()` manually. `plt.subplots()` is cleaner and handles the grid for you — use it for all new code.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import numpy as np
+fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(10, 6))`,
+          concise: `plt.show()`
+        }
+      },
+      {
+        id: 'figsize',
+        fn: 'Figure size and DPI',
+        desc: 'Control the physical size and resolution of a matplotlib figure.',
+        subtitle: 'figsize in inches, dpi for resolution — set at creation time',
+        signature: 'plt.subplots(figsize=(width, height)) | fig.set_size_inches(w, h)',
+        descLong: 'figsize= sets the figure size in inches. dpi= (dots per inch) controls resolution — default is 100. For screen display 100 dpi is fine; for print/publication use 300. The pixel size is figsize × dpi.',
+        code: `import matplotlib.pyplot as plt
+# Set at creation:
+fig, ax = plt.subplots(figsize=(10, 6))    # 10×6 inches
+fig, ax = plt.subplots(figsize=(6, 6))     # square
+fig, ax = plt.subplots(figsize=(16, 4))    # wide/short
+# Common sizes:
+# (8, 6)   — default, general purpose
+# (10, 6)  — slightly wider, good for presentations
+# (12, 4)  — time series / wide data
+# (6, 6)   — square, good for scatter/correlation
+
+# DPI:
+fig, ax = plt.subplots(figsize=(8, 6), dpi=100)   # screen (default)
+fig, ax = plt.subplots(figsize=(8, 6), dpi=150)   # presentations
+fig, ax = plt.subplots(figsize=(8, 6), dpi=300)   # print/publication
+# Pixel dimensions = figsize × dpi:
+# (8, 6) at dpi=100 → 800×600 pixels
+# (8, 6) at dpi=300 → 2400×1800 pixels
+# Change after creation:
+fig.set_size_inches(12, 8)
+fig.set_dpi(200)
+# Set global default:
+plt.rcParams['figure.figsize'] = (10, 6)
+plt.rcParams['figure.dpi'] = 150`,
+        tips: [
+          'Pixel size = figsize × dpi: `(10, 6)` at `dpi=150` gives a 1500×900 pixel figure',
+          'For Jupyter notebooks, `%matplotlib inline` uses the default dpi — set `plt.rcParams["figure.dpi"] = 120` for larger inline figures',
+          'For presentations: `figsize=(12, 7)` matches 16:9 aspect ratio',
+          'For bar charts with many categories, increase height: `figsize=(8, max(4, n_categories * 0.3))`',
+        ],
+        mistake: 'Trying to change figure size after plotting with `plt.rcParams["figure.figsize"]`. This only affects future figures. Pass `figsize=` to `plt.subplots()` at creation time.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+fig, ax = plt.subplots(figsize=(10, 6))    # 10×6 inches
+fig, ax = plt.subplots(figsize=(6, 6))     # square
+fig, ax = plt.subplots(figsize=(16, 4))    # wide/short`,
+          concise: `plt.rcParams['figure.dpi'] = 150`
+        }
+      }
+],
+  },
+
+  {
+    id: 'styling',
+    title: 'Styling & Customization',
+    entries: [
+      {
+        id: 'labels', fn: 'Labels & titles', desc: 'Set titles, axis labels, tick marks, limits, and grids.',
+        category: 'Styling', subtitle: 'The essential labeling calls every plot needs',
+        signature: 'ax.set_title() | ax.set_xlabel() | ax.annotate()',
+        descLong: 'Well-labelled plots communicate clearly. Use set_title(), set_xlabel(), set_ylabel() for basic labels. annotate() adds arrows and text pointing to specific data points.',
+        code: `import matplotlib.pyplot as plt
+ax.set_title("Sales by Quarter", fontsize=16, fontweight="bold", pad=15)
+ax.set_xlabel("Quarter", fontsize=12)
+ax.set_ylabel("Revenue ($K)", fontsize=12)
+# Tick customization
+ax.set_xticks([1, 2, 3, 4])
+ax.set_xticklabels(["Q1", "Q2", "Q3", "Q4"])
+ax.tick_params(axis="x", rotation=45, labelsize=10)
+# Grid
+ax.grid(True, linestyle="--", alpha=0.5)
+ax.grid(axis="y", linestyle="--", alpha=0.5)  # horizontal only
+# Limits
+ax.set_xlim(0, 10)
+ax.set_ylim(-1, 1)
+# Annotate a point
+ax.annotate(
+    "Peak",
+    xy=(peak_x, peak_y),          # point to annotate
+    xytext=(peak_x + 1, peak_y),  # text position
+    arrowprops=dict(arrowstyle="->", color="black"),
+    fontsize=10
+)
+# Add horizontal/vertical reference lines
+ax.axhline(y=0, color="black", linewidth=0.5)
+ax.axvline(x=0, color="black", linewidth=0.5)`,
+        tips: [
+          'pad= in set_title() adds space between title and axes',
+          'ax.set(title="...", xlabel="...", ylabel="...") sets multiple labels at once',
+          'tight_layout() or constrained_layout=True prevents label clipping',
+          'ax.spines["top"].set_visible(False) removes chart borders for cleaner look',
+        ],
+        mistake: 'Saving a figure before calling tight_layout() — axis labels often get cut off. Always call fig.tight_layout() or use plt.subplots(layout="constrained").',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+ax.set_title("Sales by Quarter", fontsize=16, fontweight="bold", pad=15)
+ax.set_xlabel("Quarter", fontsize=12)
+ax.set_ylabel("Revenue ($K)", fontsize=12)`,
+          concise: `ax.axvline(x=0, color="black", linewidth=0.5)`
+        }
+      },
+      {
+        id: 'annotate',
+        fn: 'ax.annotate()',
+        desc: 'Add text with an optional arrow pointing to a data point.',
+        category: 'Styling',
+        subtitle: 'Call out key features — arrow from label to data coordinate',
+        signature: 'ax.annotate(text, xy=(x,y), xytext=(xt,yt), arrowprops={})',
+        descLong: 'ax.annotate() draws text with an optional arrow. xy is the point being annotated; xytext is where the text appears. Use transform=ax.transAxes for position relative to the axes (0-1 range) so the annotation stays fixed regardless of data range.',
+        code: `import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+ax.plot(x, y)
+# Arrow to a data point:
+    'Peak value',
+    xy     = (peak_x, peak_y),
+    xytext = (peak_x + 1, peak_y + 5),
+    arrowprops = dict(arrowstyle='->', color='black'),
+    fontsize=10,
+# Curved arrow:
+    'Minimum',
+    xy     = (min_x, min_y),
+    xytext = (min_x - 2, min_y + 10),
+    arrowprops = dict(
+        arrowstyle='->',
+        connectionstyle='arc3,rad=0.3',
+        color='red',
+    ),
+# Fixed position on axes (not data coords):
+ax.text(0.05, 0.95, 'n = 150',
+    transform = ax.transAxes,
+    va='top',
+    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
+)`,
+        tips: [
+          'transform=ax.transAxes positions text 0-1 relative to axes — stays fixed when axis limits change',
+          'connectionstyle="arc3,rad=0.3" creates a curved arrow — avoids overlap with other elements',
+          'arrowstyle="->" is standard; "fancy" is filled triangle; "simple" is plain line',
+          'bbox=dict(boxstyle="round", facecolor="white") adds a background box behind the text',
+        ],
+        mistake: 'Annotating many points in a loop and getting overlapping labels. Only annotate 3-5 key points, or use the adjustText library for automatic positioning.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+ax.plot(x, y)
+ax.annotate(`,
+          concise: `)`
+        }
+      },
+
+      {
+        id: 'legend',
+        fn: 'ax.legend()',
+        desc: 'Add a legend identifying each plotted element.',
+        category: 'Styling',
+        subtitle: 'Automatic from labels, or explicit with handles and labels',
+        signature: 'ax.legend(loc="best", title="", framealpha=0.8)',
+        descLong: 'legend() creates a legend from the label= arguments passed to each plot call. loc= controls placement. For full control over which elements appear, pass handles and labels explicitly.',
+        code: `import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+
+# Labels on plot calls enable auto legend:
+ax.plot(x, y1, label='Training loss', color='steelblue')
+ax.plot(x, y2, label='Validation loss', color='coral')
+
+# Auto legend:
+ax.legend()
+ax.legend(loc='best')          # matplotlib chooses best position
+ax.legend(loc='upper right')
+ax.legend(loc='lower left')
+ax.legend(loc=(0.05, 0.7))     # exact position (axes fraction)
+
+# Styled legend:
+ax.legend(
+    title       = 'Model',
+    title_fontsize = 10,
+    fontsize    = 9,
+    framealpha  = 0.8,         # background transparency
+    edgecolor   = 'gray',
+    fancybox    = False,       # no rounded corners
+    ncols       = 2,           # multi-column legend
+)
+
+# Move outside the axes:
+ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', borderaxespad=0)
+plt.tight_layout()
+
+# Remove legend:
+ax.get_legend().remove()
+ax.legend().set_visible(False)
+
+# Explicit handles and labels:
+from matplotlib.lines import Line2D
+handles = [Line2D([0],[0], color='blue'), Line2D([0],[0], color='red')]
+ax.legend(handles, ['series A', 'series B'])`,
+        tips: [
+          '`loc="best"` avoids most overlap — let matplotlib find the best position',
+          '`bbox_to_anchor=(1.01, 1)` places the legend just outside the right edge — prevents overlap with data',
+          '`ncols=2` splits a long legend into two columns — keeps it compact',
+          'Always set `label=` on each plot call — it is cheaper than manually building handles later',
+        ],
+        mistake: 'Calling `ax.legend()` without any `label=` arguments in the plot calls. The legend appears but is empty. Add `label="name"` to each `ax.plot()`, `ax.bar()`, etc.',
+        shorthand: {
+          verbose: `        import matplotlib.pyplot as plt
+fig, ax1 = plt.subplots(figsize=(10, 5))
+x = range(12)
+revenue = [10, 12, 8, 15, 18, 22, 25, 20, 18, 24, 28, 30]
+margin  = [0.15, 0.18, 0.12, 0.20, 0.22, 0.25, 0.28, 0.24, 0.21, 0.26, 0.30, 0.32]`,
+          concise: `plt.show()`
+        }
+      },
+      {
+        id: 'tick-formatting',
+        fn: 'Tick formatting',
+        desc: 'Control tick positions, labels, rotation, and number formatting.',
+        category: 'Styling',
+        subtitle: 'Custom ticks, rotated labels, date formatting, log scale',
+        signature: 'ax.set_xticks([]) | ax.xaxis.set_major_formatter() | ax.set_xscale("log")',
+        descLong: 'Matplotlib tick control covers positions (set_xticks), labels (set_xticklabels), rotation (tick_params), number formatting (FuncFormatter), and date formatting (DateFormatter). Log scales are applied with set_xscale/set_yscale.',
+        code: `import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.dates import DateFormatter
+import numpy as np
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+# Custom tick positions and labels:
+ax = axes[0, 0]
+ax.plot([1,2,3,4,5], [1,4,9,16,25])
+ax.set_xticks([1, 2, 3, 4, 5])
+ax.set_xticklabels(['A','B','C','D','E'])
+ax.tick_params(axis='x', rotation=45, labelsize=9)
+# Number formatting:
+ax = axes[0, 1]
+ax.yaxis.set_major_formatter(ticker.FuncFormatter(
+    lambda x, p: f'\${x:,.0f}'))           # $1,000 format
+ax.yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1, decimals=0))
+# Log scale:
+ax = axes[1, 0]
+ax.plot([1,10,100,1000,10000], [1,2,3,4,5])
+ax.set_xscale('log')
+ax.set_yscale('linear')
+
+# Date formatting:
+ax = axes[1, 1]
+ax.xaxis.set_major_formatter(DateFormatter('%b %Y'))
+ax.xaxis.set_major_locator(ticker.MonthLocator(interval=3))
+plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha='right')
+plt.tight_layout()`,
+        tips: [
+          '`plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha="right")` rotates labels cleanly',
+          '`ticker.FuncFormatter(lambda x, p: f"\${x:,.0f}")` is the most flexible number formatter',
+          '`ax.set_xscale("log")` applies log scale — use when data spans multiple orders of magnitude',
+          '`DateFormatter("%b %Y")` formats datetime ticks as "Jan 2024" — pair with `MonthLocator`',
+        ],
+        mistake: 'Setting `ax.set_xticklabels([...])` without first calling `ax.set_xticks([...])`. Without matching tick positions, the labels are assigned to default tick positions which may not be what you want.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'colormaps',
+        fn: 'Colormaps',
+        desc: 'Apply color gradients to encode a third numeric dimension.',
+        category: 'Styling',
+        subtitle: 'Perceptually uniform: viridis, plasma, cividis — avoid jet/rainbow',
+        signature: 'ax.scatter(x, y, c=values, cmap="viridis") | plt.cm.get_cmap()',
+        descLong: 'Colormaps map numeric values to colors. Perceptually uniform colormaps (viridis, plasma, magma, cividis) are readable for colorblind users and convert correctly to greyscale. Diverging colormaps (RdBu, coolwarm) are best for data centered at zero.',
+        code: `import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import numpy as np
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+# Sequential — for continuous data:
+sc = axes[0].scatter(x, y, c=values, cmap='viridis', s=40)
+plt.colorbar(sc, ax=axes[0], label='Value')
+axes[0].set_title('viridis (sequential)')
+# Diverging — for data centered at zero:
+sc2 = axes[1].scatter(x, y, c=diff_values, cmap='RdBu_r',
+    vmin=-3, vmax=3)                       # symmetric around 0
+plt.colorbar(sc2, ax=axes[1], label='Diff from mean')
+axes[1].set_title('RdBu_r (diverging)')
+# Qualitative — for categories:
+cmap = plt.cm.get_cmap('tab10', 5)        # 5 discrete colors
+colors = [cmap(i) for i in range(5)]
+# Apply to imshow (heatmap-style):
+im = axes[2].imshow(matrix, cmap='hot', aspect='auto')
+plt.colorbar(im, ax=axes[2])
+
+# Colormap reference:
+# Sequential:  viridis, plasma, magma, cividis, inferno
+# Diverging:   RdBu_r, coolwarm, seismic, PiYG
+# Qualitative: tab10, tab20, Set1, Set2, Paired
+# Avoid:       jet, rainbow, hsv (not perceptually uniform)`,
+        tips: [
+          'Use `viridis` as your default sequential colormap — perceptually uniform and colorblind-safe',
+          'Add `_r` suffix to reverse any colormap: `"viridis_r"`, `"RdBu_r"`',
+          'Set `vmin` and `vmax` on diverging maps to center at zero: `vmin=-max_abs, vmax=max_abs`',
+          '`plt.cm.get_cmap("tab10", n)` creates a discrete colormap with exactly n colors',
+        ],
+        mistake: 'Using the `jet` or `rainbow` colormap. They are not perceptually uniform — small value differences in the middle look larger than large differences at the edges. Use `viridis` instead.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'colorbar',
+        fn: 'fig.colorbar()',
+        desc: 'Add a color scale legend to a plot using a colormap.',
+        subtitle: 'Required when color encodes a continuous variable',
+        signature: 'plt.colorbar(mappable, ax=ax, label="", orientation="vertical")',
+        descLong: 'A colorbar explains what the colors in a plot mean. Required whenever you use a colormap to encode a continuous variable — scatter with c=, imshow, contour, pcolormesh. Always label it with what the colors represent.',
+        code: `import matplotlib.pyplot as plt
+import numpy as np
+
+# Sample data for demo
+x = np.random.randn(100)
+y = np.random.randn(100)
+temperature = np.random.uniform(20, 40, 100)
+correlation_matrix = np.corrcoef(np.random.randn(5, 50))
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+# Scatter with colorbar:
+sc = axes[0].scatter(x, y, c=temperature, cmap='plasma',
+    s=50, alpha=0.7)
+cbar = plt.colorbar(sc, ax=axes[0])
+cbar.set_label('Temperature (°C)', fontsize=11)
+# Imshow with colorbar:
+im = axes[1].imshow(correlation_matrix, cmap='RdBu_r',
+    vmin=-1, vmax=1, aspect='auto')
+cbar2 = plt.colorbar(im, ax=axes[1])
+cbar2.set_label('Correlation', fontsize=11)
+# Colorbar options:
+plt.colorbar(sc,
+    ax          = ax,
+    orientation = 'horizontal',  # 'vertical' (default) or 'horizontal'
+    shrink      = 0.8,           # fraction of axes height
+    pad         = 0.02,          # distance from axes
+    label       = 'Value',
+)
+# Discrete colorbar:
+import matplotlib as mpl
+cmap   = plt.cm.get_cmap('tab10', 5)
+bounds = [0, 1, 2, 3, 4, 5]
+norm   = mpl.colors.BoundaryNorm(bounds, cmap.N)
+sm     = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+plt.colorbar(sm, ax=ax, label='Category')`,
+        tips: [
+          'Always label the colorbar — `cbar.set_label("what this represents")` is non-optional',
+          '`shrink=0.8` on a tall figure keeps the colorbar height proportional to the axes',
+          '`vmin` and `vmax` on the plot call and the colorbar stay in sync automatically',
+          'For diverging colormaps, set `vmin=-abs_max, vmax=abs_max` to center at zero',
+        ],
+        mistake: 'Calling `plt.colorbar()` without the `ax=` argument in a multi-subplot figure. It attaches to the current active axes which may not be the one you want.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+sc = axes[0].scatter(x, y, c=temperature, cmap='plasma',
+s=50, alpha=0.7)`,
+          concise: `plt.colorbar(sm, ax=ax, label='Category')`
+        }
+      },
+      {
+        id: 'savefig',
+        fn: 'plt.savefig()',
+        desc: 'Save a figure to a file.',
+        category: 'Styling',
+        subtitle: 'Always bbox_inches="tight" — prevents clipped labels',
+        signature: 'plt.savefig("file.png", dpi=150, bbox_inches="tight")',
+        descLong: 'savefig() writes the figure to disk. bbox_inches="tight" is critical — without it, axis labels and titles are often cut off at the figure boundary. Call before plt.show() or plt.close().',
+        code: `import pandas as pd
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+ax.plot(x, y)
+ax.set_title('My Plot')
+
+# Raster formats (pixel-based):
+plt.savefig('plot.png', dpi=150, bbox_inches='tight')   # general use
+plt.savefig('plot.png', dpi=300, bbox_inches='tight')   # print quality
+
+# Vector formats (scalable):
+plt.savefig('plot.pdf', bbox_inches='tight')            # publication
+plt.savefig('plot.svg', bbox_inches='tight')            # web/editing
+
+# Transparent background:
+plt.savefig('plot.png', transparent=True, bbox_inches='tight')
+
+# From figure object (better in scripts):
+fig.savefig('plot.png', dpi=150, bbox_inches='tight')
+
+# In a loop — always close after saving:
+for name, group in df.groupby('category'):
+    fig, ax = plt.subplots()
+    ax.hist(group['value'])
+    ax.set_title(name)
+    fig.savefig(f'{name}.png', dpi=150, bbox_inches='tight')
+    plt.close(fig)    # free memory!
+
+# Check current dpi:
+fig.get_dpi()`,
+        tips: [
+          '`bbox_inches="tight"` is almost always needed — prevents axis labels being cut off',
+          '`plt.close(fig)` after saving in a loop is critical — unclosed figures accumulate in memory',
+          'PDF and SVG are vector formats — they scale to any size without pixelation',
+          '`dpi=150` for web/presentations; `dpi=300` for print/journals',
+        ],
+        mistake: 'Calling `plt.show()` before `plt.savefig()`. After `show()`, the figure is cleared and `savefig()` saves a blank figure. Always save before showing.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    result.append(x * 2)`,
+          concise: `result = [x * 2 for x in items]`
+        }
+      },
+
+      {
+        id: 'styles', fn: 'Styles & Themes', desc: 'Apply pre-built styles and colormaps.',
+        category: 'Styling', subtitle: 'Change the visual theme of all plots',
+        signature: 'plt.style.use("style_name")',
+        descLong: 'Matplotlib comes with built-in styles that transform the default appearance. Apply a style once at the start of your script to affect all subsequent plots.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+# Available styles
+print(plt.style.available)
+# Apply globally
+plt.style.use("seaborn-v0_8-whitegrid")  # clean white with grid
+plt.style.use("ggplot")                   # R's ggplot2 style
+plt.style.use("dark_background")          # dark theme
+plt.style.use("bmh")                      # Bayesian Methods for Hackers
+# Combine styles
+plt.style.use(["seaborn-v0_8", "science"])
+# Temporary style (context manager)
+with plt.style.context("dark_background"):
+    fig, ax = plt.subplots()
+    ax.plot(x, y)
+    plt.show()
+# Color cycles
+colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+# Set defaults globally
+plt.rcParams.update({
+    "figure.figsize": (10, 6),
+    "font.size": 12,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+})`,
+        tips: [
+          'Set plt.rcParams at the top of your notebook/script for consistent styling',
+          '"seaborn-v0_8-whitegrid" is a clean, publication-ready style',
+          'For publication: remove top and right spines with rcParams or ax.spines',
+          'Seaborn sets a nice default style on import: import seaborn as sns',
+        ],
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+plt.style.use("seaborn-v0_8-whitegrid")
+fig, ax = plt.subplots()`,
+          concise: `plt.rcParams.update({"figure.figsize": (10, 6)})`
+        },
+        mistake: 'Calling plt.style.use() inside a function — it changes global state permanently. Call it once at the top of the script or use plt.style.context() for scoped changes.',
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

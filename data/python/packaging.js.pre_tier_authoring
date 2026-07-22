@@ -1,0 +1,1249 @@
+export const meta = {
+  id: 'packaging',
+  label: 'Packaging, CLI & Tooling',
+  icon: '📦',
+  description: 'Python packaging (pyproject.toml, uv, pip), CLI tools (Typer, Click, argparse), logging, and environment management.',
+}
+
+export const sections = [
+  {
+    id: 'packaging',
+    title: 'Packaging & Environments',
+    entries: [
+      {
+        id: 'pyproject-uv',
+        fn: 'pyproject.toml & uv — Modern Python Packaging',
+        desc: 'Configure Python projects with pyproject.toml, manage environments with uv/venv, and publish to PyPI.',
+        category: 'Packaging',
+        subtitle: 'pyproject.toml, uv, venv, pip, setuptools, hatchling, build, twine',
+        signature: 'uv init  |  uv add package  |  uv sync  |  python -m build  |  twine upload',
+        descLong: 'pyproject.toml is the standard Python project configuration file (PEP 621). It replaces setup.py, setup.cfg, and requirements.txt with a single declarative file. uv is the modern ultrafast package manager (10-100x faster than pip) that handles environments, dependencies, and lockfiles. Build backends (hatchling, setuptools, flit) compile your project into distributable wheels. Always use virtual environments to isolate project dependencies.',
+        code: `# ── pyproject.toml (complete example) ─────────────────
+# [project]
+# name = "my-package"
+# version = "1.0.0"
+# description = "A modern Python package"
+# readme = "README.md"
+# license = {text = "MIT"}
+# requires-python = ">=3.11"
+# authors = [{name = "Alice", email = "alice@example.com"}]
+# dependencies = [
+#     "httpx>=0.25",
+#     "pydantic>=2.0",
+#     "rich>=13.0",
+# ]
+#
+# [project.optional-dependencies]
+# dev = ["pytest>=8.0", "mypy>=1.8", "ruff>=0.3"]
+# docs = ["mkdocs-material>=9.0"]
+#
+# [project.scripts]
+# my-cli = "my_package.cli:main"     # creates CLI entry point
+#
+# [build-system]
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
+#
+# [tool.hatch.build.targets.wheel]
+# packages = ["src/my_package"]
+#
+# [tool.ruff]
+# line-length = 88
+# target-version = "py311"
+#
+# [tool.mypy]
+# strict = true
+# python_version = "3.12"
+#
+# [tool.pytest.ini_options]
+# testpaths = ["tests"]
+# addopts = "-v --tb=short"
+
+# ── uv — ultrafast package manager ───────────────────
+# Install uv:  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# uv init my-project          # create new project with pyproject.toml
+# uv add httpx pydantic        # add dependencies (updates pyproject.toml)
+# uv add --dev pytest ruff     # add dev dependencies
+# uv remove httpx              # remove a dependency
+# uv sync                      # install all deps from lockfile
+# uv lock                      # generate/update uv.lock
+# uv run pytest                # run command in project environment
+# uv run python main.py        # run script with project deps
+# uv tool install ruff         # install global CLI tool
+
+# ── venv (stdlib) ────────────────────────────────────
+# python -m venv .venv
+# source .venv/bin/activate      # macOS/Linux
+# .venv\\Scripts\\activate         # Windows
+# pip install -e ".[dev]"        # editable install with dev deps
+# pip freeze > requirements.txt  # snapshot dependencies
+# deactivate                     # exit venv
+
+# ── Building & publishing ────────────────────────────
+# python -m build               # creates dist/*.whl and dist/*.tar.gz
+# twine check dist/*            # validate package
+# twine upload dist/*           # publish to PyPI
+# twine upload -r testpypi dist/*  # test on TestPyPI first`,
+        tips: [
+          'uv is 10-100x faster than pip and replaces pip, pip-tools, virtualenv, and pyenv in a single tool — adopt it for new projects.',
+          'pyproject.toml replaces setup.py + setup.cfg + requirements.txt + MANIFEST.in — one file for everything.',
+          'Use [project.scripts] to create CLI entry points: "my-cli = my_package.cli:main" makes my-cli available after install.',
+          'Always test on TestPyPI before publishing to real PyPI — package names are permanent and cannot be reused.',
+        ],
+        mistake: 'Still using setup.py for new projects — setup.py is legacy. pyproject.toml is the standard since PEP 621 and all modern tools (uv, pip, hatch, flit) support it. Migrate existing projects with hatch or flit.',
+        shorthand: {
+          verbose: `from setuptools import setup
+setup(
+    name="my-package",
+    version="1.0.0",
+    install_requires=["httpx>=0.25"],
+)`,
+          concise: `# pyproject.toml
+[project]
+name = "my-package"
+version = "1.0.0"
+dependencies = ["httpx>=0.25"]`
+        },
+      },
+    ],
+  },
+  {
+    id: 'cli-tools',
+    title: 'CLI Development & Logging',
+    entries: [
+      {
+        id: 'typer-click',
+        fn: 'Typer & Click — Building CLI Applications',
+        desc: 'Build production CLI tools: Typer (modern, type-hint based), Click (battle-tested), and argparse (stdlib).',
+        category: 'CLI',
+        subtitle: 'Typer, Click, argparse, rich, subcommands, options, arguments',
+        signature: '@app.command()  |  typer.Option()  |  @click.command()  |  argparse.ArgumentParser()',
+        descLong: 'Typer builds CLIs from type hints — the fastest way to create production-quality command-line tools. Click (which Typer wraps) provides explicit decorators for more complex CLIs. argparse is the stdlib option (no dependencies). Typer auto-generates help, validates types, supports subcommands, and integrates with Rich for beautiful output. Use Typer for new projects, Click for complex plugin systems, and argparse only when zero dependencies is required.',
+        code: `# ── Typer — modern type-hint CLI ──────────────────────
+import typer
+from typing import Optional, Annotated
+from pathlib import Path
+from enum import Enum
+
+app = typer.Typer(help="My awesome CLI tool")
+
+class Format(str, Enum):
+    json = "json"
+    csv = "csv"
+    table = "table"
+
+@app.command()
+def process(
+    input_file: Annotated[Path, typer.Argument(help="Input file path")],
+    output: Annotated[Path, typer.Option("--output", "-o")] = Path("output.json"),
+    format: Annotated[Format, typer.Option(help="Output format")] = Format.json,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
+    limit: Annotated[Optional[int], typer.Option(help="Max rows")] = None,
+):
+    """Process a data file and export results."""
+    if verbose:
+        typer.echo(f"Processing {input_file}...")
+
+    # Typer auto-validates: input_file exists, format is valid enum, etc.
+    data = input_file.read_text()
+    typer.echo(f"Processed {len(data)} chars -> {output}")
+
+@app.command()
+def init(
+    name: Annotated[str, typer.Argument(help="Project name")],
+    template: str = "default",
+):
+    """Initialize a new project."""
+    typer.echo(f"Creating project '{name}' with template '{template}'")
+
+# Subcommand group
+db_app = typer.Typer(help="Database commands")
+app.add_typer(db_app, name="db")
+
+@db_app.command("migrate")
+def db_migrate(revision: str = "head"):
+    """Run database migrations."""
+    typer.echo(f"Migrating to {revision}")
+
+if __name__ == "__main__":
+    app()
+
+# Usage:
+# python cli.py process data.csv --output result.json --format csv -v
+# python cli.py init my-project --template fastapi
+# python cli.py db migrate --revision abc123
+# python cli.py --help  (auto-generated)
+
+# ── argparse (stdlib, zero dependencies) ─────────────
+import argparse
+
+parser = argparse.ArgumentParser(description="Data processor")
+parser.add_argument("input", type=Path, help="Input file")
+parser.add_argument("-o", "--output", type=Path, default=Path("out.json"))
+parser.add_argument("-f", "--format", choices=["json", "csv"], default="json")
+parser.add_argument("-v", "--verbose", action="store_true")
+parser.add_argument("--limit", type=int, default=None)
+
+args = parser.parse_args()
+print(f"Input: {args.input}, Format: {args.format}")`,
+        tips: [
+          'Typer generates CLI from type hints: Path validates files exist, Enum restricts choices, Optional makes flags optional — zero boilerplate.',
+          'Use Annotated[type, typer.Option()] for explicit help text and aliases: --verbose / -v.',
+          'Add Rich integration: import rich; app = typer.Typer(rich_markup_mode="rich") for colored help and progress bars.',
+          'app.add_typer() creates subcommand groups (git-style): "mycli db migrate", "mycli auth login".',
+        ],
+        mistake: 'Using argparse for complex CLIs with subcommands — argparse subparsers are verbose and error-prone. Typer handles subcommands with simple function decorators and auto-generates help for free.',
+        shorthand: {
+          verbose: `parser = argparse.ArgumentParser()
+parser.add_argument("input", type=Path)
+parser.add_argument("-o", "--output", type=Path)
+parser.add_argument("-f", "--format", choices=["json", "csv"])
+args = parser.parse_args()`,
+          concise: `@app.command()
+def process(
+    input_file: Path,
+    output: Path = typer.Option(Path("out.json")),
+    format: Format = typer.Option(Format.json),
+):
+    pass`
+        },
+      },
+      {
+        id: 'logging',
+        fn: 'Logging & Observability — Production Python',
+        desc: 'Configure structured logging: stdlib logging, structlog, log levels, formatters, and production patterns.',
+        category: 'Logging',
+        subtitle: 'logging, structlog, getLogger, handlers, formatters, JSON logging',
+        signature: 'logging.getLogger(__name__)  |  logger.info("msg", extra={})  |  structlog.get_logger()',
+        descLong: 'Python logging provides hierarchical loggers, handlers (console, file, remote), and formatters. In production, use structured logging (JSON) for log aggregation (ELK, Datadog, CloudWatch). structlog adds context binding, processors, and JSON output. Key patterns: one logger per module (getLogger(__name__)), structured context (user_id, request_id), and appropriate log levels (DEBUG for development, INFO for operations, WARNING for recoverable issues, ERROR for failures).',
+        code: `# ── stdlib logging — basic setup ──────────────────────
+import logging
+
+# Configure once at application entry point
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+# One logger per module
+logger = logging.getLogger(__name__)
+
+logger.debug("Detailed debug info")          # dev only
+logger.info("Processing started", extra={"user_id": 42})
+logger.warning("Rate limit approaching: %d/%d", 95, 100)
+logger.error("Database connection failed", exc_info=True)
+logger.critical("Application cannot continue")
+
+# ── Production JSON logging ──────────────────────────
+import json
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_data = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+        if hasattr(record, "user_id"):
+            log_data["user_id"] = record.user_id
+        return json.dumps(log_data)
+
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logging.root.addHandler(handler)
+
+# ── structlog — structured logging (recommended) ─────
+import structlog
+
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.ConsoleRenderer(),  # pretty dev output
+        # structlog.processors.JSONRenderer(),  # JSON for production
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+)
+
+log = structlog.get_logger()
+
+# Bind context that persists across log calls
+log = log.bind(request_id="abc-123", user_id=42)
+log.info("processing_started", file="data.csv", rows=1000)
+log.warning("slow_query", duration_ms=1500, query="SELECT...")
+log.error("payment_failed", amount=99.99, currency="USD")
+
+# Output: 2024-06-15T10:30:00Z [info] processing_started
+#         request_id=abc-123 user_id=42 file=data.csv rows=1000`,
+        tips: [
+          'Use getLogger(__name__) per module — it creates a hierarchy (myapp.services.auth) that you can configure independently.',
+          'structlog with bound context (request_id, user_id) makes log correlation trivial — essential for debugging distributed systems.',
+          'Use JSON logging in production — every log aggregation tool (ELK, Datadog, CloudWatch) parses JSON natively.',
+          'Never log sensitive data (passwords, tokens, PII) — use structlog processors to redact fields automatically.',
+        ],
+        mistake: 'Using print() instead of logging — print goes to stdout only, has no levels, no timestamps, no structured data, and cannot be configured per-module. logging.info() is just as easy and production-ready.',
+        shorthand: {
+          verbose: `print(f"Processing {file} at {datetime.now()}")
+print("Error: failed to connect")`,
+          concise: `logger.info("processing_started", file=file)
+logger.error("connection_failed", exc_info=True)`
+        },
+      },
+    ],
+  },
+  {
+    id: 'modern-packaging',
+    title: 'Modern Packaging',
+    entries: [
+      {
+        id: 'pyproject-toml',
+        fn: 'pyproject.toml — Project Configuration Standard',
+        desc: '[project], [build-system], tool-specific configs (pytest, ruff, mypy) — the modern single-source project file.',
+        category: 'Packaging',
+        subtitle: '[project], [build-system], [tool.pytest], [tool.ruff]',
+        signature: '[project] name, version, dependencies  |  [build-system] requires, build-backend',
+        descLong: 'pyproject.toml is the PEP 621 standard project configuration file. Replaces setup.py, setup.cfg, requirements.txt, and tool-specific config files. Structure: [project] defines package metadata and dependencies, [build-system] specifies the build backend (hatchling, setuptools, flit, pdm), [tool.X] configures tools (pytest, ruff, mypy, black). A single source of truth for your project.',
+        code: `# ── Complete pyproject.toml example ────────────────────
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "my-package"
+version = "1.0.0"
+description = "A modern Python package"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Alice", email = "alice@example.com"},
+]
+dependencies = [
+    "httpx>=0.25",
+    "pydantic>=2.0",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "mypy>=1.8", "ruff>=0.3", "black>=23.0"]
+docs = ["mkdocs-material>=9.0", "mkdocs-pymdownx-superfences>=10.0"]
+
+[project.urls]
+Homepage = "https://github.com/user/my-package"
+Documentation = "https://docs.example.com"
+Repository = "https://github.com/user/my-package.git"
+
+[project.scripts]
+my-cli = "my_package.cli:main"  # creates CLI entry point
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/my_package"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short --cov=my_package"
+python_files = ["test_*.py"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+disallow_untyped_defs = true
+warn_unused_ignores = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = [".git", ".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "PT"]  # enable style rules
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+include = '\.pyi?$'
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "def __repr__"]`,
+        tips: [
+          'pyproject.toml is declarative — it describes what your project is, not scripts for building it.',
+          '[tool.X] sections are tool-specific — each tool reads its config from here, no separate files needed.',
+          'requires-python = ">=3.11" ensures pip won\'t install on older Python versions.',
+          '[project.scripts] creates CLI entry points — installed automatically; users run "my-cli" not "python -m my_package.cli".',
+        ],
+        mistake: 'Still maintaining setup.py + setup.cfg + requirements.txt + .flake8 + mypy.ini + pytest.ini separately — consolidate everything in pyproject.toml. One file, one format, one source of truth.',
+        shorthand: {
+          verbose: `# setup.py
+from setuptools import setup
+setup(name="pkg", version="1.0", install_requires=["dep>=1"])
+
+# setup.cfg
+[metadata]
+name = pkg
+version = 1.0`,
+          concise: `[project]
+name = "pkg"
+version = "1.0"
+dependencies = ["dep>=1"]`
+        },
+      },
+      {
+        id: 'uv-package-manager',
+        fn: 'uv — The Ultrafast Package Manager',
+        desc: 'uv init, add, run, sync — 10-100x faster than pip, handles environments, dependencies, and lockfiles.',
+        category: 'Packaging',
+        subtitle: 'uv init, uv add, uv run, uv sync, uv venv, uv.lock',
+        signature: 'uv init project  |  uv add package  |  uv run pytest  |  uv sync',
+        descLong: 'uv is a new package manager written in Rust, 10-100x faster than pip. It replaces pip, pip-tools, virtualenv, and pyenv. Single tool for: creating projects, managing dependencies, managing environments, running commands, installing CLI tools. uv.lock is a deterministic lockfile (like Cargo.lock) ensuring reproducible builds. Perfect for new projects and CI/CD.',
+        code: `# ── Installation ──────────────────────────────────────
+# curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# ── Create & manage projects ──────────────────────────
+uv init my-project              # create new project with pyproject.toml
+cd my-project
+uv add httpx pydantic           # add dependencies (updates pyproject.toml)
+uv add --dev pytest ruff mypy   # add dev dependencies
+uv remove httpx                 # remove a dependency
+uv lock                         # generate uv.lock (deterministic)
+
+# ── Run commands in project environment ──────────────
+uv run pytest                   # run tests (auto-installs if needed)
+uv run python main.py           # run script with project deps
+uv run mypy src                 # run type checker
+uv run ruff check .             # run linter
+
+# ── Manage virtual environments ─────────────────────
+uv venv                         # create .venv
+uv venv --python 3.11           # create with specific Python version
+source .venv/bin/activate       # activate (macOS/Linux)
+.venv\\Scripts\\activate         # activate (Windows)
+uv sync                         # install exact versions from uv.lock
+
+# ── Install global CLI tools ──────────────────────
+uv tool install ruff            # install ruff globally
+uv tool list                    # list installed tools
+uv tool uninstall ruff          # remove tool
+
+# ── Key features ──────────────────────────────────
+# - FAST: Rust implementation, parallel downloads, incremental installs
+# - Lockfile: uv.lock ensures reproducible builds (git-commit it)
+# - Python management: no pyenv needed, handles Python versions
+# - Workspace: monorepo support with [tool.uv.workspace]
+# - pip-compatible: reads requirements.txt, generates uv.lock`,
+        tips: [
+          'uv is 10-100x faster than pip and handles environments, too — adopt it now for new projects.',
+          'uv.lock is deterministic — commit it to git for reproducible CI/CD builds.',
+          'uv run PROJECT executes in the project environment — no manual "source .venv/bin/activate".',
+          'uv tool install makes standalone CLI tools — no poetry/pipx needed.',
+        ],
+        mistake: 'Sticking with pip for new projects — pip is slow and doesn\'t lock dependencies. uv solves both. Even if you don\'t use uv for install, use pip-tools or poetry for lockfiles.',
+        shorthand: {
+          verbose: `python -m venv .venv
+source .venv/bin/activate
+pip install httpx pydantic
+pip install --dev pytest ruff
+pip freeze > requirements.txt`,
+          concise: `uv init
+uv add httpx pydantic
+uv add --dev pytest ruff
+uv run pytest`
+        },
+      },
+      {
+        id: 'virtual-environments',
+        fn: 'Virtual Environments — Isolating Dependencies',
+        desc: 'python -m venv, .venv, activation, pip install -r requirements.txt — isolate project dependencies.',
+        category: 'Environments',
+        subtitle: 'venv, activation, pip freeze, requirements.txt, deactivate',
+        signature: 'python -m venv .venv  |  source .venv/bin/activate  |  pip install -r requirements.txt',
+        descLong: 'Virtual environments isolate project dependencies from system Python. venv is the stdlib tool (Python 3.3+). Create once per project, activate before developing, and install dependencies in it. pip freeze saves dependencies to requirements.txt for reproducibility. Deactivate to return to system Python. Always use venvs — never pollute system Python.',
+        code: `# ── Create virtual environment ────────────────────────
+python -m venv .venv             # create .venv directory
+python3.11 -m venv .venv         # specify Python version
+
+# ── Activate (differ by OS) ────────────────────────
+# macOS / Linux:
+source .venv/bin/activate
+
+# Windows:
+.venv\\Scripts\\activate
+
+# Fish shell:
+source .venv/bin/activate.fish
+
+# PowerShell:
+.venv/Scripts/Activate.ps1
+
+# ── Check activation ──────────────────────────────
+which python          # should show .venv/bin/python
+python --version      # confirms Python in venv
+
+# ── Install dependencies ──────────────────────────
+pip install httpx pydantic rich
+pip install -r requirements.txt              # install from file
+pip install -e .                             # editable install (dev)
+pip install -e ".[dev]"                      # install with dev extras
+
+# ── Manage dependencies ────────────────────────
+pip freeze > requirements.txt                # save current state
+pip install --upgrade pip                    # upgrade pip itself
+pip list                                     # show installed packages
+
+# ── Deactivate ─────────────────────────────────
+deactivate                                   # return to system Python
+
+# ── Reproducible setup (for CI/CD) ──────────
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pytest tests/`,
+        tips: [
+          'Always create .venv at project root — gitignore it (it\'s huge and contains system-specific binaries).',
+          'Commit requirements.txt (or better: uv.lock) to git for reproducible builds.',
+          'pip freeze captures exact versions: "pip freeze > requirements.txt" lets others install identical versions.',
+          'Deactivate before leaving your project or it can affect other work.',
+        ],
+        mistake: 'Installing packages globally ("sudo pip install ...") — pollutes system Python and breaks when Python upgrades. Always use a venv per project.',
+        shorthand: {
+          verbose: `cd my-project
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python main.py
+deactivate`,
+          concise: `uv venv
+uv sync
+uv run python main.py`
+        },
+      },
+      {
+        id: 'poetry',
+        fn: 'Poetry — Dependency Management & Publishing',
+        desc: 'poetry new, pyproject.toml, poetry add, install, build, publish — all-in-one packaging tool.',
+        category: 'Packaging',
+        subtitle: 'poetry init, add, install, build, publish, lock, poetry.lock',
+        signature: 'poetry new project  |  poetry add package  |  poetry build  |  poetry publish',
+        descLong: 'Poetry is a high-level package manager and build tool. It manages pyproject.toml, creates lockfiles (poetry.lock), handles dependencies, builds wheels/sdists, and publishes to PyPI. Poetry is feature-rich but slower than uv. Good for: projects with complex dependency management, existing Poetry projects, teams preferring Poetry workflows. For new projects, uv is faster; for existing Poetry projects, keep using Poetry.',
+        code: `# ── Installation ──────────────────────────────────────
+# curl -sSL https://install.python-poetry.org | python3 -
+
+# ── Create new project ────────────────────────────
+poetry new my-project                # creates my-project/ with structure
+cd my-project
+
+# ── Add dependencies ──────────────────────────────
+poetry add httpx pydantic            # add production dependencies
+poetry add --group dev pytest ruff   # add dev dependencies
+poetry remove httpx                  # remove a dependency
+
+# ── Manage virtual environment ─────────────────────
+poetry install                       # create .venv and install all deps
+poetry shell                         # activate Poetry venv
+poetry env info                      # show venv info
+
+# ── Run commands ────────────────────────────────
+poetry run pytest                    # run in Poetry venv
+poetry run python main.py
+
+# ── Build & publish ────────────────────────────
+poetry build                         # create dist/package-1.0.tar.gz and .whl
+poetry build --format wheel          # only wheel
+poetry check                         # validate pyproject.toml
+
+poetry publish                       # publish to PyPI
+poetry publish --repository testpypi # test on TestPyPI first
+poetry publish -u __token__ -p <token>  # publish with token
+
+# ── Lock dependencies ──────────────────────────
+poetry lock                          # update poetry.lock
+poetry lock --no-update              # lock without updating
+
+# pyproject.toml structure
+[tool.poetry]
+name = "my-package"
+version = "1.0.0"
+description = "My awesome package"
+authors = ["Alice <alice@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+httpx = "^0.25"
+pydantic = "^2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+ruff = "^0.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"`,
+        tips: [
+          'poetry.lock is deterministic — commit to git for reproducible installs.',
+          'poetry.add automatically updates pyproject.toml — no separate requirements files needed.',
+          'poetry publish requires PyPI token (not password) — generate at pypi.org/account/tokens/.',
+          'poetry is slower than uv but handles complex dependency resolution well.',
+        ],
+        mistake: 'Using Poetry when uv would be faster — for new projects, prefer uv. For existing Poetry projects, stick with Poetry to avoid migration overhead.',
+        shorthand: {
+          verbose: `poetry new my-package
+cd my-package
+poetry add httpx pydantic
+poetry add --group dev pytest`,
+          concise: `poetry add httpx pydantic
+poetry add --group dev pytest
+poetry build && poetry publish`
+        },
+      },
+      {
+        id: 'pip-tools',
+        fn: 'pip-tools — Requirements Pinning & Compilation',
+        desc: 'pip-compile, pip-sync, requirements.in → requirements.txt — ensure reproducible dependencies.',
+        category: 'Packaging',
+        subtitle: 'pip-compile, pip-sync, requirements.in, requirements.txt, --resolver',
+        signature: 'pip-compile requirements.in  |  pip-sync requirements.txt',
+        descLong: 'pip-tools pins dependencies to exact versions. Write high-level requirements in requirements.in (like "httpx>=0.25"), run pip-compile to generate requirements.txt with all transitive dependencies pinned to exact versions, then use pip-sync to install exactly what\'s in the file. This ensures reproducible builds and prevents "works on my machine" problems.',
+        code: `# ── Setup ────────────────────────────────────────────
+pip install pip-tools
+
+# ── Workflow ──────────────────────────────────────
+# 1. Write requirements.in (high-level dependencies)
+# cat > requirements.in
+# httpx>=0.25
+# pydantic>=2.0
+# rich
+
+# 2. Compile to exact versions
+pip-compile requirements.in         # generates requirements.txt
+pip-compile --resolver=backtracking requirements.in  # strict resolution
+
+# 3. Install (locks exact versions)
+pip-sync requirements.txt           # installs exactly what's in file
+
+# ── Updating dependencies ────────────────────────
+pip-compile --upgrade requirements.in  # update to latest compatible
+pip-compile --upgrade-package httpx requirements.in  # update one package
+
+# ── requirements.in example ───────────────────────
+# Development requirements
+-r requirements.txt  # include base requirements
+pytest>=8.0
+pytest-cov>=4.0
+ruff>=0.3
+mypy>=1.8
+
+# ── requirements.txt (output, don't edit by hand) ──
+# This file is autogenerated by pip-compile with Python 3.11
+# To update, run:
+#
+#    pip-compile requirements.in
+
+httpx==0.25.1
+pydantic==2.4.2
+rich==13.6.0
+typing-extensions==4.8.0  # transitive dependency
+...`,
+        tips: [
+          'pip-compile locks transitive dependencies — if httpx needs urllib3, both get pinned in requirements.txt.',
+          'Commit requirements.txt to git — it\'s the single source of truth for reproducible builds.',
+          'pip-sync only installs what\'s in requirements.txt, removing unlisted packages.',
+          'For CI/CD, use pip-compile + pip-sync to guarantee identical environments.',
+        ],
+        mistake: 'Manually editing requirements.txt — it\'s auto-generated. Edit requirements.in and recompile.',
+        shorthand: {
+          verbose: `pip install pip-tools
+pip-compile requirements.in
+pip install -r requirements.txt`,
+          concise: `pip-compile && pip-sync`
+        },
+      },
+    ],
+  },
+  {
+    id: 'distribution',
+    title: 'Distribution & Publishing',
+    entries: [
+      {
+        id: 'package-structure',
+        fn: 'Package Structure — src/ Layout & __init__.py',
+        desc: 'src/ layout, __init__.py, __all__, namespace packages — proper Python package organization.',
+        category: 'Packaging',
+        subtitle: 'src/ layout, __init__.py, __all__, namespace packages',
+        signature: 'src/my_package/__init__.py  |  __all__ = ["func1", "class1"]',
+        descLong: 'The src/ layout separates source code from tests and config, preventing accidental imports of the development version. __init__.py makes a directory a package. __all__ explicitly exports the public API. Namespace packages allow multiple packages to share a namespace (rare, use for plugins). Best practice: use src/my_package/ structure with pyproject.toml [tool.hatch.build.targets.wheel] packages = ["src/my_package"].',
+        code: `# ── Recommended src/ layout ──────────────────────
+my-package/
+├── src/
+│   └── my_package/
+│       ├── __init__.py
+│       ├── core.py
+│       ├── utils.py
+│       └── cli.py
+├── tests/
+│   ├── test_core.py
+│   └── test_utils.py
+├── docs/
+├── pyproject.toml
+├── README.md
+└── LICENSE
+
+# ── src/my_package/__init__.py ────────────────────
+"""My awesome package."""
+
+__version__ = "1.0.0"
+
+from .core import process, Pipeline
+from .utils import load_config
+
+# Explicit public API
+__all__ = [
+    "process",
+    "Pipeline",
+    "load_config",
+    "__version__",
+]
+
+# ── Avoid this (old style) ────────────────────────
+# my_package/  (at root, not in src/)
+# ├── __init__.py
+# ├── core.py
+# └── ...
+# Tests import development version instead of installed package
+
+# ── pyproject.toml — declare src/ layout ─────────
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/my_package"]
+
+# ── __all__ defines public API ──────────────────
+# Without __all__:
+# from my_package import *  # imports everything
+#
+# With __all__:
+# from my_package import *  # only imports what's in __all__
+
+# ── Namespace packages (advanced, rare) ─────────
+# pkg_namespace_company/auth/
+#   __init__.py (empty or PEP 420 namespace)
+# pkg_namespace_company/db/
+#   __init__.py (empty or PEP 420 namespace)
+#
+# Both share pkg_namespace_company namespace
+# Used for: corporate plugin systems, monorepos`,
+        tips: [
+          'Use src/ layout — tests import the installed package, not the development version. This catches import errors early.',
+          '__all__ is explicit — everyone sees exactly what\'s part of the public API. Omit __ prefixed items.',
+          'Namespace packages are rare — only use them for plugin systems where multiple vendors share a namespace.',
+          'Empty __init__.py is fine — it just marks the directory as a package. Add __version__, docstrings, and __all__ as needed.',
+        ],
+        mistake: 'Putting code at the root level instead of src/ — tests import the development version, masking import issues. Use src/my_package/.',
+        shorthand: {
+          verbose: `my_package/
+├── core.py
+├── utils.py
+└── __init__.py`,
+          concise: `src/my_package/
+├── __init__.py
+├── core.py
+└── utils.py`
+        },
+      },
+      {
+        id: 'setup-cfg',
+        fn: 'setup.cfg & setup.py — Legacy Packaging (For Maintenance)',
+        desc: 'Understand setup.py and setup.cfg for maintaining old packages — but use pyproject.toml for new ones.',
+        category: 'Packaging',
+        subtitle: 'setup.py, setup.cfg, setuptools, legacy format',
+        signature: 'python setup.py install  |  [metadata] name, version in setup.cfg',
+        descLong: 'setup.py and setup.cfg are the legacy Python packaging format (pre-PEP 517/621). Many existing projects still use them. setup.py is executable Python; setup.cfg is declarative INI. Both are being phased out in favor of pyproject.toml. Learn them for understanding existing projects, but use pyproject.toml for new ones.',
+        code: `# ── setup.py (legacy) ─────────────────────────────
+from setuptools import setup, find_packages
+
+setup(
+    name="my-package",
+    version="1.0.0",
+    description="My package",
+    author="Alice",
+    author_email="alice@example.com",
+    url="https://github.com/user/my-package",
+    packages=find_packages(),
+    install_requires=[
+        "httpx>=0.25",
+        "pydantic>=2.0",
+    ],
+    extras_require={
+        "dev": ["pytest>=8.0", "ruff>=0.3"],
+    },
+    entry_points={
+        "console_scripts": [
+            "my-cli=my_package.cli:main",
+        ],
+    },
+    python_requires=">=3.8",
+)
+
+# ── setup.cfg (legacy) ─────────────────────────
+[metadata]
+name = my-package
+version = 1.0.0
+description = My package
+author = Alice
+author_email = alice@example.com
+url = https://github.com/user/my-package
+
+[options]
+packages = find:
+python_requires = >=3.8
+install_requires =
+    httpx>=0.25
+    pydantic>=2.0
+
+[options.extras_require]
+dev =
+    pytest>=8.0
+    ruff>=0.3
+
+[options.entry_points]
+console_scripts =
+    my-cli = my_package.cli:main
+
+# ── Why migrate to pyproject.toml ──────────────
+# setup.py: executable Python, security risk, hard to parse
+# setup.cfg: INI format, verbose, requires setup.py anyway
+# pyproject.toml: declarative, standardized (PEP 621), secure`,
+        tips: [
+          'setup.py/setup.cfg are legacy — for new projects, use pyproject.toml.',
+          'find_packages() auto-discovers packages but can be slow — explicitly list them for large projects.',
+          'Migrating: use hatch or poetry to convert setup.py → pyproject.toml.',
+          'Read setup.py to understand old projects; write pyproject.toml for new ones.',
+        ],
+        mistake: 'Still writing new packages with setup.py — pyproject.toml is simpler, safer, and the industry standard.',
+        shorthand: {
+          verbose: `from setuptools import setup
+setup(
+    name="pkg",
+    version="1.0",
+    install_requires=["dep>=1"],
+)`,
+          concise: `[project]
+name = "pkg"
+version = "1.0"
+dependencies = ["dep>=1"]`
+        },
+      },
+      {
+        id: 'publishing-pypi',
+        fn: 'Publishing to PyPI — Build, Upload, Versioning',
+        desc: 'python -m build, twine upload, TestPyPI, versioning, .pypirc — share your package with the world.',
+        category: 'Publishing',
+        subtitle: 'build, twine, TestPyPI, versioning, .pypirc, tokens',
+        signature: 'python -m build  |  twine check dist/*  |  twine upload dist/*',
+        descLong: 'Publishing to PyPI makes your package installable via pip. Workflow: (1) build wheel and sdist, (2) test on TestPyPI, (3) publish to PyPI. Use semantic versioning (MAJOR.MINOR.PATCH). Store credentials in ~/.pypirc or use API tokens (not passwords). Package names on PyPI are permanent — test thoroughly before publishing.',
+        code: `# ── Installation ──────────────────────────────────────
+pip install build twine
+
+# ── Build distribution ────────────────────────────
+python -m build                      # creates dist/pkg-1.0.tar.gz and .whl
+ls -la dist/                         # inspect built files
+
+# ── Validate before publishing ───────────────────
+twine check dist/*                   # check for upload issues
+
+# ── Test on TestPyPI (recommended) ───────────────
+twine upload -r testpypi dist/*      # upload to test server
+pip install -i https://test.pypi.org/simple/ my-package==1.0.0
+
+# ── Publish to PyPI ────────────────────────────
+twine upload dist/*                  # publish to production PyPI
+pip install my-package               # everyone can now install it
+
+# ── Credentials (.pypirc) ──────────────────────
+# ~/.pypirc (create with 'chmod 600')
+[distutils]
+index-servers =
+    pypi
+    testpypi
+
+[pypi]
+repository: https://upload.pypi.org/legacy/
+username: __token__
+password: pypi-AgEIcHlwaS5vcmcCJA...  # token from pypi.org/account/tokens
+
+[testpypi]
+repository: https://test.pypi.org/legacy/
+username: __token__
+password: pypi-AgEIcHlAGc...
+
+# ── Versioning ─────────────────────────────────
+# Semantic Versioning: MAJOR.MINOR.PATCH
+# 1.2.3 = Major(breaking changes) . Minor(features) . Patch(bugfixes)
+#
+# 1.0.0 = initial release
+# 1.1.0 = added backward-compatible feature
+# 1.1.1 = bugfix
+# 2.0.0 = breaking changes
+
+# ── Workflow ──────────────────────────────────
+# 1. Update version in pyproject.toml: version = "1.1.0"
+# 2. python -m build
+# 3. twine check dist/*
+# 4. twine upload -r testpypi dist/*  (test)
+# 5. Verify: pip install -i https://test.pypi.org/simple/ my-package==1.1.0
+# 6. twine upload dist/*  (production)`,
+        tips: [
+          'Always use API tokens, never passwords — generate at pypi.org/account/tokens/.',
+          'Test on TestPyPI first — you can\'t delete or re-upload a version on PyPI. Names are permanent.',
+          'python -m build creates both .tar.gz (sdist) and .whl (wheel) — always upload both for compatibility.',
+          'Use semantic versioning — it tells users what changed (breaking, feature, bugfix).',
+        ],
+        mistake: 'Publishing before testing on TestPyPI — you might have metadata issues, missing files, or import errors. Always test on TestPyPI first.',
+        shorthand: {
+          verbose: `python -m build
+twine check dist/*
+twine upload -r testpypi dist/*
+pip install -i https://test.pypi.org/simple/ my-package==1.0.0
+twine upload dist/*`,
+          concise: `python -m build && twine upload dist/*`
+        },
+      },
+      {
+        id: 'conda-environments',
+        fn: 'Conda & conda-environments — Mixing conda + pip',
+        desc: 'conda create, environment.yml, conda vs venv — when conda is useful, mixing conda and pip.',
+        category: 'Environments',
+        subtitle: 'conda create, environment.yml, conda-forge, conda vs pip',
+        signature: 'conda create -n env python=3.11  |  conda env create -f environment.yml',
+        descLong: 'Conda is a package manager for Python and other languages. Stronger than pip for scientific stacks (NumPy, SciPy, PyTorch) and C dependencies. Create environments with conda create, export to environment.yml, manage with conda. Conda can coexist with venv. For pure-Python packages, venv+pip is simpler; for scientific computing, conda saves hours installing C libraries.',
+        code: `# ── Conda basics ──────────────────────────────────────
+conda create -n myenv python=3.11           # create environment
+conda create -n myenv python=3.11 numpy scipy  # with packages
+conda activate myenv                         # activate
+conda deactivate                             # exit
+
+# ── Install packages ──────────────────────────────
+conda install numpy pandas scikit-learn      # install conda packages
+conda install -c conda-forge package         # from conda-forge
+pip install package                          # mix pip (when conda unavailable)
+
+# ── Environment files ──────────────────────────────
+conda env export > environment.yml           # save environment
+conda env create -f environment.yml          # recreate from file
+conda env list                               # list environments
+conda env remove -n myenv                    # delete environment
+
+# ── environment.yml example ───────────────────────
+name: myproject
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy>=1.20
+  - pandas>=1.3
+  - scipy>=1.7
+  - pip
+  - pip:
+    - httpx>=0.25
+    - pydantic>=2.0
+
+# ── Conda vs pip (when to use each) ────────────────
+# Conda is better for:
+#   - Scientific stack (NumPy, SciPy, Pandas, PyTorch)
+#   - C/C++ dependencies (GDAL, OpenCV, MKL)
+#   - Environments with non-Python dependencies
+#
+# Pip is better for:
+#   - Pure-Python packages
+#   - Fast dependency resolution
+#   - Lightweight setups
+#
+# Mixing: use conda for scientific libraries, pip for pure-Python
+
+# ── Setup: conda + pip hybrid ──────────────────
+conda create -n myenv python=3.11
+conda activate myenv
+conda install numpy pandas jupyter
+pip install httpx pydantic rich  # pip-only packages
+conda env export > environment.yml
+
+# ── Mamba (faster conda) ───────────────────────
+# mamba create -n myenv python=3.11 (faster solver than conda)`,
+        tips: [
+          'Conda is worth it for scientific computing — installing PyTorch/TensorFlow with conda is 100x easier than pip.',
+          'For pure Python, venv+pip is simpler than conda.',
+          'Commit environment.yml to git for reproducible conda environments.',
+          'Mamba is a faster drop-in for conda — use it if conda is slow.',
+        ],
+        mistake: 'Using conda for pure-Python projects — adds overhead without benefit. Stick with venv+pip unless you need compiled C libraries.',
+        shorthand: {
+          verbose: `conda create -n env python=3.11 numpy scipy
+conda activate env
+pip install httpx`,
+          concise: `conda env create -f environment.yml
+conda activate myenv`
+        },
+      },
+    ],
+  },
+  {
+    id: 'dev-tools',
+    title: 'Development Tools',
+    entries: [
+      {
+        id: 'ruff-linting',
+        fn: 'ruff — The Fast Linter & Formatter',
+        desc: 'ruff check, ruff format, pyproject.toml config — 10-100x faster than flake8/black/isort combined.',
+        category: 'Linting',
+        subtitle: 'ruff check, ruff format, configuration, rule selection',
+        signature: 'ruff check .  |  ruff format .  |  ruff check --fix',
+        descLong: 'ruff is a Rust-based linter and formatter, 10-100x faster than flake8 + black + isort. Single tool replaces flake8, pylint, black, isort, and more. Configured in pyproject.toml [tool.ruff]. Supports hundreds of linting rules. --fix auto-fixes issues. Perfect for CI/CD and development workflows.',
+        code: `# ── Installation ──────────────────────────────────────
+pip install ruff
+
+# ── Basic commands ────────────────────────────────
+ruff check .                         # lint current directory
+ruff check src/                      # lint specific path
+ruff check --select E,F,W            # lint only specific rules
+ruff check --fix                     # auto-fix issues
+ruff format .                        # format code (black-compatible)
+ruff check --show-settings           # show active rules
+
+# ── Configuration (pyproject.toml) ─────────────
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = [".git", ".venv", "build", "dist", "migrations"]
+
+[tool.ruff.lint]
+# Select rule categories
+select = [
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes (undefined names, unused imports)
+    "W",    # pycodestyle warnings
+    "I",    # isort (import sorting)
+    "UP",   # pyupgrade (modern Python syntax)
+    "PT",   # flake8-pytest-style
+    "SIM",  # flake8-simplify
+    "B",    # flake8-bugbear (likely bugs)
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "E203",  # whitespace before ':'
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # ignore unused imports in __init__
+"tests/**/*.py" = ["F841"]  # ignore unused variables in tests
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# ── CI/CD integration ──────────────────────────
+# GitHub Actions example:
+# - name: Lint with ruff
+#   run: ruff check --output-format=github .
+#
+# - name: Format check
+#   run: ruff format --check .
+
+# ── Rules reference ───────────────────────────
+# E/W: pycodestyle (spacing, line length)
+# F: Pyflakes (undefined names, unused imports)
+# I: isort (import sorting)
+# B: bugbear (likely bugs)
+# UP: pyupgrade (Python 3.10+ syntax)
+# PT: pytest-style
+# RUF: ruff-specific rules`,
+        tips: [
+          'ruff is 10-100x faster than flake8/black/isort combined — single tool for all linting and formatting.',
+          'ruff format is black-compatible — it produces identical output.',
+          'ruff check --fix auto-fixes most issues — use it in pre-commit hooks.',
+          'start with default rules (E, F, W, I) and add more as your team scales.',
+        ],
+        mistake: 'Still using flake8 + black + isort separately — ruff does all three, faster.',
+        shorthand: {
+          verbose: `flake8 .
+black .
+isort .`,
+          concise: `ruff check --fix && ruff format .`
+        },
+      },
+      {
+        id: 'pre-commit',
+        fn: 'pre-commit — Hooks for Linting, Testing, Type Checking',
+        desc: '.pre-commit-config.yaml, auto-run hooks on commit — ruff, mypy, pytest, security checks.',
+        category: 'Development',
+        subtitle: 'pre-commit, hooks, .pre-commit-config.yaml, auto-fix',
+        signature: 'pre-commit install  |  pre-commit run --all-files',
+        descLong: 'pre-commit is a framework that runs linting, formatting, and testing hooks automatically before commits. Define hooks in .pre-commit-config.yaml, run pre-commit install to set up git hooks, and they run automatically. Prevents committing broken code, style violations, or security issues. Common hooks: ruff, mypy, black, pytest, bandit.',
+        code: `# ── Installation ──────────────────────────────────────
+pip install pre-commit
+
+# ── Configuration (.pre-commit-config.yaml) ────
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: ["types-requests"]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: [-ll]  # only high/medium severity
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        stages: [commit]
+        pass_filenames: false
+
+# ── Setup ──────────────────────────────────────
+pre-commit install                  # install git hooks
+pre-commit run --all-files          # run on all files (first time)
+pre-commit autoupdate               # update hook versions
+
+# ── Run manually (if needed) ──────────────────
+pre-commit run --hook-stage commit  # run before commit
+pre-commit run ruff --all-files     # run only ruff on all files
+
+# ── Skip hooks (emergency only) ───────────────
+git commit -m "..." --no-verify     # bypass hooks (use sparingly!)
+
+# ── Common hooks ────────────────────────────
+# - ruff: fast linting/formatting
+# - mypy: type checking
+# - pytest: run tests
+# - bandit: security checks
+# - yamllint: validate YAML
+# - trailing-whitespace: remove trailing whitespace
+# - end-of-file-fixer: ensure newline at EOF`,
+        tips: [
+          'pre-commit hooks run before commit — catch errors before they go to git.',
+          'args: [--fix] enables auto-fixing — ruff will fix issues automatically.',
+          'pre-commit autoupdate keeps hooks up-to-date with latest versions.',
+          'Local hooks (language: system) run arbitrary commands — pytest, custom scripts.',
+        ],
+        mistake: 'Skipping pre-commit setup — committing broken code, lint errors, or security issues. Set up pre-commit once and save hours of code review time.',
+        shorthand: {
+          verbose: `# Manual workflow:
+flake8 .
+black .
+mypy src
+pytest
+# ... all before each commit`,
+          concise: `# Automatic via pre-commit:
+pre-commit install
+# Runs linting, formatting, type checks, tests automatically`
+        },
+      },
+      {
+        id: 'mypy-config',
+        fn: 'mypy — Type Checking Configuration',
+        desc: 'mypy.ini / pyproject.toml [tool.mypy], strict mode, py.typed, inline type: ignore.',
+        category: 'Typing',
+        subtitle: 'mypy, strict mode, [tool.mypy], py.typed, type: ignore',
+        signature: 'mypy src/  |  mypy --strict .  |  py.typed marker',
+        descLong: 'mypy is the static type checker for Python. Integrates with IDEs for instant feedback. Configure in pyproject.toml [tool.mypy] or mypy.ini. Strict mode enforces comprehensive type annotations (recommended for new projects). py.typed marker signals that your package is type-safe (pip-compatible). Use alongside ruff for complete linting.',
+        code: `# ── Installation ──────────────────────────────────────
+pip install mypy
+
+# ── Basic usage ────────────────────────────────────
+mypy src/                           # type-check src/
+mypy --strict src/                  # enable strict mode
+mypy --show-error-codes src/        # show error codes
+mypy src/ --html report             # generate HTML report
+
+# ── Configuration (pyproject.toml) ─────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true                       # enable all strict options
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true        # require all defs typed
+disallow_any_unimported = true      # no Any from untyped libs
+
+# Exclude some files
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "migrations.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "vendor.*"
+ignore_missing_imports = true
+
+# ── py.typed marker (publish type hints) ────────
+# Create py.typed in your package root:
+# src/my_package/py.typed  (empty file)
+#
+# This signals: "this package has type hints"
+# Package consumers get type information in their IDEs
+
+# ── Inline type: ignore comments ────────────────
+def unsafe_function() -> str:
+    return some_untyped_lib.get_value()  # type: ignore
+
+# Disable for specific rule:
+x = some_untyped_func()  # type: ignore[return-value]
+
+# ── mypy.ini (legacy) ──────────────────────────
+[mypy]
+python_version = 3.12
+strict = True
+warn_unused_ignores = True`,
+        tips: [
+          'strict = true enforces comprehensive typing — catch errors at compile time, not runtime.',
+          'py.typed signals type safety to consumers — users of your package get IDE hints.',
+          'Use type: ignore sparingly — hiding types defeats mypy\'s purpose.',
+          'mypy + ruff + pytest = complete type checking, linting, and testing.',
+        ],
+        mistake: 'Running mypy without strict mode — you\'ll miss type errors. Enable strict mode for new projects.',
+        shorthand: {
+          verbose: `[tool.mypy]
+python_version = "3.12"
+strict = True`,
+          concise: `mypy --strict src/`
+        },
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

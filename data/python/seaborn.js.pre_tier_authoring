@@ -1,0 +1,1472 @@
+/**
+ * data/python/seaborn.js
+ * Seaborn — Statistical visualization. One subject per entry.
+ */
+
+export const meta = {
+  title: 'Seaborn',
+  domain: 'python',
+  sheet: 'seaborn',
+  icon: '📊',
+}
+
+export const sections = [
+{
+    id: 'distributions',
+    title: 'Distribution Plots',
+    entries: [
+      {
+        id: 'histplot',
+        fn: 'sns.histplot()',
+        desc: 'Plot the distribution of one or two variables as a histogram.',
+        category: 'Distribution',
+        subtitle: 'Modern histogram — replaces the deprecated sns.distplot()',
+        signature: 'sns.histplot(data, x="col", hue="group", kde=True, stat="count")',
+        descLong: 'histplot() is the modern seaborn histogram (replaces the removed distplot). kde=True overlays a kernel density estimate. stat= controls the y-axis: "count", "frequency", "density", or "percent". hue= splits by a categorical variable.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+# Load realistic data
+data = sns.load_dataset('tips')
+# Basic histogram:
+sns.histplot(data=data, x='total_bill', kde=True)
+plt.title('Distribution of Bill Amounts')
+# Group by categorical variable:
+sns.histplot(data=data, x='total_bill', hue='sex',
+             kde=True, multiple='layer')
+# Probability density (normalized):
+sns.histplot(data=data, x='total_bill',
+             stat='density', bins=15, kde=True)
+# Multiple variables (2D histogram):
+sns.histplot(data=data, x='total_bill', y='tip',
+             bins=15, cmap='viridis')
+plt.title('Bill vs Tip Pattern')
+# Cumulative distribution:
+             cumulative=True, stat='density')
+plt.ylabel('Cumulative Proportion')`,
+        tips: [
+          '`kde=True` is the easiest way to add a smooth density curve on top of a histogram',
+          '`stat="density"` normalizes to a probability density — makes groups with different n comparable',
+          '`multiple="fill"` shows proportions within each bin — best for comparing across groups',
+          '`bins="auto"` or `bins="fd"` (Freedman-Diaconis) often gives better bin widths than a fixed number',
+        ],
+        mistake: 'Using the deprecated `sns.distplot()`. It was removed in seaborn 0.12. Use `sns.histplot(kde=True)` for the equivalent result.',
+        shorthand: {
+          verbose: `import seaborn as sns
+import matplotlib.pyplot as plt
+data = sns.load_dataset('tips')
+sns.histplot(data=data, x='total_bill', kde=True)`,
+          concise: `plt.ylabel('Cumulative Proportion')`
+        }
+      },
+      {
+        id: 'kdeplot',
+        fn: 'sns.kdeplot()',
+        desc: 'Plot a smooth kernel density estimate of a distribution.',
+        category: 'Distribution',
+        subtitle: 'Smooth continuous density — 1D or 2D',
+        signature: 'sns.kdeplot(data, x="col", hue="group", fill=True)',
+        descLong: 'kdeplot() fits and plots a kernel density estimate — a smooth continuous version of a histogram. bw_adjust= controls smoothness. For 2D distributions, pass both x= and y= to get a contour plot.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Load data
+data = sns.load_dataset('tips')
+# Basic KDE (smooth density):
+sns.kdeplot(data=data, x='total_bill', fill=True)
+plt.title('Bill Amount Distribution (Smooth)')
+# Multiple distributions:
+sns.kdeplot(data=data, x='total_bill', hue='sex', fill=True, common_norm=False)
+# 2D KDE (contours):
+sns.kdeplot(data=data, x='total_bill', y='tip', fill=True, cmap='viridis')
+# With scatter underneath:
+sns.scatterplot(data=data, x='total_bill', y='tip', alpha=0.3)
+sns.kdeplot(data=data, x='total_bill', y='tip', color='red', levels=5)`,
+        tips: [
+          '`bw_adjust=` is a multiplier on the automatic bandwidth — <1 rougher, >1 smoother',
+          '`fill=True` with `alpha=0.3` makes overlapping groups visible',
+          '2D kdeplot with `fill=True` and a sequential colormap shows density as color intensity',
+          'Pair with `sns.rugplot()` to show individual data points below the curve',
+        ],
+        mistake: 'Using default bandwidth on a multimodal distribution — it may be over-smoothed and hide the multiple peaks. Use `bw_adjust=0.5` to reveal substructure.',
+        shorthand: {
+          verbose: `import seaborn as sns
+import matplotlib.pyplot as plt
+data = sns.load_dataset('tips')
+sns.kdeplot(data=data, x='total_bill', fill=True)`,
+          concise: `sns.kdeplot(data=data, x='total_bill', y='tip', color='red', levels=5)`
+        }
+      },
+      {
+        id: 'ecdfplot',
+        fn: 'sns.ecdfplot()',
+        desc: 'Plot the empirical cumulative distribution function.',
+        subtitle: 'Shows what fraction of data is below each value — no binning needed',
+        signature: 'sns.ecdfplot(data, x="col", hue="group", stat="proportion")',
+        descLong: 'ecdfplot() plots the empirical CDF — for each value x, it shows the proportion of observations less than or equal to x. Unlike histplot or kdeplot, the ECDF requires no binning or bandwidth choice. Excellent for comparing distributions across groups.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+# Basic ECDF:
+sns.ecdfplot(data=df, x='total_bill')
+# Compare groups:
+sns.ecdfplot(data=df, x='total_bill', hue='sex')
+# Complementary CDF (1 - ECDF):
+sns.ecdfplot(data=df, x='total_bill',
+    complementary=True)   # shows P(X > x)
+# stat= options:
+sns.ecdfplot(data=df, x='total_bill', stat='proportion')  # 0 to 1 (default)
+sns.ecdfplot(data=df, x='total_bill', stat='count')       # raw counts
+sns.ecdfplot(data=df, x='total_bill', stat='percent')     # 0 to 100
+
+# Combine with rugplot for raw data:
+ax = sns.ecdfplot(data=df, x='total_bill', hue='sex')
+sns.rugplot(data=df, x='total_bill', hue='sex',
+    ax=ax, height=0.05, alpha=0.4)
+# Read: at x=20, ECDF=0.5 means 50% of bills are <= $20
+# Good for: comparing medians, percentiles, distributional overlap`,
+        tips: [
+          'ECDF requires no binning or smoothing — every point is exact, not estimated',
+          'Where ECDFs cross, the distributions have the same proportion below that value',
+          '`complementary=True` shows the survival function: P(X > x) — useful for time-to-event',
+          'Two ECDFs that are far apart indicate very different distributions',
+        ],
+        mistake: 'Using histplot to compare two distributions when the sample sizes are different. histplot counts are hard to compare across groups of different size. Use ecdfplot or histplot with stat="density" instead.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.ecdfplot(data=df, x='total_bill')`,
+          concise: `ax=ax, height=0.05, alpha=0.4)`
+        }
+      },
+      {
+        id: 'rugplot',
+        fn: 'sns.rugplot()',
+        desc: 'Show individual data points as ticks along an axis.',
+        category: 'Distribution',
+        subtitle: 'Marginal rug — pair with kdeplot or ecdfplot for full picture',
+        signature: 'sns.rugplot(data, x="col", hue="group", height=0.05)',
+        descLong: 'rugplot() draws a small tick mark on the axis for each data point. On its own it gives a quick sense of density. Most useful as a marginal overlay on kdeplot, ecdfplot, or scatterplot to show the raw data distribution alongside a smooth summary.',
+        code: `import seaborn as sns
+# Basic rug (ticks along x-axis):
+sns.rugplot(data=df, x='total_bill')
+# Both axes (2D rug):
+sns.rugplot(data=df, x='total_bill', y='tip')
+# With color grouping:
+    alpha=0.5)
+# Tick height (as fraction of axes):
+sns.rugplot(data=df, x='total_bill', height=0.05)
+# ── Pair with KDE (most common use) ──────────────────
+ax = sns.kdeplot(data=df, x='total_bill', hue='sex',
+    fill=True, alpha=0.3)
+    ax=ax, height=0.05, alpha=0.5)
+# ── Pair with ECDF ────────────────────────────────────
+    ax=ax, height=0.05)
+# ── Marginal rug on scatter (use JointGrid for this) ──
+g = sns.JointGrid(data=df, x='total_bill', y='tip')
+g.plot_joint(sns.scatterplot, alpha=0.5)
+g.plot_marginals(sns.rugplot, height=1)`,
+        tips: [
+          'Rugplot is almost always used as an overlay — pair it with kdeplot or ecdfplot',
+          '`height=0.05` keeps the ticks small and unobtrusive — the default is often too tall',
+          'Pass `ax=` to draw on the same axes as an existing plot',
+          'For 2D marginal distributions, use JointGrid with `plot_marginals(sns.rugplot)`',
+        ],
+        mistake: 'Using rugplot alone as the primary visualization. It only shows data locations without quantifying density. Pair it with kdeplot or ecdfplot for a complete picture.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.rugplot(data=df, x='total_bill')`,
+          concise: `g.plot_marginals(sns.rugplot, height=1)`
+        }
+      },
+
+
+      {
+        id: 'displot',
+        fn: 'sns.displot()',
+        desc: 'Figure-level distribution plot with built-in faceting.',
+        subtitle: 'Figure-level wrapper for histplot/kdeplot/ecdfplot with col= and row=',
+        signature: 'sns.displot(data, x="col", col="group", kind="hist")',
+        descLong: 'displot() is the figure-level distribution function. It wraps histplot, kdeplot, and ecdfplot and adds faceting via col= and row=. Returns a FacetGrid — not an Axes.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+# Default histogram:
+sns.displot(data=df, x='total_bill')
+# With KDE:
+sns.displot(data=df, x='total_bill', kde=True)
+# Faceted by column:
+g = sns.displot(data=df, x='total_bill',
+    col='time', hue='sex',
+    kind='hist', kde=True,
+    height=4, aspect=0.9)
+# KDE variant:
+sns.displot(data=df, x='total_bill', col='sex',
+    kind='kde', fill=True)
+# ECDF variant:
+sns.displot(data=df, x='total_bill', col='day',
+    kind='ecdf', height=4)
+# Customize the FacetGrid:
+g.set_axis_labels('Total Bill ($)', 'Count')
+g.set_titles('{col_name} service')
+g.figure.suptitle('Bill distributions', y=1.02)
+g.add_legend()`,
+        tips: [
+          '`kind="hist"` (default), `"kde"`, or `"ecdf"` — switch the plot type while keeping faceting',
+          '`height=` and `aspect=` control the size of each facet panel',
+          'Returns a `FacetGrid` — use `g.figure` to access the underlying matplotlib Figure',
+          '`col_wrap=3` wraps columns into a grid when you have many facets',
+        ],
+        mistake: 'Trying to pass `ax=` to `sns.displot()`. It is a figure-level function that manages its own Figure. Use `sns.histplot()` or `sns.kdeplot()` when you need to specify an existing Axes.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.displot(data=df, x='total_bill')`,
+          concise: `g.add_legend()`
+        }
+      },
+    ],
+  },
+  {
+    id: 'categorical',
+    title: 'Categorical Plots',
+    entries: [
+      {
+        id: 'boxplot',
+        fn: 'sns.boxplot()',
+        desc: 'Show the distribution of a variable across categories using box-and-whisker.',
+        category: 'Categorical',
+        subtitle: 'Median, quartiles, and outliers at a glance',
+        signature: 'sns.boxplot(data, x="group", y="value", hue="subgroup")',
+        descLong: 'boxplot() shows the median, IQR, and outliers. The box spans Q1-Q3, the line is the median, whiskers extend to 1.5×IQR, and points beyond are outliers. Use hue= to split by a second variable.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Load data
+data = sns.load_dataset('tips')
+# Basic box plot:
+sns.boxplot(data=data, x='day', y='total_bill')
+plt.title('Bill Distribution by Day of Week')
+# Color by category:
+sns.boxplot(data=data, x='day', y='total_bill', hue='sex')
+# Vertical orientation:
+sns.boxplot(data=data, y='total_bill', x='day')
+# Wider palette:
+sns.boxplot(data=data, x='day', y='total_bill', palette='Set2')
+# Multiple groupings (hue):
+sns.boxplot(data=data, x='day', y='total_bill', hue='time')`,
+        tips: [
+          'Set `fill=False, fliersize=0` in boxplot then overlay `sns.stripplot()` to show raw data',
+          '`order=` controls category order — always set explicitly to avoid alphabetical surprises',
+          'Whiskers extend to 1.5×IQR by default — points beyond are plotted as outliers',
+          'For many groups, try `orient="h"` for horizontal boxes with room for long labels',
+        ],
+        mistake: 'Using boxplot alone for small datasets where all the data points matter. Overlay `sns.stripplot()` so individual observations are visible.',
+        shorthand: {
+          verbose: `import seaborn as sns
+import matplotlib.pyplot as plt
+data = sns.load_dataset('tips')
+sns.boxplot(data=data, x='day', y='total_bill')`,
+          concise: `sns.boxplot(data=data, x='day', y='total_bill', hue='time')`
+        }
+      },
+      {
+        id: 'violinplot',
+        fn: 'sns.violinplot()',
+        desc: 'Show full distribution shape using a mirrored KDE.',
+        subtitle: 'Better than boxplot when n is large or distribution is multimodal',
+        signature: 'sns.violinplot(data, x="group", y="value", inner="quartile")',
+        descLong: 'violinplot() shows the full distribution shape as a mirrored KDE, not just quartiles. More informative than a boxplot when the distribution is multimodal or when sample size is large enough to estimate density reliably.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+# Basic:
+sns.violinplot(data=df, x='day', y='total_bill')
+# Inner display options:
+sns.violinplot(data=df, x='day', y='total_bill',
+    inner='quartile')   # quartile | box | point | stick | None
+# Split violin by hue (two groups, one violin):
+    hue='sex', split=True)
+
+# Narrow violins (bw_adjust):
+    density_norm='width',   # all violins same width
+    bw_adjust=0.5)          # smoother/rougher KDE
+# With individual points:
+ax = sns.violinplot(data=df, x='day', y='total_bill',
+    inner=None, alpha=0.6)
+sns.stripplot(data=df, x='day', y='total_bill',
+    ax=ax, color='black', size=2, alpha=0.5)`,
+        tips: [
+          'Violin plots reveal multimodal distributions that boxplots hide — prefer them when n > 30',
+          '`split=True` with `hue=` draws both groups on the same violin — saves space for side-by-side comparison',
+          '`inner=None` then overlay `sns.stripplot()` shows the raw data on top of the density',
+          '`bw_adjust=0.5` reveals substructure; `bw_adjust=2.0` smooths over noise',
+        ],
+        mistake: 'Using violin plots with small samples (n < 20). The KDE is unreliable — use a swarmplot or stripplot that shows the actual data points instead.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.violinplot(data=df, x='day', y='total_bill')`,
+          concise: `ax=ax, color='black', size=2, alpha=0.5)`
+        }
+      },
+      {
+        id: 'stripplot',
+        fn: 'sns.stripplot()',
+        desc: 'Plot all individual data points along a categorical axis.',
+        category: 'Categorical',
+        subtitle: 'Show every observation — best for small or medium datasets',
+        signature: 'sns.stripplot(data, x="group", y="value", jitter=True)',
+        descLong: 'stripplot() plots every data point along a categorical axis with jitter to reduce overlap. It is most useful for small datasets where you want to show all the raw data. Combine with boxplot or violinplot for large datasets.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+
+df = sns.load_dataset('tips')
+
+# Basic with jitter:
+sns.stripplot(data=df, x='day', y='total_bill',
+    jitter=True, alpha=0.6)
+
+# No jitter (aligned — useful for small n):
+sns.stripplot(data=df, x='day', y='total_bill',
+    jitter=False)
+
+# Split by hue:
+sns.stripplot(data=df, x='day', y='total_bill',
+    hue='sex', dodge=True, alpha=0.6)
+
+# Overlay on boxplot:
+ax = sns.boxplot(data=df, x='day', y='total_bill',
+    fill=False, fliersize=0)
+sns.stripplot(data=df, x='day', y='total_bill',
+    ax=ax, alpha=0.4, size=3, color='steelblue')
+
+# swarmplot — non-overlapping points (slower):
+sns.swarmplot(data=df, x='day', y='total_bill')
+# swarmplot arranges points so none overlap — cleaner but slower for large n`,
+        tips: [
+          'Combine stripplot with boxplot: set `fill=False, fliersize=0` in boxplot then overlay strips',
+          '`dodge=True` with `hue=` separates the two groups — prevents all points sitting on top of each other',
+          'For more than ~200 points, use `swarmplot` (non-overlapping) or reduce `size=` and `alpha=`',
+          '`sns.swarmplot()` is the non-overlapping alternative — cleaner but computationally slower for large n',
+        ],
+        mistake: 'Using stripplot with large datasets (n > 500) and getting a solid color block. Reduce `size=1`, increase `alpha=0.2`, or switch to a violin/box plot.',
+        shorthand: {
+          verbose: `        import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.ecdfplot(data=df, x='total_bill')
+sns.ecdfplot(data=df, x='total_bill', hue='sex')`,
+          concise: `    ax=ax, height=0.05, alpha=0.4)`
+        }
+      },
+      {
+        id: 'swarmplot',
+        fn: 'sns.swarmplot()',
+        desc: 'Plot all data points without overlap — non-overlapping jitter.',
+        category: 'Categorical',
+        subtitle: 'Cleaner than stripplot for small-to-medium datasets',
+        signature: 'sns.swarmplot(data, x="group", y="value", hue="subgroup")',
+        descLong: 'swarmplot() is like stripplot() but uses a beeswarm algorithm to position points so they do not overlap. The result is a categorical scatter where every point is visible. Slower than stripplot and does not scale to large n — use for n < 500.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+# Basic:
+# Colored by group:
+sns.swarmplot(data=df, x='day', y='total_bill',
+    hue='sex', dodge=True)
+# Point size:
+sns.swarmplot(data=df, x='day', y='total_bill', size=3)
+# Overlay on boxplot (common pattern):
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.boxplot(data=df, x='day', y='total_bill',
+    fill=False, fliersize=0, ax=ax)
+    color='steelblue', size=3, alpha=0.6, ax=ax)
+# vs stripplot:
+# swarmplot — no overlap, beeswarm layout, slower, max ~500 pts
+# stripplot — random jitter, faster, scales to thousands of points
+# For large n — use stripplot with small size and alpha:
+sns.stripplot(data=df, x='day', y='total_bill',
+    size=2, alpha=0.3, jitter=True)`,
+        tips: [
+          'swarmplot is best for n < 500 — above that it becomes slow and crowded',
+          'Overlay on boxplot: `fill=False, fliersize=0` in boxplot, then swarmplot on the same ax',
+          '`dodge=True` with hue separates the two groups side by side',
+          'For larger datasets, use stripplot with `size=2, alpha=0.3` instead',
+        ],
+        mistake: 'Using swarmplot on datasets with more than 500-1000 points. The beeswarm algorithm becomes very slow and the plot becomes unreadable. Use stripplot for large n.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.swarmplot(data=df, x='day', y='total_bill')`,
+          concise: `size=2, alpha=0.3, jitter=True)`
+        }
+      },
+
+      {
+        id: 'barplot',
+        fn: 'sns.barplot()',
+        desc: 'Show the mean of a variable per category with a 95% confidence interval.',
+        category: 'Categorical',
+        subtitle: 'Shows mean + CI — NOT raw counts or totals',
+        signature: 'sns.barplot(data, x="group", y="value", estimator="mean")',
+        descLong: 'barplot() shows the mean (or another estimator) with a 95% confidence interval. It does NOT show raw counts — use countplot() for counts or aggregate your data first for totals.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+# Load data
+data = sns.load_dataset('tips')
+# Average tip by day:
+sns.barplot(data=data, x='day', y='tip', hue='sex')
+plt.title('Average Tip by Day & Gender')
+# Mean with CI (confidence interval):
+sns.barplot(data=data, x='day', y='total_bill', errorbar='sd')
+# Single color:
+sns.barplot(data=data, x='day', y='total_bill', color='steelblue')
+# Order categories:
+sns.barplot(data=data, x='day', y='tip', order=['Thur', 'Fri', 'Sat', 'Sun'])`,
+        tips: [
+          '`sns.barplot()` shows the **mean** — not totals or counts. Use `sns.countplot()` for counts',
+          '`errorbar="sd"` shows ±1 std dev — shows variability, not uncertainty in the mean',
+          'Always set `order=` explicitly — alphabetical ordering is rarely what you want',
+          '`estimator="median"` is more robust to outliers than the default mean',
+        ],
+        mistake: 'Expecting barplot to show totals or counts. It shows the **mean** with a confidence interval. For counts: `sns.countplot()`. For pre-aggregated data: use `ax.bar()` directly.',
+        shorthand: {
+          verbose: `import seaborn as sns
+import matplotlib.pyplot as plt
+data = sns.load_dataset('tips')
+sns.barplot(data=data, x='day', y='tip', hue='sex')`,
+          concise: `sns.barplot(data=data, x='day', y='tip', order=['Thur', 'Fri', 'Sat', 'Sun'])`
+        }
+      },
+      {
+        id: 'countplot',
+        fn: 'sns.countplot()',
+        desc: 'Show the count of observations in each categorical bin.',
+        subtitle: 'Bar chart of raw counts — no y variable needed',
+        signature: 'sns.countplot(data, x="col", hue="group", order=[])',
+        descLong: 'countplot() counts the occurrences of each category and displays them as bars. Unlike barplot() it does not need a y variable — it counts the rows. The most common plot for showing category frequency.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+# Basic count of each category:
+sns.countplot(data=df, x='day')
+# Horizontal (better for long labels):
+sns.countplot(data=df, y='day')
+
+# Split by hue:
+sns.countplot(data=df, x='day', hue='sex')
+# Control order:
+sns.countplot(data=df, x='day',
+    order=['Thur', 'Fri', 'Sat', 'Sun'])
+# Order by frequency (most common first):
+order = df['day'].value_counts().index
+sns.countplot(data=df, x='day', order=order)
+# Add value labels on top of bars:
+ax = sns.countplot(data=df, x='day', order=order)
+for container in ax.containers:
+    ax.bar_label(container)
+# With palette:
+    palette='Set2',
+    order=order)`,
+        tips: [
+          '`order=df["col"].value_counts().index` sorts bars from most to least frequent',
+          '`ax.bar_label(container)` adds count labels on top of bars — one line of code',
+          'Use `y=` instead of `x=` for horizontal bars — gives room for long category names',
+          'countplot is essentially `barplot` with `estimator=len` — it counts, not aggregates',
+        ],
+        mistake: 'Using barplot() when you just want counts. barplot() shows the mean of a numeric column with CI bands. countplot() shows raw row counts — no y variable needed.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.countplot(data=df, x='day')`,
+          concise: `order=order)`
+        }
+      },
+      {
+        id: 'pointplot',
+        fn: 'sns.pointplot()',
+        desc: 'Show mean and CI per category as connected points.',
+        category: 'Categorical',
+        subtitle: 'Like barplot but with dots and lines — great for showing trends',
+        signature: 'sns.pointplot(data, x="group", y="value", hue="subgroup")',
+        descLong: 'pointplot() shows the mean per category as a point with a CI bar, connecting points with a line. Most useful when the x-axis has a natural order (time, dose level, ordinal category) and you want to see the trend across categories.',
+        code: `import seaborn as sns
+# Basic:
+sns.pointplot(data=df, x='day', y='total_bill')
+# Split by hue — separate lines:
+sns.pointplot(data=df, x='day', y='total_bill',
+    hue='sex')
+# Dodge to separate overlapping groups:
+sns.pointplot(data=df, x='day', y='total_bill',
+    hue='sex', dodge=True)
+# Estimator and error:
+    estimator='median',
+    errorbar='sd')
+# No connecting line (just points):
+    linestyle='none',
+    capsize=0.1)
+
+# catplot with kind="point" (figure-level):
+g = sns.catplot(data=df, x='day', y='total_bill',
+    hue='sex', kind='point',
+    col='time', dodge=True)`,
+        tips: [
+          'pointplot is ideal when x has a natural ordering — the connecting line implies progression',
+          'Use `dodge=True` with hue so overlapping groups do not sit on top of each other',
+          '`linestyle="none"` shows just points with CI bars — a Cleveland dot plot style',
+          'For unordered categories, barplot or boxplot communicates better than a connecting line',
+        ],
+        mistake: 'Using pointplot for unordered categories like city names. The connecting line implies a trend between adjacent categories — use barplot or boxplot for nominal categories.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.pointplot(data=df, x='day', y='total_bill')`,
+          concise: `col='time', dodge=True)`
+        }
+      },
+
+
+    ],
+  },
+  {
+    id: 'relational',
+    title: 'Relational & Regression Plots',
+    entries: [
+      {
+        id: 'scatterplot',
+        fn: 'sns.scatterplot()',
+        desc: 'Plot the relationship between two continuous variables.',
+        category: 'Relational',
+        subtitle: 'Encode up to 5 dimensions via x, y, hue, size, and style',
+        signature: 'sns.scatterplot(data, x="x", y="y", hue="group", size="n")',
+        descLong: 'scatterplot() plots individual data points and can encode additional dimensions through hue (color), size, and style (marker shape). Adds automatic legend and palette management.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+# Load realistic data
+data = sns.load_dataset('penguins').dropna()
+# Basic scatter:
+sns.scatterplot(data=data, x='bill_length_mm', y='bill_depth_mm')
+plt.title('Penguin Bill Measurements')
+# Color by category:
+sns.scatterplot(data=data, x='bill_length_mm', y='bill_depth_mm',
+                hue='species', size='body_mass_g', sizes=(30, 200))
+# Multiple hues and sizes:
+                hue='species', style='sex', size='body_mass_g')
+# Regression line:
+sns.regplot(data=data, x='bill_length_mm', y='bill_depth_mm')
+# Faceted scatter (by category):
+sns.lmplot(data=data, x='bill_length_mm', y='bill_depth_mm',
+           col='species', hue='sex')`,
+        tips: [
+          'Use `hue`, `size`, AND `style` to show three categorical variables on one scatter plot',
+          '`alpha=0.5-0.7` is essential for overlapping points — reveals density',
+          'Legend position: `plt.legend(loc="upper left", bbox_to_anchor=(1, 1))` to move outside',
+          'For very large datasets, use `rasterized=True` to render the points as a bitmap — smaller file size',
+        ],
+        mistake: 'Using too many hue categories in a scatter plot. More than ~6 colors become hard to distinguish. Use `style=` for a second variable, or facet with `sns.relplot(col=)`.',
+        shorthand: {
+          verbose: `import seaborn as sns
+import matplotlib.pyplot as plt
+data = sns.load_dataset('penguins').dropna()
+sns.scatterplot(data=data, x='bill_length_mm', y='bill_depth_mm')`,
+          concise: `col='species', hue='sex')`
+        }
+      },
+      {
+        id: 'lineplot',
+        fn: 'sns.lineplot()',
+        desc: 'Plot a relationship between two variables as a line with confidence band.',
+        subtitle: 'Aggregates multiple y values per x — shows mean + CI band',
+        signature: 'sns.lineplot(data, x="x", y="y", hue="group", errorbar="ci")',
+        descLong: 'lineplot() automatically aggregates multiple y values at each x and draws the mean with a 95% CI band. Use errorbar=None to disable the band. Use units= to draw one line per subject without aggregation.',
+        code: `import pandas as pd
+import seaborn as sns
+
+fmri = sns.load_dataset('fmri')
+# Basic — auto aggregates, shows CI band:
+sns.lineplot(data=fmri, x='timepoint', y='signal')
+# By group:
+sns.lineplot(data=fmri, x='timepoint', y='signal',
+    hue='region', style='event')
+# Error band options:
+    errorbar='sd')        # std dev band
+    errorbar=None)        # no band — just the mean line
+# Draw one line per subject (no aggregation):
+    units='subject', estimator=None,
+    alpha=0.3, color='steelblue')
+# With markers at each data point:
+    hue='region', markers=True, dashes=False)`,
+        tips: [
+          '`errorbar=None` turns off aggregation display — just the mean line',
+          '`estimator=None` with `units=` draws one line per unit — no aggregation at all',
+          '`dashes=False` uses color only to distinguish groups (not dashes) — cleaner for colorful plots',
+          '`markers=True` adds a marker at each x position — useful for sparse time series',
+        ],
+        mistake: 'Expecting `lineplot()` to just connect dots in order. It aggregates multiple y values per x by default. Use `estimator=None` and sort your data first to get a simple connecting line.',
+        shorthand: {
+          verbose: `import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+fmri = sns.load_dataset('fmri')`,
+          concise: `hue='region', markers=True, dashes=False)`
+        }
+      },
+      {
+        id: 'relplot',
+        fn: 'sns.relplot()',
+        desc: 'Figure-level relational plot with faceting.',
+        category: 'Relational',
+        subtitle: 'Figure-level wrapper for scatterplot and lineplot with col= and row=',
+        signature: 'sns.relplot(data, x="x", y="y", col="group", kind="scatter")',
+        descLong: 'relplot() is the figure-level version of scatterplot and lineplot. It adds faceting via col= and row=. Returns a FacetGrid.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+# Faceted scatter:
+g = sns.relplot(
+    data    = fmri,
+    x       = 'timepoint',
+    y       = 'signal',
+    col     = 'region',
+    hue     = 'event',
+    kind    = 'line',        # scatter | line
+    height  = 4,
+    aspect  = 0.9,
+)
+# Customize the FacetGrid:
+g.set_axis_labels('Time', 'Signal')
+g.set_titles('Region: {col_name}')
+g.figure.suptitle('FMRI Signal by Region', y=1.02)
+g.add_legend(title='Event')
+
+# Row + col faceting:
+    data   = fmri,
+    x      = 'timepoint',
+    y      = 'signal',
+    col    = 'region',
+    row    = 'event',
+    kind   = 'line',
+    height = 3,
+)`,
+        tips: [
+          '`col_wrap=3` wraps facets into a grid when you have many groups',
+          'FacetGrid customization: `g.set_axis_labels()`, `g.set_titles()`, `g.figure.suptitle()`',
+          '`height=` sets panel height in inches; `aspect=` sets width/height ratio',
+          'Use `relplot` when you want small multiples; use `scatterplot`/`lineplot` for single panels',
+        ],
+        mistake: 'Passing `ax=` to `sns.relplot()`. It is a figure-level function that creates its own Figure. Use `sns.scatterplot()` or `sns.lineplot()` with `ax=` for subplot layouts.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+fmri = sns.load_dataset('fmri')
+g = sns.relplot(`,
+          concise: `)`
+        }
+      },
+      {
+        id: 'catplot',
+        fn: 'sns.catplot()',
+        desc: 'Figure-level categorical plot with faceting.',
+        category: 'Categorical',
+        subtitle: 'Figure-level wrapper for all categorical plots with col= and row=',
+        signature: 'sns.catplot(data, x="g", y="v", col="facet", kind="box")',
+        descLong: 'catplot() is the figure-level version of all categorical axes-level plots. kind= selects the plot type: strip, swarm, box, violin, boxen, bar, count, or point. Adds col= and row= faceting. Returns a FacetGrid.',
+        code: `import seaborn as sns
+df = sns.load_dataset('tips')
+# Faceted boxplot:
+g = sns.catplot(
+    data   = df,
+    x      = 'day',
+    y      = 'total_bill',
+    col    = 'time',
+    kind   = 'box',        # strip|swarm|box|violin|boxen|bar|count|point
+    height = 5,
+    aspect = 0.8,
+# Available kind= options:
+# strip   → sns.stripplot()
+# swarm   → sns.swarmplot()
+# box     → sns.boxplot()
+# violin  → sns.violinplot()
+# boxen   → enhanced boxplot (lettervalue)
+# bar     → sns.barplot() (shows mean + CI)
+# count   → sns.countplot()
+# point   → sns.pointplot()
+# With hue and multiple facets:
+    data    = df,
+    x       = 'day',
+    y       = 'total_bill',
+    hue     = 'sex',
+    col     = 'time',
+    kind    = 'violin',
+    split   = True,
+    height  = 5,
+)
+
+g.set_axis_labels('Day', 'Total Bill ($)')
+g.set_titles('{col_name} service')
+g.figure.suptitle('Bills by Day and Time', y=1.02)`,
+        tips: [
+          'catplot is the go-to for faceted categorical plots — replaces building subplots manually',
+          '`kind="boxen"` (letter-value plot) is a better boxplot for large datasets — shows more quantiles',
+          'Returns a FacetGrid — customize with `g.set_axis_labels()`, `g.set_titles()`, `g.figure.suptitle()`',
+          '`col_wrap=2` wraps columns into a grid — useful when you have many facets',
+        ],
+        mistake: 'Passing ax= to catplot. It is a figure-level function that creates its own Figure. Use the axes-level equivalent (boxplot, violinplot, etc.) when you need to place a plot in an existing Axes.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+g = sns.catplot(`,
+          concise: `g.figure.suptitle('Bills by Day and Time', y=1.02)`
+        }
+      },
+
+    
+      {
+        id: 'regplot',
+        fn: 'sns.regplot()',
+        desc: 'Scatter plot with a fitted regression line and confidence band.',
+        category: 'Regression',
+        subtitle: 'Axes-level regression visualization with optional polynomial or lowess fit',
+        signature: 'sns.regplot(data, x="x", y="y", order=1, logistic=False)',
+        descLong: 'regplot() draws a scatter plot and fits a regression line with a 95% CI band. order= for polynomial regression, logistic=True for logistic regression (binary y), lowess=True for non-parametric smoothing.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+# Basic linear:
+sns.regplot(data=df, x='total_bill', y='tip',
+    scatter_kws = {'alpha': 0.4, 's': 20},
+    line_kws    = {'color': 'red', 'linewidth': 2},
+    ci          = 95,
+# Polynomial (order=2):
+sns.regplot(data=df, x='total_bill', y='tip', order=2)
+# Logistic (binary y variable):
+df['big_tip'] = (df['tip'] / df['total_bill'] > 0.2).astype(int)
+sns.regplot(data=df, x='total_bill', y='big_tip',
+    logistic=True, y_jitter=0.03)
+# Lowess (non-parametric smoother):
+    lowess=True, line_kws={'color': 'red'})
+# No scatter (line only):
+    scatter=False)`,
+        tips: [
+          '`ci=None` disables the confidence band — useful when n is large and the band is very narrow',
+          '`lowess=True` reveals non-linear relationships without assuming a functional form',
+          '`order=2` fits a quadratic — check if the curve is meaningfully better before using it',
+          'Use `sns.lmplot()` (figure-level) for the same plot with `col=` and `row=` faceting',
+        ],
+        mistake: 'Interpreting the CI band as a prediction interval. It is the **confidence interval for the regression line** — uncertainty in the mean, not the range for individual observations.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.regplot(data=df, x='total_bill', y='tip',`,
+          concise: `scatter=False)`
+        }
+      },
+      {
+        id: 'lmplot',
+        fn: 'sns.lmplot()',
+        desc: 'Figure-level regression plot with faceting and grouping.',
+        subtitle: 'Figure-level regplot — adds col=, row=, and hue= grouping',
+        signature: 'sns.lmplot(data, x="x", y="y", hue="group", col="facet")',
+        descLong: 'lmplot() is the figure-level version of regplot. It adds hue= grouping (separate regression lines per group) and col=/row= faceting. Returns a FacetGrid.',
+        code: `import seaborn as sns
+# Grouped regression lines:
+sns.lmplot(data=df, x='total_bill', y='tip',
+    hue='sex',
+    scatter_kws={'alpha': 0.5})
+# Faceted:
+g = sns.lmplot(data=df, x='total_bill', y='tip',
+    col='time', hue='sex',
+    height=5, aspect=0.9)
+g.set_axis_labels('Total Bill ($)', 'Tip ($)')
+# No scatter:
+sns.lmplot(data=df, x='total_bill', y='tip',
+    hue='sex', scatter=False)
+# Polynomial:
+sns.lmplot(data=df, x='total_bill', y='tip',
+    order=2)`,
+        tips: [
+          '`hue=` draws a separate regression line per group — the most common use case for lmplot',
+          '`scatter=False` shows only the regression lines — cleaner for comparing slopes across groups',
+          'Customize using `g.set_axis_labels()`, `g.set_titles()`, `g.figure.suptitle()`',
+          'For a single panel without faceting, `sns.regplot()` (axes-level) is simpler',
+        ],
+        mistake: 'Using lmplot inside `plt.subplots()`. lmplot creates its own Figure — it cannot be placed in an existing Axes. Use `sns.regplot()` for subplot layouts.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+sns.lmplot(data=df, x='total_bill', y='tip',`,
+          concise: `order=2)`
+        }
+      },
+      {
+        id: 'residplot',
+        fn: 'sns.residplot()',
+        desc: 'Plot residuals of a linear regression to check model fit.',
+        category: 'Regression',
+        subtitle: 'Diagnose non-linearity — residuals should scatter randomly around 0',
+        signature: 'sns.residplot(data, x="x", y="y", lowess=True)',
+        descLong: 'residplot() plots the residuals (actual - predicted) against the predictor variable. Residuals that scatter randomly around y=0 indicate a good linear fit. Curved patterns indicate non-linearity — the linear model is misspecified.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+# Basic residual plot:
+sns.residplot(data=df, x='total_bill', y='tip')
+# Add a lowess smoother to reveal patterns:
+sns.residplot(data=df, x='total_bill', y='tip',
+    lowess=True,
+    line_kws={'color': 'red', 'linewidth': 2})
+
+# Good fit: points scattered randomly around y=0
+# Bad fit: curved pattern → non-linear relationship
+# Interpret patterns:
+# - Horizontal scatter around 0 → linear model is appropriate
+# - U-shape or curve → consider polynomial or log transform
+# - Fan shape (heteroscedasticity) → consider log(y) transform
+# - Outliers far from 0 → influential observations
+# Add reference line at 0:
+ax = sns.residplot(data=df, x='total_bill', y='tip')
+ax.axhline(y=0, color='black', linewidth=0.5)`,
+        tips: [
+          '`lowess=True` adds a smoother — the red line reveals systematic patterns in the residuals',
+          'A straight horizontal lowess line through 0 confirms the linear assumption is valid',
+          'Fan-shaped residuals (increasing spread with x) suggest `log(y)` transformation',
+          'Pair residplot with histplot of residuals to check the normality assumption',
+        ],
+        mistake: 'Not checking residuals after fitting a linear model. A curved residual pattern means the linear model is wrong — the relationship requires a transformation or polynomial term.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      }
+],
+  },
+  {
+    id: 'matrix',
+    title: 'Matrix & Pairwise Plots',
+    entries: [
+      {
+        id: 'heatmap',
+        fn: 'sns.heatmap()',
+        desc: 'Visualize a 2D matrix with color encoding.',
+        category: 'Matrix',
+        subtitle: 'Correlation matrices, confusion matrices, pivot tables',
+        signature: 'sns.heatmap(data, annot=True, fmt=".2f", cmap="RdBu_r", center=0)',
+        descLong: 'heatmap() encodes matrix values as colors. For correlation matrices, always use a diverging colormap centered at 0. annot=True displays values in cells. Mask the upper triangle to avoid duplicating correlations.',
+        code: `import seaborn as sns
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+# Correlation matrix:
+corr = df.select_dtypes('number').corr()
+sns.heatmap(corr,
+    annot   = True,
+    fmt     = '.2f',
+    cmap    = 'RdBu_r',   # diverging — red negative, blue positive
+    center  = 0,
+    vmin    = -1, vmax = 1,
+    square  = True,
+    linewidths = 0.5,
+)
+
+# Mask upper triangle (remove duplicate info):
+mask = np.triu(np.ones_like(corr, dtype=bool))
+sns.heatmap(corr, mask=mask, annot=True, fmt='.2f',
+    cmap='RdBu_r', center=0)
+# Confusion matrix:
+from sklearn.metrics import confusion_matrix
+cm = confusion_matrix(y_true, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+    xticklabels=labels, yticklabels=labels)
+# Pivot table as heatmap:
+pivot = df.pivot_table(values='sales', index='product', columns='region')
+sns.heatmap(pivot, annot=True, fmt='.0f', cmap='YlOrRd')`,
+        tips: [
+          'Always use a **diverging** colormap (`RdBu_r`, `coolwarm`) with `center=0` for correlation matrices',
+          '`mask=np.triu(np.ones_like(corr, dtype=bool))` hides the upper triangle — avoids duplicate information',
+          '`fmt="d"` for integer annotations (confusion matrices); `fmt=".2f"` for floats',
+          '`square=True` makes cells square — cleaner for correlation matrices',
+        ],
+        mistake: 'Using a sequential colormap (Blues, Greens) for a correlation matrix. Correlation ranges from -1 to +1 — use a diverging colormap so positive and negative values read clearly.',
+        shorthand: {
+          verbose: `import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np`,
+          concise: `sns.heatmap(pivot, annot=True, fmt='.0f', cmap='YlOrRd')`
+        }
+      },
+      {
+        id: 'pairplot',
+        fn: 'sns.pairplot()',
+        desc: 'Plot all pairwise relationships in a dataset.',
+        category: 'Matrix',
+        subtitle: 'Scatter matrix — diagonal shows each variable\'s distribution',
+        signature: 'sns.pairplot(data, hue="group", diag_kind="kde")',
+        descLong: 'pairplot() creates a grid of scatter plots for all pairs of numeric variables, with distribution plots on the diagonal. Use hue= to color by a categorical variable. Slow on large datasets — sample first.',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('iris')
+# All numeric pairs:
+sns.pairplot(df)
+# Color by species:
+sns.pairplot(df, hue='species')
+# KDE on diagonal:
+sns.pairplot(df, hue='species',
+    diag_kind = 'kde',
+    plot_kws  = {'alpha': 0.5},
+    diag_kws  = {'fill': True},
+)
+
+# Specific variables:
+sns.pairplot(df,
+    vars     = ['sepal_length', 'petal_length', 'petal_width'],
+    hue      = 'species',
+# Upper/lower triangle with different plots:
+g = sns.PairGrid(df, hue='species')
+g.map_upper(sns.scatterplot)
+g.map_lower(sns.kdeplot)
+g.map_diag(sns.histplot, kde=True)
+g.add_legend()`,
+        tips: [
+          '`pairplot()` is slow on large DataFrames — sample first: `df.sample(500)` before passing in',
+          'Use `vars=` to limit to the most important columns — avoids an unwieldy grid',
+          '`sns.PairGrid()` gives full control over what appears in the upper, lower, and diagonal cells',
+          'The diagonal shows each variable\'s marginal distribution — `diag_kind="kde"` is often cleaner than "hist"',
+        ],
+        mistake: 'Running pairplot on a DataFrame with 20+ columns. The resulting grid is unreadably small. Limit to 4-6 key variables with `vars=`.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('iris')`,
+          concise: `g.add_legend()`
+        }
+      },
+      {
+        id: 'jointplot',
+        fn: 'sns.jointplot()',
+        desc: 'Bivariate plot with marginal distributions on each axis.',
+        subtitle: 'Scatter + marginals — shows joint and individual distributions together',
+        signature: 'sns.jointplot(data, x="x", y="y", kind="scatter")',
+        descLong: 'jointplot() combines a central bivariate plot (scatter, hex, kde, etc.) with marginal univariate plots on each axis. The marginals show the distribution of each variable individually. Returns a JointGrid object.',
+        code: `import seaborn as sns
+import pandas as pd
+df = sns.load_dataset('tips')
+# Default — scatter + histograms:
+sns.jointplot(data=df, x='total_bill', y='tip')
+# KDE joint + marginals:
+sns.jointplot(data=df, x='total_bill', y='tip',
+    kind='kde', fill=True)
+# Hexbin (better for large datasets):
+    kind='hex', gridsize=20)
+# With regression line:
+    kind='reg')
+# Color by group — use JointGrid directly:
+g = sns.JointGrid(data=df, x='total_bill', y='tip')
+for sex, group in df.groupby('sex'):
+    sns.scatterplot(data=group, x='total_bill', y='tip',
+        ax=g.ax_joint, label=sex, alpha=0.6)
+    sns.kdeplot(data=group, x='total_bill',
+        ax=g.ax_marg_x, fill=True, alpha=0.3)
+    sns.kdeplot(data=group, y='tip',
+        ax=g.ax_marg_y, fill=True, alpha=0.3)
+g.add_legend()
+# kind= options:
+# scatter | kde | hist | hex | reg | resid`,
+        tips: [
+          '`kind="kde"` gives a clean continuous view of the joint distribution',
+          '`kind="hex"` handles overlapping points better than scatter for large datasets',
+          'For per-group coloring, use JointGrid directly — jointplot does not support hue=',
+          'Access sub-axes: `g.ax_joint`, `g.ax_marg_x`, `g.ax_marg_y`',
+        ],
+        mistake: 'Expecting jointplot to support hue=. It does not. For grouped joint plots, use sns.JointGrid() and call plot_joint() and plot_marginals() manually per group.',
+        shorthand: {
+          verbose: `import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')`,
+          concise: `g.add_legend()`
+        }
+      },
+
+      {
+        id: 'pairgrid',
+        fn: 'sns.PairGrid()',
+        desc: 'Custom grid of pairwise plots with full control over each cell.',
+        category: 'Matrix',
+        subtitle: 'map_upper(), map_lower(), map_diag() for asymmetric grids',
+        signature: 'g = sns.PairGrid(df); g.map_upper(fn); g.map_lower(fn); g.map_diag(fn)',
+        descLong: 'PairGrid gives full control over what plot function appears in each section of the pair grid. map_upper() controls the upper triangle, map_lower() the lower, map_diag() the diagonal.',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('iris')
+# Custom grid — different plot types per section:
+g = sns.PairGrid(df, hue='species')
+g.map_upper(sns.scatterplot, alpha=0.5)
+g.map_lower(sns.kdeplot, fill=True, alpha=0.3)
+g.map_diag(sns.histplot, kde=True)
+# Use same function everywhere:
+g = sns.PairGrid(df)
+g.map(sns.scatterplot)
+# Specific variables:
+g = sns.PairGrid(df,
+    x_vars=['sepal_length', 'petal_length'],
+    y_vars=['sepal_width',  'petal_width'])
+# Pass kwargs to all plots:
+g = sns.PairGrid(df, hue='species', diag_sharey=False)
+g.map_upper(plt.scatter, s=10, alpha=0.5)
+g.map_lower(sns.kdeplot)
+g.map_diag(sns.kdeplot, fill=True)`,
+        tips: [
+          'PairGrid is the right choice when you want scatter above the diagonal and KDE below',
+          '`map_offdiag()` applies a function to all off-diagonal cells (upper + lower)',
+          '`x_vars` and `y_vars` allow non-square grids — useful for comparing two sets of variables',
+          'Individual cell functions receive `x`, `y`, and optional `hue` arrays as arguments',
+        ],
+        mistake: 'Using `pairplot()` when you need different upper/lower triangles. `pairplot()` only supports one plot type per region. Use `PairGrid()` for asymmetric grids.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('iris')`,
+          concise: `g.map_diag(sns.kdeplot, fill=True)`
+        }
+      },
+      {
+        id: 'clustermap',
+        fn: 'sns.clustermap()',
+        desc: 'Hierarchically clustered heatmap with dendrograms.',
+        subtitle: 'Reorders rows and columns to group similar items together',
+        signature: 'sns.clustermap(data, z_score=0, method="ward", cmap="RdBu_r")',
+        descLong: 'clustermap() combines a heatmap with hierarchical clustering. Rows and columns are reordered so similar items are adjacent. Dendrograms on the sides show the clustering hierarchy.',
+        code: `import seaborn as sns
+import pandas as pd
+# Correlation clustermap:
+corr = df.select_dtypes('number').corr()
+sns.clustermap(corr,
+    z_score     = None,        # already normalized
+    method      = 'ward',      # linkage: ward | complete | average
+    metric      = 'euclidean',
+    cmap        = 'RdBu_r',
+    center      = 0,
+    annot       = True,
+    fmt         = '.1f',
+    figsize     = (10, 10),
+)
+
+# Feature matrix (standardize rows):
+sns.clustermap(data_matrix,
+    z_score  = 0,          # 0=standardize rows, 1=standardize cols
+    cmap     = 'viridis',
+    figsize  = (12, 8),
+# Cluster rows only (keep col order):
+sns.clustermap(data, col_cluster=False)
+# Add row colors (annotations):
+row_colors = pd.Series(
+    ['red' if v > 0 else 'blue' for v in labels],
+    index=data.index,
+sns.clustermap(data, row_colors=row_colors)`,
+        tips: [
+          '`z_score=0` standardizes rows before clustering — removes magnitude differences between features',
+          '`method="ward"` minimizes within-cluster variance — generally produces the most compact clusters',
+          '`col_cluster=False` keeps the column order fixed while only clustering rows',
+          '`row_colors=` adds a color bar on the side for external annotations (e.g., treatment group)',
+        ],
+        mistake: 'Passing a raw data matrix with columns of very different scales to clustermap without `z_score=0`. One high-magnitude column dominates the clustering. Always standardize features first.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'facetgrid',
+        fn: 'sns.FacetGrid()',
+        desc: 'Create a custom grid of plots using any matplotlib or seaborn function.',
+        category: 'Matrix',
+        subtitle: 'Low-level faceting — map_dataframe() for full flexibility',
+        signature: 'g = sns.FacetGrid(df, col="group"); g.map_dataframe(fn, x="col")',
+        descLong: 'FacetGrid creates a grid of subplots based on one or more categorical variables. map_dataframe() passes each subset of data to the plotting function. More flexible than displot/catplot/relplot when those do not support your plot type.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+# Basic faceted histogram:
+g = sns.FacetGrid(df, col='time', row='sex',
+    height=4, aspect=1.2, margin_titles=True)
+g.map_dataframe(sns.histplot, x='total_bill', kde=True)
+g.set_axis_labels('Total Bill ($)', 'Count')
+g.set_titles(col_template='{col_name}', row_template='{row_name}')
+g.add_legend()
+# col_wrap to limit columns:
+g = sns.FacetGrid(df, col='day', col_wrap=2, height=4)
+g.map_dataframe(sns.scatterplot, x='total_bill', y='tip',
+    alpha=0.5)
+
+# Pass extra kwargs to map:
+g.map(plt.scatter, 'total_bill', 'tip', alpha=0.4)
+# Customize each axes:
+def add_line(x, **kwargs):
+    plt.axhline(y=x.mean(), color='red', linestyle='--')
+g.map(add_line, 'total_bill')
+# Get the underlying axes:
+g.axes                # array of Axes objects
+g.axes.flat           # iterate over all axes`,
+        tips: [
+          '`map_dataframe()` receives the data subset as a DataFrame — supports all seaborn functions',
+          '`margin_titles=True` puts row titles in the margin instead of above each cell — cleaner layout',
+          '`col_wrap=3` wraps columns into a grid when you have many groups',
+          '`g.axes.flat` lets you iterate over all axes to add custom annotations',
+        ],
+        mistake: 'Using `g.map(sns.histplot, x="col")` instead of `g.map_dataframe(sns.histplot, x="col")`. `map()` passes x as a 1D array; `map_dataframe()` passes the full DataFrame subset — required for seaborn functions that need `data=`.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+g = sns.FacetGrid(df, col='time', row='sex',`,
+          concise: `g.axes.flat           # iterate over all axes`
+        }
+      },
+    ],
+  },
+{
+    id: 'setup-customization',
+    title: 'Setup, Customization & Output',
+    entries: [
+      {
+        id: 'labels-axes',
+        fn: 'Axes-level labels',
+        desc: 'Set title, axis labels, ticks, limits, and legend on an axes-level plot.',
+        category: 'Customization',
+        subtitle: 'Axes-level functions return an Axes — use ax.set() for everything',
+        signature: 'ax.set(title=, xlabel=, ylabel=, xlim=, ylim=)',
+        descLong: 'Axes-level seaborn functions (histplot, boxplot, scatterplot, etc.) return a Matplotlib Axes object. Use standard ax.set() to set multiple properties at once, ax.tick_params() for tick control, and ax.legend() for legend placement.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+fig, ax = plt.subplots(figsize=(10, 6))
+sns.boxplot(data=df, x='day', y='total_bill', hue='sex', ax=ax)
+# All-in-one:
+ax.set(
+    title  = 'Restaurant Bills by Day and Sex',
+    xlabel = 'Day of Week',
+    ylabel = 'Total Bill ($)',
+    ylim   = (0, 60),
+    xlim   = (None, None),
+)
+# Or individually:
+ax.set_title('Title', fontsize=16, pad=15)
+ax.set_xlabel('X Label', fontsize=12)
+ax.set_ylabel('Y Label', fontsize=12)
+# Tick control:
+ax.tick_params(axis='x', rotation=45, labelsize=10)
+ax.set_xticks([0, 1, 2, 3])
+ax.set_xticklabels(['Mon', 'Tue', 'Wed', 'Thu'])
+
+# Legend:
+ax.legend(title='Sex', loc='upper left', framealpha=0.8)
+ax.get_legend().remove()    # remove entirely
+# Grid:
+ax.grid(True, linestyle='--', alpha=0.5)
+ax.grid(axis='y')           # horizontal lines only
+# Reference line:
+ax.axhline(y=0, color='black', linewidth=0.5, linestyle='--')`,
+        tips: [
+          '`ax.set(title=, xlabel=, ylabel=, xlim=, ylim=)` sets everything in one call — use it',
+          '`ax.tick_params(axis="x", rotation=45)` fixes overlapping x-axis labels',
+          '`ax.get_legend().remove()` cleanly removes the legend when hue is shown elsewhere',
+          '`ax.spines["top"].set_visible(False)` removes individual spines — or use `sns.despine()`',
+        ],
+        mistake: 'Setting labels before plotting. Always set labels AFTER calling the seaborn function — the plot call can reset axis properties.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+fig, ax = plt.subplots(figsize=(10, 6))
+sns.boxplot(data=df, x='day', y='total_bill', hue='sex', ax=ax)`,
+          concise: `ax.axhline(y=0, color='black', linewidth=0.5, linestyle='--')`
+        }
+      },
+      {
+        id: 'labels-figure',
+        fn: 'Figure-level labels',
+        desc: 'Set titles, axis labels, and legends on figure-level FacetGrid plots.',
+        subtitle: 'Figure-level functions return a FacetGrid — use g.set_axis_labels() not ax.set()',
+        signature: 'g.set_axis_labels() | g.set_titles() | g.figure.suptitle()',
+        descLong: 'Figure-level seaborn functions (displot, catplot, relplot, lmplot) return a FacetGrid — not an Axes. Use FacetGrid methods for customization. plt.title() and ax.set() target a single Axes and will not work correctly on a FacetGrid.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+g = sns.catplot(data=df, x='day', y='total_bill',
+    col='time', kind='box', height=5)
+# Axis labels (applies to all panels):
+g.set_axis_labels('Day of Week', 'Total Bill ($)')
+# Panel titles:
+g.set_titles('{col_name} service')      # uses facet value
+g.set_titles(col_template='{col_name}') # explicit
+# Overall figure title (above all panels):
+g.figure.suptitle('Bills by Day', y=1.02, fontsize=14)
+# Axis limits (all panels):
+g.set(ylim=(0, 60))
+g.add_legend(title='Sex')
+# Tick rotation on all panels:
+for ax in g.axes.flat:
+    ax.tick_params(axis='x', rotation=45)
+# Access individual axes:
+g.axes[0, 0].set_title('Custom title for first panel')
+# Tight layout for figure-level:
+g.tight_layout()
+plt.show()`,
+        tips: [
+          '`g.figure.suptitle("Title", y=1.02)` — `y=1.02` pushes it above the panel titles',
+          '`for ax in g.axes.flat:` iterates over all panel axes for individual customization',
+          '`g.set()` passes kwargs to `ax.set()` on every panel simultaneously',
+          '`g.tight_layout()` is the FacetGrid equivalent of `plt.tight_layout()`',
+        ],
+        mistake: 'Using `plt.title()` on a figure-level plot. It targets only the last active Axes, not the whole FacetGrid. Use `g.figure.suptitle()` for an overall title.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'savefig',
+        fn: 'plt.savefig()',
+        desc: 'Save a seaborn figure to a file.',
+        category: 'Customization',
+        subtitle: 'Always bbox_inches="tight" — prevents clipped labels',
+        signature: 'plt.savefig("file.png", dpi=150, bbox_inches="tight")',
+        descLong: 'Save plots with plt.savefig() for axes-level plots, or g.savefig() for FacetGrid. bbox_inches="tight" is critical — without it, axis labels are often clipped. Call plt.close() after saving in loops.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Save axes-level plot:
+fig, ax = plt.subplots()
+sns.histplot(data=df, x='total_bill', ax=ax)
+fig.savefig('plot.png', dpi=150, bbox_inches='tight')
+plt.close()   # free memory — important in loops
+# Save figure-level plot (FacetGrid):
+g = sns.displot(data=df, x='total_bill', col='sex')
+g.savefig('displot.png', dpi=150, bbox_inches='tight')
+plt.close()
+# Common formats:
+plt.savefig('plot.png', dpi=150)  # raster — web/presentations
+plt.savefig('plot.pdf')            # vector — publications
+plt.savefig('plot.svg')            # vector — web/editing
+# Transparent background:
+plt.savefig('plot.png', transparent=True, bbox_inches='tight')
+# High resolution for print:
+plt.savefig('plot.png', dpi=300, bbox_inches='tight')`,
+        tips: [
+          '`bbox_inches="tight"` prevents axis labels being cut off — always include it',
+          'Use `dpi=150` for presentations and web; `dpi=300` for print/publication',
+          'PDF and SVG are vector formats — scalable to any size without pixelation',
+          '`plt.close()` after saving in loops is critical — otherwise figures accumulate in memory',
+        ],
+        mistake: 'Saving before calling `tight_layout()` or without `bbox_inches="tight"`. Axis labels get cut off at the figure edge. The fix: `fig.savefig("f.png", bbox_inches="tight")`.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+fig, ax = plt.subplots()
+sns.histplot(data=df, x='total_bill', ax=ax)`,
+          concise: `plt.savefig('plot.png', dpi=300, bbox_inches='tight')`
+        }
+      },
+      {
+        id: 'despine',
+        fn: 'sns.despine()',
+        desc: 'Remove chart borders (spines) for a cleaner publication-ready look.',
+        subtitle: 'Remove top and right borders by default — instant polish',
+        signature: 'sns.despine() | sns.despine(left=True, bottom=False)',
+        descLong: 'despine() removes axes borders (spines). By default it removes the top and right spines — the two that add clutter without conveying information. Removing all four spines creates a minimal floating plot.',
+        code: `import seaborn as sns
+df = sns.load_dataset('tips')
+# Default — remove top and right:
+sns.despine()                    # cleaner instantly
+# Custom — remove all four:
+sns.despine(top=True, right=True, left=True, bottom=True)
+# Keep only bottom axis:
+sns.despine(left=True)
+
+# Offset the remaining spines (small gap from plot):
+sns.despine(offset=10)
+# Apply to specific axes:
+sns.despine(ax=ax, top=True, right=True)
+# In a FacetGrid — despine each axes:
+g = sns.catplot(data=df, x='day', y='total_bill', kind='box')
+g.despine(left=True)   # FacetGrid has its own despine method
+# Alternatively, set globally in the theme:
+sns.set_style('ticks')  # ticks style + despine() = clean publication style`,
+        tips: [
+          'Pair `sns.set_style("ticks")` with `sns.despine()` for the cleanest publication-style plots',
+          '`offset=10` adds a small gap between the remaining spines and the plot area — subtle polish',
+          'FacetGrid has its own `g.despine()` method — use it instead of calling `sns.despine()` after',
+          'Removing the left spine hides the y-axis line — useful for dot plots and lollipop charts',
+        ],
+        mistake: 'Not calling `sns.despine()` and wondering why your seaborn plots look heavier than example plots. It is a single-line call that instantly improves the aesthetics.',
+        shorthand: {
+          verbose: `import matplotlib.pyplot as plt
+import seaborn as sns
+df = sns.load_dataset('tips')
+fig, ax = plt.subplots()`,
+          concise: `sns.set_style('ticks')  # ticks style + despine() = clean publication style`
+        }
+      },
+    
+      {
+        id: 'set-theme',
+        fn: 'sns.set_theme()',
+        desc: 'Configure the global seaborn style, palette, and font scale.',
+        category: 'Setup',
+        subtitle: 'Call once at the top of your script or notebook',
+        signature: 'sns.set_theme(style="darkgrid", palette="deep", font_scale=1.2)',
+        descLong: 'set_theme() applies a visual style globally to all subsequent plots. Call it once at the top of your script. style= controls grid and background; palette= controls default colors; font_scale= scales all text simultaneously.',
+        code: `import seaborn as sns
+import matplotlib.pyplot as plt
+sns.set_theme(
+    style      = 'whitegrid',   # darkgrid | whitegrid | dark | white | ticks
+    palette    = 'deep',        # muted | pastel | bright | colorblind | tab10
+    font_scale = 1.2,           # scales all text sizes uniformly
+    rc         = {'figure.figsize': (10, 6)},  # override any rcParam
+)
+# Or set individually:
+sns.set_style('whitegrid')
+sns.set_palette('colorblind')
+sns.set_context('talk')    # paper | notebook | talk | poster
+
+# Reset to matplotlib defaults:
+sns.reset_defaults()
+sns.reset_orig()
+# Quick theme check:
+with sns.axes_style('white'):   # temporary style for one plot
+    sns.lineplot(data=df, x='x', y='y')`,
+        tips: [
+          '`style="whitegrid"` is cleanest for publications; `"darkgrid"` is good for exploratory work',
+          '`palette="colorblind"` is safe for all forms of color vision deficiency — use it by default',
+          '`font_scale=1.5` in `set_theme()` scales all text — useful for slides/presentations',
+          '`sns.axes_style()` as a context manager applies a style temporarily to one block',
+        ],
+        mistake: 'Setting palette inside every plot call instead of once with `set_theme()`. Set the theme once globally; override per-plot only when a specific plot needs a different look.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'color-palette',
+        fn: 'sns.color_palette()',
+        desc: 'Access and create color palettes for categorical, sequential, and diverging data.',
+        subtitle: 'Choose the right palette type — qualitative, sequential, or diverging',
+        signature: 'sns.color_palette("deep") | sns.color_palette("Blues") | sns.diverging_palette()',
+        descLong: 'Color palettes in seaborn fall into three types: qualitative (for categorical data — distinct colors), sequential (for ordered data — light to dark), and diverging (for data centered at zero — two hues going out from a midpoint). Choosing the wrong type is one of the most common visualization mistakes.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+# ── Qualitative — distinct colors for categories ──────
+sns.color_palette("deep")        # default seaborn
+sns.color_palette("muted")
+sns.color_palette("bright")
+sns.color_palette("colorblind")  # accessible to color-blind
+sns.color_palette("tab10")       # matplotlib default
+sns.color_palette("Set1")        # high contrast
+sns.color_palette("Set2")        # softer
+# ── Sequential — ordered numeric data ─────────────────
+sns.color_palette("Blues")       # single hue
+sns.color_palette("viridis")     # perceptually uniform
+sns.color_palette("YlOrRd")      # yellow → orange → red
+sns.color_palette("rocket")      # dark → light
+# ── Diverging — centered at zero ──────────────────────
+sns.color_palette("RdBu")        # red → white → blue
+sns.color_palette("coolwarm")
+sns.diverging_palette(220, 20, as_cmap=True)  # custom diverging
+# Apply to a plot:
+sns.boxplot(data=df, x='day', y='tip',
+    palette='colorblind')
+# Set globally:
+# Preview a palette:
+sns.color_palette('deep')   # shows swatches in Jupyter
+# Custom palette:
+my_palette = ['#E74C3C', '#3498DB', '#2ECC71']
+sns.set_palette(my_palette)`,
+        tips: [
+          'Use "colorblind" for any plot that may be seen by color-blind viewers — 8% of men are affected',
+          'Sequential palettes for heatmaps of single-polarity data; diverging for data centered at zero',
+          'Never use a rainbow (jet) palette — it introduces false perceptual boundaries in the data',
+          '`sns.color_palette()` in Jupyter renders a color swatch — useful for choosing before plotting',
+        ],
+        mistake: 'Using a qualitative palette (deep, Set1) for a heatmap. Qualitative palettes have no inherent order — sequential (Blues, viridis) or diverging (RdBu) palettes communicate magnitude correctly.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'fig-vs-axes',
+        fn: 'Figure-level vs axes-level',
+        desc: 'Understand the two-tier seaborn API before choosing a function.',
+        category: 'Setup',
+        subtitle: 'Figure-level functions return FacetGrid; axes-level return Axes',
+        signature: 'displot/relplot/catplot → FacetGrid | histplot/scatterplot/boxplot → Axes',
+        descLong: 'Seaborn has two API tiers. Figure-level functions (displot, relplot, catplot, lmplot) create their own Figure and support faceting via col= and row=. Axes-level functions (histplot, scatterplot, boxplot, etc.) draw on an existing Axes — use these inside plt.subplots() layouts. Passing ax= to a figure-level function raises an error.',
+        code: `import matplotlib.pyplot as plt
+import seaborn as sns
+import pytest
+
+df = sns.load_dataset('tips')
+# ── Axes-level — draw on existing Axes ───────────────
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+sns.histplot(data=df, x='total_bill', ax=axes[0])
+sns.boxplot(data=df, x='day', y='total_bill', ax=axes[1])
+plt.tight_layout()
+plt.show()
+# ── Figure-level — manages its own Figure ─────────────
+g = sns.displot(data=df, x='total_bill', col='sex')
+# g is a FacetGrid object — NOT an Axes
+g.set_axis_labels('Total Bill ($)', 'Count')
+g.set_titles('{col_name}')
+g.figure.suptitle('Bill Distribution by Sex', y=1.02)
+# Rule of thumb:
+# Use axes-level when building a custom subplot layout
+# Use figure-level when you want faceting (col= / row=)
+# DO NOT mix: passing ax= to a figure-level function raises TypeError
+# sns.displot(data=df, x='x', ax=ax)   ← WRONG`,
+        tips: [
+          'Figure-level functions support `col=` and `row=` for faceting; axes-level do not',
+          'Axes-level functions return an `Axes` object; figure-level return a `FacetGrid`',
+          'To customize a figure-level plot, use `g.set_axis_labels()`, `g.set_titles()`, `g.figure.suptitle()`',
+          'For subplot layouts, always use axes-level functions with `plt.subplots()`',
+        ],
+        mistake: 'Passing `ax=` to a figure-level function like `sns.displot(ax=ax)`. Figure-level functions manage their own Figure — they do not accept an `ax=` argument.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      }
+],
+  },
+]
+
+export default { meta, sections }

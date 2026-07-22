@@ -1,0 +1,662 @@
+/**
+ * data/python/filesystem.js
+ * File System & I/O. One subject per entry.
+ */
+
+export const meta = {
+  title: 'File System & I/O',
+  domain: 'python',
+  sheet: 'filesystem',
+  icon: '📁',
+}
+
+export const sections = [
+  {
+    id: 'pathlib',
+    title: 'pathlib — Modern Path Handling',
+    entries: [
+      {
+        id: 'path-basics',
+        fn: 'Path()',
+        desc: 'Decompose paths into components: .name, .stem, .suffix, .parent, .parts',
+        category: 'Path Decomposition',
+        subtitle: 'Access path components',
+        signature: 'Path.name, .stem, .suffix, .parent, .parts',
+        descLong: 'Path objects let you extract individual components: .name (filename), .stem (filename without extension), .suffix (extension), .parent (parent directory), .parts (tuple of all components).',
+        code: `from pathlib import Path
+
+p = Path('/home/user/documents/report.pdf')
+print(p.name)        # 'report.pdf'
+print(p.stem)        # 'report'
+print(p.suffix)      # '.pdf'
+print(p.parent)      # Path('/home/user/documents')
+print(p.parts)       # ('/', 'home', 'user', 'documents', 'report.pdf')`,
+        tips: [
+          '.stem removes only the last suffix; use .suffixes for multiple extensions',
+          '.parent is equivalent to str(p)[:-len(p.name)] but cleaner',
+          '.parts returns a tuple; iterate safely without string splits'
+        ],
+        mistake: 'Mixing str operations with Path objects loses benefits; always use Path methods',
+        shorthand: {
+          verbose: `import os
+path_str = '/home/user/documents/report.pdf'
+name = os.path.basename(path_str)
+stem = os.path.splitext(name)[0]
+suffix = os.path.splitext(path_str)[1]
+parent = os.path.dirname(path_str)`,
+          concise: `from pathlib import Path
+p = Path('/home/user/documents/report.pdf')
+name, stem, suffix, parent = p.name, p.stem, p.suffix, p.parent`
+        }
+      },
+      {
+        id: 'path-operations',
+        fn: '.exists(), .is_file(), .is_dir(), .mkdir(), .rename(), .unlink()',
+        desc: 'Check existence, type, create, rename, and delete paths',
+        category: 'Path Operations',
+        subtitle: 'Modify filesystem',
+        signature: '.exists() → bool, .is_file() → bool, .is_dir() → bool, .mkdir(parents=False, exist_ok=False), .rename(target), .unlink(missing_ok=False)',
+        descLong: 'Path methods handle filesystem operations: check if path exists, test type (file vs directory), create directories, rename paths, and delete files. Use exist_ok=True to avoid errors if directory already exists.',
+        code: `from pathlib import Path
+
+p = Path('data.txt')
+print(p.exists())      # False
+p.write_text('hello')
+print(p.is_file())     # True
+
+d = Path('new_folder')
+d.mkdir(parents=True, exist_ok=True)
+print(d.is_dir())      # True
+
+p.rename('renamed.txt')
+p.unlink()             # Delete file`,
+        tips: [
+          'Use parents=True to create intermediate directories',
+          'exist_ok=True prevents FileExistsError',
+          '.unlink() only works on files; use shutil.rmtree() for directories'
+        ],
+        mistake: 'Checking .exists() before .mkdir() creates race conditions; use exist_ok=True instead',
+        shorthand: {
+          verbose: `import os
+path = 'data.txt'
+if not os.path.exists(path):
+    os.mkdir(path)
+if os.path.exists(path) and os.path.isfile(path):
+    os.remove(path)`,
+          concise: `from pathlib import Path
+Path('data.txt').mkdir(parents=True, exist_ok=True)
+Path('data.txt').unlink(missing_ok=True)`
+        }
+      },
+      {
+        id: 'path-glob',
+        fn: '.glob(), .rglob()',
+        desc: 'Find files matching patterns: wildcards, **, recursive search',
+        category: 'Pattern Matching',
+        subtitle: 'Search with patterns',
+        signature: '.glob(pattern) → generator, .rglob(pattern) → generator',
+        descLong: '.glob() finds files matching a pattern (e.g., "*.txt"). Use ** for recursive search. .rglob(pattern) is shorthand for .glob("**/" + pattern).',
+        code: `from pathlib import Path
+
+root = Path('.')
+
+# Find all .txt files in current directory
+txt_files = list(root.glob('*.txt'))
+
+# Recursively find all .py files
+py_files = list(root.rglob('*.py'))
+
+# Find files in nested structure: src/**/test_*.py
+test_files = list(root.glob('src/**/test_*.py'))`,
+        tips: [
+          '.glob() returns a generator; convert to list if you need to reuse results',
+          '** matches zero or more directories; use cautiously on large filesystems',
+          '.rglob(pattern) is cleaner than .glob("**/" + pattern)'
+        ],
+        mistake: 'Expecting .glob() to return a sorted list; always sort results if order matters',
+        shorthand: {
+          verbose: `import glob
+import os
+txt_files = glob.glob('*.txt')
+py_files = glob.glob('**/*.py', recursive=True)`,
+          concise: `from pathlib import Path
+txt_files = list(Path('.').glob('*.txt'))
+py_files = list(Path('.').rglob('*.py'))`
+        }
+      },
+      {
+        id: 'path-read-write',
+        fn: 'Path.read_text(), Path.write_text(), Path.read_bytes(), Path.write_bytes()',
+        desc: 'Read and write entire file contents in one call',
+        category: 'File I/O',
+        subtitle: 'Simple text/binary I/O',
+        signature: '.read_text(encoding="utf-8") → str, .write_text(text, encoding="utf-8"), .read_bytes() → bytes, .write_bytes(data)',
+        descLong: 'Convenient methods to read/write entire files without manual file handling. read_text/write_text handle encoding; read_bytes/write_bytes for binary data.',
+        code: `from pathlib import Path
+
+# Write text
+Path('message.txt').write_text('Hello, World!', encoding='utf-8')
+
+# Read text
+content = Path('message.txt').read_text()
+print(content)  # 'Hello, World!'
+
+# Write binary
+Path('data.bin').write_bytes(b'\\x00\\x01\\x02')
+
+# Read binary
+data = Path('data.bin').read_bytes()
+print(data)     # b'\\x00\\x01\\x02'`,
+        tips: [
+          'These methods open, read/write, and close in one call; no context manager needed',
+          'Default encoding is UTF-8; specify encoding for other formats',
+          'Large files are loaded entirely into memory; use .open() for streaming'
+        ],
+        mistake: 'Using these methods for large files causes memory issues; use streaming instead',
+        shorthand: {
+          verbose: `import os
+with open('message.txt', 'r', encoding='utf-8') as f:
+    content = f.read()
+with open('message.txt', 'w', encoding='utf-8') as f:
+    f.write('Hello, World!')`,
+          concise: `from pathlib import Path
+Path('message.txt').write_text('Hello, World!')
+content = Path('message.txt').read_text()`
+        }
+      },
+      {
+        id: 'path-joinpath',
+        fn: '/ operator, .joinpath(), .resolve()',
+        desc: 'Combine paths, resolve to absolute paths',
+        category: 'Path Combination',
+        subtitle: 'Build and resolve paths',
+        signature: 'p / "subdir" / "file.txt", .joinpath(*parts) → Path, .resolve() → Path (absolute)',
+        descLong: 'The / operator elegantly joins path segments. .joinpath() does the same. .resolve() converts to absolute path, resolving symlinks and ".." references.',
+        code: `from pathlib import Path
+
+base = Path('/home/user')
+
+# Using / operator
+full_path = base / 'projects' / 'myapp' / 'data.csv'
+print(full_path)  # /home/user/projects/myapp/data.csv
+
+# Using .joinpath()
+full_path = base.joinpath('projects', 'myapp', 'data.csv')
+
+# Resolve relative to absolute
+rel_path = Path('subdir/../file.txt')
+abs_path = rel_path.resolve()
+print(abs_path)   # Normalized absolute path`,
+        tips: [
+          'The / operator is cleaner than os.path.join() for multiple segments',
+          '.resolve() handles ".." and symlinks; always use for absolute paths',
+          'Relative paths from resolve() depend on current working directory'
+        ],
+        mistake: 'Using str.join() or f-strings for paths; use / operator instead',
+        shorthand: {
+          verbose: `import os
+base = '/home/user'
+subdir = 'projects'
+filename = 'data.csv'
+full_path = os.path.join(base, subdir, filename)`,
+          concise: `from pathlib import Path
+full_path = Path('/home/user') / 'projects' / 'data.csv'`
+        }
+      },
+    ]
+  },
+  {
+    id: 'file-io',
+    title: 'File I/O — Reading & Writing',
+    entries: [
+      {
+        id: 'open-modes',
+        fn: 'open()',
+        desc: 'File modes: r, w, a, rb, wb, context manager, encoding',
+        category: 'File Handling',
+        subtitle: 'Open files safely',
+        signature: 'open(file, mode="r", encoding=None) → context manager',
+        descLong: 'open() modes: r (read), w (write, truncate), a (append), b suffix (binary). Always use with statement to auto-close files. Specify encoding for text mode.',
+        code: `# Read text
+with open('file.txt', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Write text
+with open('file.txt', 'w', encoding='utf-8') as f:
+    f.write('Hello')
+
+# Append text
+with open('file.txt', 'a', encoding='utf-8') as f:
+    f.write('\\nMore text')
+
+# Read binary
+with open('data.bin', 'rb') as f:
+    binary_data = f.read()
+
+# Write binary
+with open('data.bin', 'wb') as f:
+    f.write(b'\\x00\\x01\\x02')`,
+        tips: [
+          'Always use with statement; it auto-closes even if an exception occurs',
+          'Default encoding varies by OS; always specify encoding for text files',
+          'Mode "x" creates new file, fails if exists (safer than "w")'
+        ],
+        mistake: 'Forgetting to close files or not using with statement causes resource leaks',
+        shorthand: {
+          verbose: `f = open('file.txt', 'r')
+content = f.read()
+f.close()`,
+          concise: `with open('file.txt', 'r', encoding='utf-8') as f:
+    content = f.read()`
+        }
+      },
+      {
+        id: 'file-read-methods',
+        fn: '.read(), .readline(), .readlines(), iteration',
+        desc: 'Methods to read file contents: entire file, single line, all lines, streaming',
+        category: 'Reading Data',
+        subtitle: 'Read file contents',
+        signature: '.read() → str, .readline() → str, .readlines() → list[str], for line in f: ...',
+        descLong: '.read() returns entire file; .readline() one line; .readlines() all lines as list. Iterate directly over file object for memory-efficient streaming.',
+        code: `with open('file.txt', 'r') as f:
+    # Read entire file
+    content = f.read()
+
+with open('file.txt', 'r') as f:
+    # Read single line
+    first_line = f.readline()
+    second_line = f.readline()
+
+with open('file.txt', 'r') as f:
+    # Read all lines as list
+    lines = f.readlines()
+    # lines = ['line 1\\n', 'line 2\\n', ...]
+
+# Memory-efficient iteration (best for large files)
+with open('file.txt', 'r') as f:
+    for line in f:
+        print(line.strip())`,
+        tips: [
+          'Iterate directly over file object for large files; more efficient than .readlines()',
+          '.readline() and iteration include newline characters; use .strip() to remove them',
+          '.readlines() loads entire file into memory; avoid for large files'
+        ],
+        mistake: 'Using .readlines() and storing result for processing large files causes memory issues',
+        shorthand: {
+          verbose: `with open('file.txt', 'r') as f:
+    lines = f.readlines()
+for line in lines:
+    process(line.strip())`,
+          concise: `with open('file.txt', 'r') as f:
+    for line in f:
+        process(line.strip())`
+        }
+      },
+      {
+        id: 'file-write-methods',
+        fn: '.write(), .writelines(), flushing, buffering',
+        desc: 'Write strings and lists to files; control buffering and flushing',
+        category: 'Writing Data',
+        subtitle: 'Write file contents',
+        signature: '.write(str) → int, .writelines(list), .flush(), open(buffering=...)',
+        descLong: '.write() takes a single string; .writelines() takes an iterable (no newlines added). .flush() forces buffer to disk. buffering parameter controls buffering behavior.',
+        code: `with open('output.txt', 'w') as f:
+    # Write single string
+    f.write('Line 1\\n')
+    f.write('Line 2\\n')
+
+with open('output.txt', 'w') as f:
+    # Write list (note: no newlines added automatically)
+    lines = ['Line 1\\n', 'Line 2\\n', 'Line 3\\n']
+    f.writelines(lines)
+
+with open('output.txt', 'w') as f:
+    f.write('Data')
+    f.flush()  # Force write to disk immediately
+    # File now contains 'Data' even though 'with' block hasn't ended
+
+# Unbuffered writing (slow, immediate disk writes)
+with open('output.txt', 'w', buffering=0) as f:
+    f.write('Immediate write')`,
+        tips: [
+          '.writelines() does NOT add newlines; include them in strings if needed',
+          '.flush() is rarely needed; with statement auto-flushes on exit',
+          'Line buffering (buffering=1) useful for interactive output'
+        ],
+        mistake: 'Expecting .writelines() to add newlines automatically; it doesn\'t',
+        shorthand: {
+          verbose: `with open('output.txt', 'w') as f:
+    for item in items:
+        f.write(str(item) + '\\n')`,
+          concise: `with open('output.txt', 'w') as f:
+    f.writelines(f'{item}\\n' for item in items)`
+        }
+      },
+      {
+        id: 'csv-module',
+        fn: 'csv.reader(), csv.writer(), csv.DictReader(), csv.DictWriter()',
+        desc: 'Parse and write CSV files using dictionaries and lists',
+        category: 'Structured Data',
+        subtitle: 'CSV file handling',
+        signature: 'csv.reader(file), csv.writer(file), csv.DictReader(file), csv.DictWriter(file, fieldnames)',
+        descLong: 'csv.reader/writer handle lists; DictReader/DictWriter handle dictionaries. DictReader auto-parses headers; DictWriter requires fieldnames parameter.',
+        code: `import csv
+
+# Read CSV as lists
+with open('data.csv', 'r') as f:
+    reader = csv.reader(f)
+    for row in reader:
+        print(row)  # ['name', 'age', '25']
+
+# Write CSV
+with open('output.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(['name', 'age'])
+    writer.writerows([['Alice', 30], ['Bob', 25]])
+
+# Read CSV as dictionaries
+with open('data.csv', 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        print(row)  # {'name': 'Alice', 'age': '30'}
+
+# Write CSV with headers
+with open('output.csv', 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=['name', 'age'])
+    writer.writeheader()
+    writer.writerows([{'name': 'Alice', 'age': 30}])`,
+        tips: [
+          'Always use newline="" when opening CSV files to avoid extra blank lines on Windows',
+          'DictReader returns strings; convert types (int, float) manually if needed',
+          'DictWriter requires fieldnames; restkey/extrasaction control behavior'
+        ],
+        mistake: 'Opening CSV files without newline="" causes extra blank rows on Windows',
+        shorthand: {
+          verbose: `import csv
+with open('data.csv', 'r') as f:
+    for row in csv.reader(f):
+        name, age = row[0], row[1]`,
+          concise: `import csv
+with open('data.csv', 'r') as f:
+    for row in csv.DictReader(f):
+        name, age = row['name'], row['age']`
+        }
+      },
+      {
+        id: 'json-module',
+        fn: 'json.load(), json.dump(), json.loads(), json.dumps(), indent=',
+        desc: 'Parse and serialize JSON; pretty-print with indent parameter',
+        category: 'Structured Data',
+        subtitle: 'JSON file handling',
+        signature: 'json.load(file), json.dump(obj, file), json.loads(str), json.dumps(obj), indent=N',
+        descLong: 'load/loads parse JSON; dump/dumps serialize to JSON. load/dump work with files; loads/dumps work with strings. indent parameter formats output for readability.',
+        code: `import json
+
+# Parse JSON from file
+with open('data.json', 'r') as f:
+    data = json.load(f)
+    print(data['name'])
+
+# Write JSON to file (compact)
+with open('output.json', 'w') as f:
+    json.dump({'name': 'Alice', 'age': 30}, f)
+
+# Write JSON to file (pretty-printed)
+with open('output.json', 'w') as f:
+    json.dump({'name': 'Alice', 'age': 30}, f, indent=2)
+
+# Parse JSON from string
+json_str = '{"name": "Alice", "age": 30}'
+data = json.loads(json_str)
+
+# Serialize to JSON string
+json_str = json.dumps({'name': 'Alice', 'age': 30}, indent=2)
+print(json_str)`,
+        tips: [
+          'indent parameter improves readability but increases file size; use only for configs/debug output',
+          'JSON supports: strings, numbers, bools, null, lists, dicts; custom types need JSONEncoder',
+          'ensure_ascii=False preserves non-ASCII characters in output'
+        ],
+        mistake: 'Trying to JSON-serialize custom objects without JSONEncoder subclass',
+        shorthand: {
+          verbose: `import json
+with open('data.json', 'r') as f:
+    json_str = f.read()
+data = json.loads(json_str)`,
+          concise: `import json
+with open('data.json', 'r') as f:
+    data = json.load(f)`
+        }
+      },
+    ]
+  },
+  {
+    id: 'os-shutil',
+    title: 'OS & shutil — System Operations',
+    entries: [
+      {
+        id: 'os-path',
+        fn: 'os.path.join(), os.path.exists(), os.getcwd(), os.listdir(), os.environ',
+        desc: 'Legacy path operations, directory listing, environment variables',
+        category: 'OS Utilities',
+        subtitle: 'Cross-platform operations',
+        signature: 'os.path.join(*parts), os.path.exists(path) → bool, os.getcwd() → str, os.listdir(path) → list, os.environ → dict',
+        descLong: 'os module provides cross-platform operations. os.path methods work but pathlib is preferred. listdir() returns immediate children only; use glob for patterns.',
+        code: `import os
+
+# Join paths (use pathlib / instead)
+full_path = os.path.join('/home/user', 'projects', 'data.txt')
+
+# Check existence
+print(os.path.exists(full_path))
+
+# Get current working directory
+cwd = os.getcwd()
+print(cwd)
+
+# List directory contents
+entries = os.listdir('.')
+print(entries)  # ['file.txt', 'folder', ...]
+
+# Access environment variables
+home = os.environ['HOME']
+debug = os.environ.get('DEBUG', 'false')`,
+        tips: [
+          'Prefer pathlib.Path over os.path for new code',
+          '.listdir() returns immediate children only; use pathlib.glob() for patterns',
+          'os.environ is a dict-like object; use .get() with defaults to handle missing vars'
+        ],
+        mistake: 'Using string concatenation instead of os.path.join() or pathlib /',
+        shorthand: {
+          verbose: `import os
+path = os.path.join(os.getcwd(), 'data', 'file.txt')
+if os.path.exists(path):
+    entries = os.listdir(os.path.dirname(path))`,
+          concise: `from pathlib import Path
+path = Path.cwd() / 'data' / 'file.txt'
+if path.exists():
+    entries = list(path.parent.iterdir())`
+        }
+      },
+      {
+        id: 'shutil-copy',
+        fn: 'shutil.copy(), shutil.copy2(), shutil.copytree(), shutil.rmtree()',
+        desc: 'Copy files and directories recursively; remove directory trees',
+        category: 'File Operations',
+        subtitle: 'Copy and remove files/dirs',
+        signature: 'shutil.copy(src, dst), shutil.copy2(src, dst), shutil.copytree(src, dst), shutil.rmtree(path)',
+        descLong: 'copy() duplicates file; copy2() preserves metadata. copytree() recursively copies directories. rmtree() removes entire directory trees.',
+        code: `import shutil
+
+# Copy single file
+shutil.copy('source.txt', 'destination.txt')
+
+# Copy file and preserve metadata (timestamps)
+shutil.copy2('source.txt', 'backup.txt')
+
+# Recursively copy directory
+shutil.copytree('src_dir', 'dst_dir')
+
+# Copy with ignore patterns
+shutil.copytree('src', 'dst', ignore=shutil.ignore_patterns('*.tmp', '__pycache__'))
+
+# Remove entire directory tree
+shutil.rmtree('unwanted_dir')`,
+        tips: [
+          'copy2() better for backups; preserves modification time and permissions',
+          'copytree() fails if destination exists; use dirs_exist_ok=True in Python 3.8+',
+          'rmtree() is dangerous; ensure you specify correct path'
+        ],
+        mistake: 'Using os.remove() for directories; use shutil.rmtree() instead',
+        shorthand: {
+          verbose: `import os
+import shutil
+src = 'old_project'
+dst = 'old_project_backup'
+shutil.copytree(src, dst)
+shutil.rmtree(src)`,
+          concise: `import shutil
+shutil.copytree('old_project', 'old_project_backup')
+shutil.rmtree('old_project')`
+        }
+      },
+      {
+        id: 'shutil-move-archive',
+        fn: 'shutil.move(), shutil.make_archive(), shutil.unpack_archive()',
+        desc: 'Move/rename paths; create and extract archives (zip, tar, etc.)',
+        category: 'File Operations',
+        subtitle: 'Move and archive operations',
+        signature: 'shutil.move(src, dst), shutil.make_archive(base_name, format, root_dir), shutil.unpack_archive(filename, extract_dir)',
+        descLong: 'move() renames or moves files/dirs (like mv command). make_archive() creates zip/tar files. unpack_archive() extracts them.',
+        code: `import shutil
+
+# Move/rename file or directory
+shutil.move('old_name.txt', 'new_name.txt')
+shutil.move('src_dir', 'dst_dir')
+
+# Create zip archive
+shutil.make_archive('backup', 'zip', 'data')
+# Creates backup.zip containing contents of data/
+
+# Create tar.gz archive
+shutil.make_archive('backup', 'gztar', 'data')
+
+# Extract archive
+shutil.unpack_archive('backup.zip', 'extracted_data')
+shutil.unpack_archive('backup.tar.gz', 'extracted_data')`,
+        tips: [
+          'move() auto-detects file vs directory; works across filesystems',
+          'Supported formats: zip, tar, gztar, bztar, xztar',
+          'unpack_archive() auto-detects format from filename'
+        ],
+        mistake: 'Using os.rename() across filesystems; use shutil.move() instead',
+        shorthand: {
+          verbose: `import shutil
+import os
+src = 'project'
+backup = 'project_backup'
+os.rename(src, backup)
+shutil.make_archive(backup, 'zip', '.', src)`,
+          concise: `import shutil
+shutil.make_archive('project_backup', 'zip', 'project')`
+        }
+      },
+      {
+        id: 'tempfile',
+        fn: 'tempfile.NamedTemporaryFile(), tempfile.TemporaryDirectory(), mkdtemp()',
+        desc: 'Create temporary files and directories that auto-clean',
+        category: 'Temporary Files',
+        subtitle: 'Safe temporary storage',
+        signature: 'NamedTemporaryFile(mode="w+b", delete=True), TemporaryDirectory(), mkdtemp(suffix="", prefix="tmp")',
+        descLong: 'NamedTemporaryFile and TemporaryDirectory auto-delete when closed/exited. Use with statement for safety. mkdtemp() returns path (manual cleanup).',
+        code: `import tempfile
+import os
+
+# Temporary file (auto-deletes on close)
+with tempfile.NamedTemporaryFile(mode='w+', delete=True) as f:
+    f.write('temporary data')
+    f.seek(0)
+    print(f.read())
+    # File deleted when exiting 'with' block
+
+# Temporary directory (auto-deletes on exit)
+with tempfile.TemporaryDirectory() as tmpdir:
+    temp_file = os.path.join(tmpdir, 'data.txt')
+    with open(temp_file, 'w') as f:
+        f.write('data')
+    # tmpdir and all contents deleted on exit
+
+# Manual temporary directory (must delete manually)
+tmpdir = tempfile.mkdtemp(prefix='app_', suffix='_data')
+print(tmpdir)  # /tmp/app_abc123_data
+# Remember to remove: shutil.rmtree(tmpdir)`,
+        tips: [
+          'Always use with statement for NamedTemporaryFile and TemporaryDirectory',
+          'delete=False in NamedTemporaryFile keeps file after closing (manual cleanup needed)',
+          'mkdtemp() is lower-level; prefer TemporaryDirectory with with statement'
+        ],
+        mistake: 'Forgetting to clean up temporary files created with mkdtemp()',
+        shorthand: {
+          verbose: `import tempfile
+import os
+import shutil
+tmpdir = tempfile.mkdtemp()
+# ... use tmpdir ...
+shutil.rmtree(tmpdir)`,
+          concise: `import tempfile
+with tempfile.TemporaryDirectory() as tmpdir:
+    # ... use tmpdir ...
+    pass  # Auto-cleaned`
+        }
+      },
+      {
+        id: 'glob-fnmatch',
+        fn: 'glob.glob(), glob.iglob(), fnmatch.fnmatch()',
+        desc: 'Pattern matching for filenames and paths; glob expansion',
+        category: 'Pattern Matching',
+        subtitle: 'Find files by pattern',
+        signature: 'glob.glob(pathname) → list, glob.iglob(pathname) → generator, fnmatch.fnmatch(name, pattern) → bool',
+        descLong: 'glob.glob() expands pathname patterns with *, ?, [seq]. iglob() returns generator. fnmatch.fnmatch() tests if string matches pattern.',
+        code: `import glob
+import fnmatch
+
+# Find all .txt files in current directory
+txt_files = glob.glob('*.txt')
+print(txt_files)  # ['file1.txt', 'file2.txt']
+
+# Find files recursively (** requires recursive=True)
+py_files = glob.glob('**/*.py', recursive=True)
+
+# Memory-efficient (generator)
+for py_file in glob.iglob('**/*.py', recursive=True):
+    print(py_file)
+
+# Test if filename matches pattern
+print(fnmatch.fnmatch('test.py', '*.py'))      # True
+print(fnmatch.fnmatch('data.csv', 'test_*'))   # False
+
+# Filter list with fnmatch
+files = ['app.py', 'test.py', 'data.csv']
+py_files = [f for f in files if fnmatch.fnmatch(f, 'test_*')]`,
+        tips: [
+          'glob.glob() returns unsorted list; sort if order matters',
+          'Use recursive=True for ** patterns; can be slow on large trees',
+          'fnmatch.fnmatch() is case-sensitive on Unix; use .lower() for case-insensitive match'
+        ],
+        mistake: 'Using ** without recursive=True; it won\'t match recursively',
+        shorthand: {
+          verbose: `import glob
+files = glob.glob('**/*.py', recursive=True)
+if len(files) > 0:
+    for f in files:
+        print(f)`,
+          concise: `from pathlib import Path
+for f in Path('.').rglob('*.py'):
+    print(f)`
+        }
+      },
+    ]
+  },
+]
+
+export default { meta, sections }

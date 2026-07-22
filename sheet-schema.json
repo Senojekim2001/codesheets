@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CodeSheets Sheet",
+  "description": "Schema for a single CodeSheets reference sheet",
+  "type": "object",
+  "required": ["meta", "sections"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["title", "domain", "sheet", "icon"],
+      "properties": {
+        "title":  { "type": "string", "description": "Display title, e.g. 'Python Core Syntax'" },
+        "domain": { "type": "string", "description": "Domain id, e.g. 'python', 'sql', 'js'" },
+        "sheet":  { "type": "string", "description": "Sheet id, e.g. 'core', 'pandas'" },
+        "icon":   { "type": "string", "description": "Emoji icon, e.g. '🐍'" }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "entries"],
+        "properties": {
+          "id":    { "type": "string" },
+          "title": { "type": "string" },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "fn", "desc", "category", "subtitle", "signature", "descLong"],
+              "properties": {
+                "id":       { "type": "string", "description": "Unique slug, e.g. 'select'" },
+                "fn":       { "type": "string", "description": "Short function/keyword name shown in grid" },
+                "desc":     { "type": "string", "description": "One-line description shown in grid" },
+                "category": { "type": "string", "description": "Category badge in modal" },
+                "subtitle": { "type": "string", "description": "Longer subtitle in modal header" },
+                "signature":{ "type": "string", "description": "Syntax signature line" },
+                "descLong": { "type": "string", "description": "Full paragraph description in modal" },
+                "examples": {
+                  "type": "array",
+                  "description": "Tiered code examples — intro, junior, senior. Preferred over legacy code field.",
+                  "items": {
+                    "type": "object",
+                    "required": ["tier", "code"],
+                    "properties": {
+                      "tier": {
+                        "type": "string",
+                        "enum": ["intro", "junior", "senior"],
+                        "description": "Skill tier: intro=core concept, junior=readable/explicit, senior=idiomatic/production"
+                      },
+                      "code": {
+                        "type": "string",
+                        "description": "Code block. Use // GOAL: // WHY: // NOTE: // → comment tags for script-expandable narration."
+                      }
+                    }
+                  }
+                },
+                "code":     { "type": "string", "description": "Legacy single code block — use examples instead for new entries" },
+                "tips":     {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Pro tips — supports **bold** and `code` markdown"
+                },
+                "mistake":  { "type": "string", "description": "Common mistake to avoid" },
+                "ytId":     { "type": "string", "description": "YouTube video ID (optional)" },
+                "ytTitle":  { "type": "string", "description": "YouTube video title (optional)" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

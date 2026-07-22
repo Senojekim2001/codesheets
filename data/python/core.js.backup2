@@ -1,0 +1,3806 @@
+export const meta = {
+  title: 'Core Python',
+  domain: 'python',
+  sheet: 'core',
+  icon: '🐍',
+}
+
+export const sections = [
+
+  {
+    id: 'output',
+    title: 'I/O & Introspection',
+    entries: [
+      {
+        id: 'print', fn: 'print()', desc: 'Write output to stdout with configurable separator and end.',
+        category: 'I/O', subtitle: 'Console output with sep=, end=, and file= options',
+        signature: 'print(*args, sep=" ", end="\\n", file=sys.stdout)',
+        descLong: 'print() converts all arguments to strings and writes them separated by sep (default space), ending with end (default newline). Use file= to redirect to a file or stderr. The flush= parameter forces an immediate write.',
+        code: `import sys
+# Basic usage:
+print("hello", "world")             # hello world
+print("a", "b", "c", sep=", ")      # a, b, c
+print("loading...", end="")         # no newline
+print("x =", 42, "y =", 3.14)      # x = 42 y = 3.14
+# Multiple arguments:
+print("Name:", "Alice", "Age:", 30)
+# File and stderr output:
+print("error!", file=sys.stderr)     # write to stderr
+print("buffered", flush=True)        # force flush
+# Inline conditional (ternary):
+number = 7
+print("Even" if number % 2 == 0 else "Odd")  # Odd
+# F-string formatting:
+name, score = "Alice", 95.5
+print(f"{name}: {score:.1f}%")       # Alice: 95.5%
+# Separator and end characters:
+print(1, 2, 3, sep="-", end="!\n")  # 1-2-3!`,
+        tips: [
+          '`print(*lst)` unpacks a list as separate arguments — prints space-separated values',
+          '`print(..., end="")` is useful in loops to build a line incrementally',
+          '`print(..., file=sys.stderr)` sends to stderr without redirecting stdout',
+          'For logging in production, use the `logging` module — never `print()`',
+        ],
+        mistake: 'Using `print` for debugging in production code. Use `logging.debug()` instead — it can be silenced by log level without touching the code.',
+        shorthand: {
+          verbose: `number = 7
+if number % 2 == 0:
+    print("Even")
+else:
+    print("Odd")`,
+          concise: `print(f"{'Even' if number % 2 == 0 else 'Odd'}")`
+        },
+        seeAlso: ['java:system-out-print', 'javascript:console-log', 'nodejs:node-console-stdout', 'typescript:ts-console-debug', 'rust:string-formatting', 'cpp:cout-cin', 'go:fmt', 'r:r-print-output', 'sql:sql-debug-output', 'excel:vba-debug-print'],
+      },
+      {
+        id: 'input', fn: 'input()', desc: 'Read a line from stdin — always returns a string.',
+        category: 'I/O', subtitle: 'Prompt user for input — must cast the result',
+        signature: 'input(prompt="") -> str',
+        descLong: 'input() displays an optional prompt and waits for the user to type a line and press Enter. It always returns a string — you must cast to int, float, etc. if you need a number.',
+        code: `name = input("Enter your name: ")    # always a str
+age  = int(input("Enter your age: ")) # cast to int
+x    = float(input("Enter x: "))      # cast to float
+
+# Read multiple values on one line:
+a, b = input("Enter two numbers: ").split()
+a, b = int(a), int(b)
+# Safe input with validation:
+while True:
+    raw = input("Enter a positive number: ")
+    try:
+        n = float(raw)
+        if n > 0:
+            break
+        print("Must be positive")
+    except ValueError:
+        print("Not a number")`,
+        tips: [
+          '`input()` always returns `str` — forgetting to cast is the #1 beginner bug',
+          '`a, b = input().split()` reads two space-separated tokens in one line',
+          'Wrap `input()` in a loop with try/except for robust user input validation',
+          'In scripts, `sys.stdin` lets you pipe input instead of typing interactively',
+        ],
+        mistake: '`age = input("Age: ") + 5` raises TypeError because input() returns a string. Always cast: `age = int(input("Age: "))`.',
+        shorthand: {
+          verbose: `raw = input("Enter a number: ")
+try:
+    x = int(raw)
+except ValueError:
+    print("Invalid")`,
+          concise: `x = int(input("Enter a number: "))`
+        }
+      },
+      {
+        id: 'isinstance', fn: 'isinstance()', desc: 'Check the type of an object at runtime.',
+        category: 'I/O', subtitle: 'isinstance() for type checks — type() for exact type',
+        signature: 'isinstance(obj, type_or_tuple) -> bool',
+        descLong: 'isinstance() returns True if the object is an instance of the type or any of its subclasses. type() returns the exact type object. Use isinstance() for type checking — it works correctly with inheritance.',
+        code: `isinstance(42, int)              # True
+isinstance(42, (int, float))     # True — check multiple types
+isinstance(True, int)            # True — bool is a subclass of int
+isinstance("hi", str)            # True
+isinstance([], (list, tuple))    # True
+
+# type() — exact type, no subclasses:
+type(42) is int                  # True
+type(True) is int                # False — exact match
+type([]) is list                 # True
+# type() for switch-style dispatch:
+def describe(x):
+    t = type(x).__name__
+    print(f"{x!r} is a {t}")
+# Check abstract types:
+from collections.abc import Iterable, Mapping, Sequence
+isinstance([1,2,3], Iterable)    # True
+isinstance({}, Mapping)          # True
+isinstance("abc", Sequence)      # True`,
+        tips: [
+          'Always prefer `isinstance()` over `type(x) ==` — it works with subclasses',
+          '`isinstance(x, (int, float))` checks multiple types in one call',
+          '`isinstance(x, Iterable)` from `collections.abc` is the correct way to check duck-typed protocols',
+          '`type(True) is int` is False — bool subclasses int, but `type()` is exact',
+        ],
+        mistake: 'Using `type(x) == int` to check for numeric input. This rejects `bool` (which is a subclass of `int`) and custom numeric types. Use `isinstance(x, int)` instead.',
+        shorthand: {
+          verbose: `if type(x) == int or type(x) == float:
+    print("numeric")
+else:
+    print("other")`,
+          concise: `if isinstance(x, (int, float)):
+    print("numeric")`
+        }
+      },
+      {
+        id: 'getattr', fn: 'getattr()', desc: 'Get an attribute by string name, with an optional default.',
+        category: 'I/O', subtitle: 'Dynamic attribute access — safer than dot notation',
+        signature: 'getattr(obj, "attr", default=None)',
+        descLong: 'getattr() retrieves an attribute by its string name. If the attribute exists, return it; if not, return the default value (or raise AttributeError if no default). Essential for dynamic attribute access in frameworks, plugins, and serialization.',
+        code: `class Dog:
+    def __init__(self, name, breed):
+        self.name = name
+        self.breed = breed
+    def bark(self):
+        return "Woof!"
+d = Dog("Rex", "Labrador")
+# Basic usage — same as d.name:
+getattr(d, "name")        # "Rex"
+getattr(d, "breed")       # "Labrador"
+# With a default value (safer than AttributeError):
+getattr(d, "color", "unknown")     # "unknown" — attr doesn't exist
+getattr(d, "age", 0)               # 0 — default int
+getattr(d, "trick", None)          # None — default None
+
+# Dynamic method access and calling:
+method_name = "bark"
+method = getattr(d, method_name)   # get the method
+result = method()                  # "Woof!"
+# One-liner: get and call method:
+getattr(d, "bark")()               # "Woof!" — direct call
+# Useful for config/plugin patterns:
+for attr in ["name", "breed", "age", "color"]:
+    value = getattr(d, attr, "N/A")
+    print(f"{attr}: {value}")`,
+        tips: [
+          '`getattr(obj, "attr", default)` is safer than `obj.attr` — returns default instead of raising AttributeError',
+          'Dynamic dispatch with `getattr(obj, method_name)()` is the core pattern for plugin systems and CLI dispatchers',
+          '`getattr(module, "name")` dynamically imports functions from modules at runtime',
+          'Avoid `getattr(obj, "attr")` without a default; always provide a fallback to handle missing attributes gracefully',
+        ],
+        mistake: 'Using `getattr(obj, "attr")` without a default, then wrapping in try/except. Always provide a default: `getattr(obj, "attr", default_value)` — cleaner and faster.',
+        shorthand: {
+          verbose: `if hasattr(obj, "attr"):
+    value = obj.attr
+else:
+    value = default`,
+          concise: `value = getattr(obj, "attr", default)`
+        }
+      },
+      {
+        id: 'hasattr', fn: 'hasattr()', desc: 'Check whether an object has an attribute by string name.',
+        category: 'I/O', subtitle: 'Boolean test for attribute existence',
+        signature: 'hasattr(obj, "attr") -> bool',
+        descLong: 'hasattr() returns True if the object has the named attribute, False otherwise. It is implemented as a try/except wrapper around getattr(). Use hasattr() to conditionally access attributes, but prefer getattr() with a default for single operations.',
+        code: `class Dog:
+    def __init__(self, name):
+        self.name = name
+    def bark(self): return "Woof!"
+d = Dog("Rex")
+# Basic existence checks:
+hasattr(d, "name")        # True — instance attribute
+hasattr(d, "bark")        # True — method
+hasattr(d, "fly")         # False — doesn't exist
+hasattr(d, "color")       # False
+# Conditional method calling (plugin pattern):
+if hasattr(d, method_name):
+    getattr(d, method_name)()  # safe to call
+else:
+    print("Method not found")
+# Check multiple attributes:
+if hasattr(d, "name") and hasattr(d, "breed"):
+    print(f"{d.name} is a {d.breed}")
+    print("Missing required attributes")
+# With user input — safe dynamic access:
+attr_name = input("Which attribute? ")
+if hasattr(d, attr_name):
+    print(getattr(d, attr_name))
+    print(f"No attribute '{attr_name}'")
+# Check for methods in a list:
+methods = ["bark", "fetch", "sit"]
+available = [m for m in methods if hasattr(d, m)]
+print(available)  # ['bark']`,
+        tips: [
+          '`hasattr(x, "y")` is equivalent to a try/except with getattr — use hasattr for clarity',
+          'Prefer `getattr(obj, "attr", default)` over `hasattr()` + `getattr()` — avoids two attribute lookups',
+          'In practice, use hasattr() for conditionals; use getattr() for single operations with defaults',
+          'Never use hasattr() on methods without a clear reason — it may trigger side effects if __getattr__ is defined',
+        ],
+        mistake: 'Checking `hasattr(d, "bark")` then separately calling `getattr(d, "bark")()` — two attribute lookups. Use `getattr(d, "bark", None)` and call directly if not None.',
+        shorthand: {
+          verbose: `method_name = "bark"
+if hasattr(d, method_name):
+    getattr(d, method_name)()
+else:
+    print("Not found")`,
+          concise: `if hasattr(d, "bark"):
+    getattr(d, "bark")()`
+        }
+      },
+      {
+        id: 'vars', fn: 'vars()', desc: 'Return the __dict__ attribute of an object — instance attributes only.',
+        category: 'I/O', subtitle: 'Inspect instance namespace as a dictionary',
+        signature: 'vars(obj) -> dict | vars() -> dict (locals)',
+        descLong: 'vars() returns the __dict__ of an object, which is a dictionary of instance attributes. On a module, returns its namespace. With no argument, vars() is equivalent to locals() and returns the current local scope. Use vars() to inspect instance state; use dir() to discover all available attributes.',
+        code: `import json
+
+class Dog:
+    species = 'Canis lupus'      # class attribute
+        self.name = name
+        self.age = 0
+    def bark(self):
+        return 'Woof'
+d = Dog('Rex')
+# vars() returns __dict__ — instance attributes only:
+vars(d)                 # {'name': 'Rex', 'age': 0}
+d.__dict__              # same as vars(d)
+# Class attributes NOT in instance __dict__:
+hasattr(d, 'species')   # True
+'species' in vars(d)    # False — it's a class attribute
+# vars() on a module:
+import math
+namespace = vars(math)  # dictionary of all module-level names
+namespace['pi']         # 3.141592653589793
+# vars() with no argument (inside a function):
+def my_func():
+    x = 10
+    y = 20
+    return vars()       # {'x': 10, 'y': 20}
+result = my_func()      # {'x': 10, 'y': 20}
+# At module level, vars() is globals():
+x, y = 1, 2
+vars() is globals()     # True (at module level)
+# Practical: serialize instance to dict:
+class Person:
+    def __init__(self, name, age):
+        self.age = age
+p = Person('Alice', 30)
+data = vars(p)          # {'name': 'Alice', 'age': 30}
+json.dumps(data)        # JSON serialization`,
+        tips: [
+          '`vars(obj)` is equivalent to `obj.__dict__` — only shows instance attributes, not class or inherited',
+          '`vars()` with no argument returns the current local scope — same as `locals()`; at module level, same as `globals()`',
+          'Use `vars()` to serialize an object to a dict: `json.dumps(vars(obj))` for simple data classes',
+          'Class attributes do not appear in `vars(instance)` — use `dir()` to see inherited and class attributes',
+        ],
+        mistake: 'Using `vars(obj)` expecting to see class methods or inherited attributes. `vars()` only shows instance attributes. Use `dir(obj)` to discover all attributes.',
+        shorthand: {
+          verbose: `class Person:
+    def __init__(self, name):
+        self.name = name
+p = Person("Alice")
+data = p.__dict__`,
+          concise: `data = vars(p)`
+        }
+      },
+      {
+        id: 'dir', fn: 'dir()', desc: 'List all attributes and methods of an object, including inherited ones.',
+        category: 'I/O', subtitle: 'Discovery tool — find what an object can do',
+        signature: 'dir(obj) -> list[str]',
+        descLong: 'dir() returns a sorted list of all attribute names available on an object, including instance attributes, class attributes, inherited attributes, and methods. Includes dunder (magic) methods. Use dir() to explore unfamiliar objects and discover available methods.',
+        code: `class Dog:
+    def __init__(self, name):
+# dir() — everything including inherited and dunder:
+dir(d)
+# ['__class__', '__delattr__', '__dict__', '__dir__',
+#  '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__',
+#  '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__',
+#  '__lt__', '__module__', '__ne__', '__new__', '__reduce__',
+#  '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__',
+#  '__str__', '__subclass_hook__', '__weakref__', 'bark',
+#  'name', 'species']
+
+# Filter to non-dunder (public) attributes:
+public = [a for a in dir(d) if not a.startswith('_')]
+print(public)   # ['bark', 'name', 'species']
+# dir() with no argument — current local scope:
+x = 10
+y = 20
+dir()           # ['__builtins__', '__doc__', '__name__', 'x', 'y']
+# Explore a module:
+import os
+len(dir(os))    # 200+ functions and attributes
+'path' in dir(os)  # True
+# Common discovery pattern:
+obj = open('file.txt')
+'read' in dir(obj)       # True — has read() method
+'write' in dir(obj)      # False (file opened read-only)
+# List methods only (callable):
+methods = [m for m in dir(d) if callable(getattr(d, m))
+           and not m.startswith('_')]
+print(methods)  # ['bark']`,
+        tips: [
+          '`dir(obj)` shows everything — use to discover available methods when exploring an unknown object',
+          '`[a for a in dir(obj) if not a.startswith("_")]` filters out dunder methods for cleaner exploration',
+          '`dir()` with no argument returns the current local scope — useful in interactive debugging',
+          'Combine with `callable()` to list methods only: `[m for m in dir(obj) if callable(getattr(obj, m))]`',
+        ],
+        mistake: 'Using `dir(obj)` and being confused by dunder methods. Most dunder methods are internal. Filter with `if not name.startswith("_")` to see public attributes only.',
+        shorthand: {
+          verbose: `attrs = dir(obj)
+public = [a for a in attrs if not a.startswith("_")]
+for a in public:
+    print(a)`,
+          concise: `public = [a for a in dir(obj) if not a.startswith("_")]`
+        }
+      },
+      {
+        id: 'sys-module', fn: 'sys module', desc: 'Access interpreter variables and control the Python runtime.',
+        category: 'I/O', subtitle: 'sys.argv, sys.exit, sys.path, sys.stdin/stdout/stderr',
+        signature: 'import sys | sys.argv | sys.exit(code)',
+        descLong: 'The sys module provides access to Python interpreter internals — command-line arguments, the module search path, stdin/stdout/stderr streams, and the ability to exit the program. Essential for CLI scripts.',
+        code: `import sys
+# Command-line arguments:
+# Script called as: python script.py arg1 arg2
+sys.argv            # ['script.py', 'arg1', 'arg2']
+sys.argv[0]         # 'script.py' — script name
+sys.argv[1:]        # ['arg1', 'arg2'] — actual args
+# Exit program:
+sys.exit(0)         # clean exit (code 0 = success)
+sys.exit(1)         # exit with error code
+sys.exit("message") # print message to stderr and exit
+
+# Module search path:
+sys.path            # list of directories Python searches for imports
+sys.path.append('/my/custom/dir')   # add to search path
+# Python version:
+sys.version         # '3.11.0 ...'
+sys.version_info    # sys.version_info(major=3, minor=11, ...)
+sys.version_info >= (3, 10)   # True
+# Standard streams:
+print("error", file=sys.stderr)
+data = sys.stdin.read()          # read all stdin
+sys.stdout.write("hello
+")      # write to stdout directly
+# Platform:
+sys.platform        # 'linux', 'darwin', 'win32'
+# Recursion limit:
+sys.getrecursionlimit()          # default 1000
+sys.setrecursionlimit(10000)`,
+        tips: [
+          '`sys.argv[0]` is always the script name — your arguments start at `sys.argv[1]`',
+          '`sys.exit(0)` is clean exit; any non-zero code signals an error to the calling process',
+          '`print("error msg", file=sys.stderr)` writes to stderr — does not pollute stdout output',
+          'For proper CLI argument parsing, use `argparse` — `sys.argv` is only for simple scripts',
+        ],
+        mistake: 'Using `sys.exit()` inside a library function. It terminates the entire Python process — not just your function. Raise an exception instead and let the caller decide.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    result.append(x * 2)`,
+          concise: `result = [x * 2 for x in items]`
+        }
+      },
+      {
+        id: 'os-module', fn: 'os module', desc: 'Operating system interface — files, directories, processes, environment.',
+        category: 'I/O', subtitle: 'os.getcwd, os.listdir, os.makedirs, os.environ, os.path',
+        signature: 'import os | os.getcwd() | os.path.join(a, b)',
+        descLong: 'The os module provides a portable interface to operating system functionality. For file paths, prefer pathlib.Path — but os.environ, os.getcwd(), os.makedirs(), and os.listdir() are still widely used. os.path functions are largely replaced by pathlib but appear in legacy code.',
+        code: `import pytest
+import os
+# Current directory:
+os.getcwd()                     # current working directory
+os.chdir('/path/to/dir')        # change directory
+# Directory listing:
+os.listdir('.')                 # list files/dirs in current dir
+os.listdir('/path')             # list a specific path
+# Create directories:
+os.mkdir('new_dir')             # create single directory
+os.makedirs('a/b/c')            # create nested directories
+os.makedirs('a/b/c', exist_ok=True)  # no error if exists
+# File operations:
+os.rename('old.txt', 'new.txt')
+os.remove('file.txt')           # delete file
+os.rmdir('empty_dir')           # delete empty directory
+# Environment variables:
+os.environ                      # dict of all env vars
+os.environ['HOME']              # raises KeyError if missing
+os.environ.get('DEBUG', 'false')
+
+# Path operations (prefer pathlib for new code):
+os.path.join('dir', 'file.txt')  # 'dir/file.txt' cross-platform
+os.path.exists('file.txt')
+os.path.isfile('file.txt')
+os.path.isdir('dir')
+os.path.basename('/dir/file.txt')  # 'file.txt'
+os.path.dirname('/dir/file.txt')   # '/dir'
+os.path.splitext('file.txt')       # ('file', '.txt')
+# Walk directory tree:
+for root, dirs, files in os.walk('.'):
+    for f in files:
+        print(os.path.join(root, f))`,
+        tips: [
+          'Use `pathlib.Path` for new code — `os.path` functions are largely superseded',
+          '`os.makedirs(path, exist_ok=True)` is idempotent — safe to call even if directory exists',
+          '`os.environ.get("KEY", "default")` is safer than `os.environ["KEY"]` — no KeyError on missing',
+          '`os.walk()` is the classic recursive directory traversal — `Path.rglob()` is the modern equivalent',
+        ],
+        mistake: 'String concatenation for paths: `dir + "/" + file`. Use `os.path.join(dir, file)` or `Path(dir) / file` — handles Windows backslashes correctly.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+
+  {
+    id: 'builtins',
+    title: 'Built-in Functions',
+    entries: [
+      {
+        id: 'len', fn: 'len()', desc: 'Return the number of items in a sequence or collection.',
+        category: 'Builtins', subtitle: 'Get the length of any iterable',
+        signature: 'len(obj) -> int',
+        descLong: 'len() returns the number of items in any sequence, collection, or object with a __len__() method. Works on strings, lists, tuples, sets, dicts, and custom objects. Time complexity is O(1) for built-in types.',
+        code: `# Strings:
+len("hello")             # 5
+len("")                  # 0 — empty
+# Lists and tuples:
+len([1, 2, 3])           # 3
+len((10, 20))            # 2
+# Sets and dicts:
+len({1, 2, 3})           # 3
+len({"a": 1, "b": 2})    # 2 — counts keys
+# Ranges and other iterables:
+len(range(10))           # 10 — O(1)
+len(range(2, 8))         # 6
+len(range(0, 100, 5))    # 20
+# Custom objects (implement __len__):
+class Box:
+    def __init__(self, items):
+        self.items = items
+    def __len__(self):
+        return len(self.items)
+b = Box([1, 2, 3])
+len(b)                   # 3`,
+        tips: [
+          '`len()` works on any object with a `__len__()` method — lists, tuples, sets, dicts, strings, ranges',
+          'For iterables without `__len__()` (generators, file objects), use `sum(1 for _ in it)` if you need the count',
+          'On strings and sequences, `len()` is always O(1) — it does not iterate',
+          '`len() > 0` is more Pythonic than checking `if not empty:`',
+        ],
+        mistake: 'Checking `len(lst) > 0` before iterating. Just write `for item in lst:` — it works correctly on empty sequences.',
+        shorthand: {
+          verbose: `len("hello")             # 5
+len("")                  # 0 — empty
+len([1, 2, 3])           # 3
+len((10, 20))            # 2`,
+          concise: `len(b)                   # 3`
+        }
+      },
+      {
+        id: 'range', fn: 'range()', desc: 'Generate a lazy sequence of integers.',
+        category: 'Builtins', subtitle: 'Immutable sequence — O(1) memory regardless of size',
+        signature: 'range(start, stop, step) -> range object',
+        descLong: 'range() generates a lazy sequence of integers without creating a list. It supports start, stop, and step arguments. Supports O(1) indexing and membership testing. Always prefer range() over building a list with a loop.',
+        code: `# Basic usage:
+range(5)                 # 0, 1, 2, 3, 4 (stop is exclusive)
+range(2, 8)              # 2, 3, 4, 5, 6, 7
+range(0, 10, 2)          # 0, 2, 4, 6, 8 (step=2)
+
+# Negative step (countdown):
+range(10, 0, -1)         # 10, 9, 8, ..., 1 (excludes 0)
+range(5, -1, -1)         # 5, 4, 3, 2, 1, 0
+# Convert to list when needed:
+list(range(5))           # [0, 1, 2, 3, 4]
+list(range(1, 6))        # [1, 2, 3, 4, 5]
+# range is lazy — huge ranges use minimal memory:
+r = range(10**9)         # 1 billion elements
+len(r)                   # 1000000000 — O(1)
+r[999999999]             # 999999999 — O(1) indexing
+# Membership testing is O(1):
+50 in range(0, 100, 5)   # True (no iteration)
+# Common for loop patterns:
+for i in range(n):           # repeat n times
+    print(i)
+for i in range(9, -1, -1):   # count down from 9 to 0
+    print(i)`,
+        tips: [
+          '`range()` is lazy — `range(10**9)` uses constant memory, never allocates a list',
+          '`range` supports O(1) indexing: `range(0, 100)[50]` returns 50 instantly',
+          'Use `enumerate(lst)` instead of `range(len(lst))` when you need both index and value',
+          '`for _ in range(n):` uses `_` as a throwaway variable when the count is all you need',
+        ],
+        mistake: 'Using `range(len(lst))` in a for loop when you need the item: `for i in range(len(lst)): print(lst[i])`. Use `for item in lst:` or `for i, item in enumerate(lst):`.',
+        shorthand: {
+          verbose: `i = 0
+while i < 10:
+    print(i)
+    i += 1`,
+          concise: `for i in range(10):
+    print(i)`
+        }
+      },
+      {
+        id: 'sum-min-max', fn: 'Numeric built-ins', desc: 'Aggregate and numeric built-in functions.',
+        category: 'Builtins', subtitle: 'Reduce sequences to a single numeric value',
+        signature: 'sum(iterable, start=0) | min(it, key=fn) | max(it, key=fn)',
+        descLong: 'sum(), min(), and max() work on any iterable. min() and max() accept a key= function for custom comparison logic. round() uses banker\'s rounding (round half to even) — which can surprise you on .5 values.',
+        code: `nums = [3, 1, 4, 1, 5, 9, 2, 6]
+sum(nums)                    # 31
+sum(nums, start=100)         # 131 — start offset
+min(nums)                    # 1
+max(nums)                    # 9
+abs(-7)                      # 7
+round(3.14159, 2)            # 3.14
+round(2.5)                   # 2  ← banker's rounding!
+round(3.5)                   # 4
+
+# key= for custom comparison:
+words = ["banana", "apple", "fig", "cherry"]
+min(words, key=len)          # "fig"
+max(words, key=len)          # "banana"
+min(words, key=str.lower)    # "apple" (case-insensitive)
+# Useful patterns:
+sum(x**2 for x in range(10))  # sum of squares — generator
+min(d.values())               # min value in a dict
+max(lst, key=abs)             # largest by absolute value
+# divmod and pow:
+divmod(17, 5)                # (3, 2) — quotient and remainder
+pow(2, 10, 1000)             # 24 — fast modular exponentiation`,
+        tips: [
+          '`min(it, key=fn)` is more efficient than `sorted(it, key=fn)[0]` — avoids sorting the whole list',
+          '`sum(gen)` with a generator expression avoids building an intermediate list',
+          '`round(2.5) == 2` — Python uses banker\'s rounding. Use `math.floor(x + 0.5)` for always-round-up',
+          '`pow(base, exp, mod)` is much faster than `(base**exp) % mod` for large numbers',
+        ],
+        mistake: 'Calling `sum([[1,2],[3,4]], [])` to flatten a list. It works but is O(n²). Use `list(itertools.chain.from_iterable([[1,2],[3,4]]))` for O(n).',
+        shorthand: {
+          verbose: `nums = [3, 1, 4, 1, 5, 9, 2, 6]
+sum(nums)                    # 31
+sum(nums, start=100)         # 131 — start offset
+min(nums)                    # 1`,
+          concise: `pow(2, 10, 1000)             # 24 — fast modular exponentiation`
+        }
+      },
+      {
+        id: 'any-all', fn: 'any() / all()', desc: 'Test whether any or all items in an iterable are truthy.',
+        category: 'Builtins', subtitle: 'Short-circuiting boolean reduction over iterables',
+        signature: 'any(iterable) -> bool | all(iterable) -> bool',
+        descLong: 'any() returns True if at least one element is truthy; all() returns True if every element is truthy. Both short-circuit — they stop as soon as the result is determined. Use with generator expressions to avoid building intermediate lists.',
+        code: `any([False, False, True])    # True
+any([False, False, False])   # False
+all([True, True, True])      # True
+all([True, False, True])     # False
+# Empty iterables:
+any([])    # False — no truthy element found
+all([])    # True  — vacuously true (no counter-example)
+# With generator expressions (short-circuits, no list built):
+nums = [1, -2, 3, -4, 5]
+any(x > 0 for x in nums)     # True — stops at 1
+all(x > 0 for x in nums)     # False — stops at -2
+
+# Practical patterns:
+# Check if any user is an admin:
+any(u.role == "admin" for u in users)
+# Check all fields are filled:
+all(len(field) > 0 for field in [name, email, phone])
+# Check if list has duplicates:
+items = [1, 2, 3, 2]
+len(items) != len(set(items))   # True — has duplicates
+# Find first match (alternative to any):
+next((x for x in nums if x > 4), None)  # 5`,
+        tips: [
+          'Both `any()` and `all()` short-circuit — use generator expressions, not list comprehensions, to get that benefit',
+          '`all([])` is `True` (vacuous truth) and `any([])` is `False` — important edge cases',
+          'Combine with `map()`: `all(map(str.isdigit, chars))` — but generators are more readable',
+          'For "find first match", use `next((x for x in it if cond), default)` instead of `any()`',
+        ],
+        mistake: 'Writing `any([x > 0 for x in nums])` with a list comprehension. This builds the full list before checking. Use `any(x > 0 for x in nums)` with a generator — it stops at the first True.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'enumerate', fn: 'enumerate()', desc: 'Iterate with both index and value simultaneously.',
+        category: 'Builtins', subtitle: 'The correct way to loop with an index',
+        signature: 'enumerate(iterable, start=0) -> (index, item) pairs',
+        descLong: 'enumerate() wraps any iterable and yields (index, item) tuples. It is the idiomatic way to loop when you need both the index and the value — always prefer it over range(len(lst)).',
+        code: `fruits = ["apple", "banana", "cherry"]
+# Basic usage:
+for i, fruit in enumerate(fruits):
+    print(i, fruit)
+# 0 apple
+# 1 banana
+# 2 cherry
+# Custom start index:
+for i, fruit in enumerate(fruits, start=1):
+    print(f"{i}. {fruit}")
+# 1. apple
+# 2. banana
+# 3. cherry
+# Convert to list of tuples:
+list(enumerate(fruits))
+# [(0, 'apple'), (1, 'banana'), (2, 'cherry')]
+
+# Common pattern — find index of first match:
+target = "banana"
+idx = next((i for i, x in enumerate(fruits) if x == target), -1)
+# Common pattern — build index map:
+index_map = {val: i for i, val in enumerate(fruits)}
+# {'apple': 0, 'banana': 1, 'cherry': 2}`,
+        tips: [
+          '`enumerate(lst, start=1)` is the cleanest way to produce 1-based numbering',
+          'Unpack directly in the for clause: `for i, val in enumerate(lst):` — cleaner than `enumerate(lst)[0]`',
+          'Build a reverse lookup dict in one line: `{val: i for i, val in enumerate(lst)}`',
+          '`enumerate()` works on any iterable — strings, generators, files, not just lists',
+        ],
+        mistake: '`for i in range(len(lst)): x = lst[i]`. This is the C-style loop. Python idiom: `for i, x in enumerate(lst):`. Cleaner, faster, and works on any iterable.',
+        shorthand: {
+          verbose: `i = 0
+for item in items:
+    print(i, item)
+    i += 1`,
+          concise: `for i, item in enumerate(items):
+    print(i, item)`
+        }
+      },
+      {
+        id: 'zip', fn: 'zip()', desc: 'Pair up multiple iterables element by element.',
+        category: 'Builtins', subtitle: 'Iterate over multiple sequences in parallel',
+        signature: 'zip(*iterables, strict=False) | zip_longest(*its, fillvalue=None)',
+        descLong: 'zip() yields tuples pairing the nth element of each iterable. It stops at the shortest iterable by default. Use strict=True (Python 3.10+) to raise if lengths differ. itertools.zip_longest fills in a default value for the shorter side.',
+        code: `import pytest
+names  = ["Alice", "Bob", "Carol"]
+scores = [92, 88, 95]
+grades = ["A", "B", "A"]
+# Basic pairing:
+for name, score in zip(names, scores):
+    print(name, score)
+# Three iterables:
+for n, s, g in zip(names, scores, grades):
+    print(n, s, g)
+# Build a dict:
+d = dict(zip(names, scores))
+# {'Alice': 92, 'Bob': 88, 'Carol': 95}
+# Unzip (transpose):
+pairs = [(1, "a"), (2, "b"), (3, "c")]
+nums, letters = zip(*pairs)   # (1,2,3), ('a','b','c')
+# Stops at shortest — use strict= to catch length mismatch:
+list(zip([1,2,3], [4,5]))          # [(1,4),(2,5)] — silently drops 3
+list(zip([1,2,3], [4,5], strict=True))  # raises ValueError
+
+# zip_longest — fill short side:
+from itertools import zip_longest
+list(zip_longest([1,2,3], [4,5], fillvalue=0))
+# [(1,4),(2,5),(3,0)]`,
+        tips: [
+          '`dict(zip(keys, values))` is the cleanest one-liner for building a dict from two lists',
+          '`zip(*list_of_lists)` transposes a 2D structure — a classic Python idiom',
+          '`zip(..., strict=True)` (Python 3.10+) is a safety net — raises if the lists have different lengths',
+          '`zip()` is lazy — it does not build a list. Wrap in `list()` when you need to inspect or reuse',
+        ],
+        mistake: 'Forgetting that `zip()` silently truncates to the shortest iterable. If `names` has 10 items and `scores` has 9, you silently lose one pairing. Use `strict=True` to catch this.',
+        shorthand: {
+          verbose: `for i in range(len(a)):
+    print(a[i], b[i])`,
+          concise: `for x, y in zip(a, b):
+    print(x, y)`
+        }
+      },
+      {
+        id: 'map-filter-sorted', fn: 'sorted()', desc: 'Transform, select, and sort iterables.',
+        category: 'Builtins', subtitle: 'Functional-style operations — prefer comprehensions for readability',
+        signature: 'map(fn, it) | filter(fn, it) | sorted(it, key=fn, reverse=True)',
+        descLong: 'map() applies a function to every item; filter() selects items where the function returns truthy. Both return lazy iterators. sorted() always returns a new list, accepts a key= function, and is stable. List comprehensions are usually preferred over map()/filter() for readability.',
+        code: `# Real-world data processing — fetch user list
+users = [
+    {"name": "alice", "age": 30, "active": True, "score": 92},
+    {"name": "bob",   "age": 25, "active": False, "score": 65},
+    {"name": "carol", "age": 35, "active": True,  "score": 88},
+]
+# Filter active users with high scores
+active_high_scorers = [u for u in users if u["active"] and u["score"] >= 80]
+# Transform names to uppercase and filter by age
+adult_names = [u["name"].upper() for u in users if u["age"] >= 18]
+# Sort by multiple criteria — secondary then primary
+ranked = sorted(users, key=lambda u: (-u["score"], u["name"]))
+# Transform to a flat list — map then flatten
+user_info = [f"{u['name']}: {u['score']}" for u in users if u["active"]]
+# Real config/data loading scenario
+csv_rows = ["100,alice,true", "200,bob,false", "150,carol,true"]
+parsed = [
+    {"id": int(r.split(",")[0]),
+     "name": r.split(",")[1].upper(),
+     "active": r.split(",")[2].lower() == "true"}
+    for r in csv_rows
+# Performance: map/filter return lazy iterators (don't build intermediate lists)
+import operator
+scores = list(map(operator.itemgetter("score"), users))  # lazy
+# vs list comprehension (same as eager evaluation)
+scores = [u["score"] for u in users]
+# list.sort() modifies in-place; sorted() returns new list
+users.sort(key=lambda u: u["score"], reverse=True)  # mutates original
+ranked = sorted(users, key=lambda u: u["score"])    # new list`,
+        tips: [
+          '`sorted()` returns a new list; `list.sort()` is in-place and returns `None` — easy to mix up',
+          '`operator.itemgetter(0)` is faster than `lambda x: x[0]` for simple key functions',
+          '`sorted()` is stable — equal items keep their original relative order',
+          'For top-k, `heapq.nlargest(k, data, key=fn)` is faster than `sorted()[-k:]` when k is small',
+        ],
+        mistake: '`lst = lst.sort()` assigns `None` to `lst`. `list.sort()` returns `None` — it sorts in place. Use `lst.sort()` (no assignment) or `new = sorted(lst)`.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+
+  {
+    id: 'control',
+    title: 'Control Flow',
+    entries: [
+      {
+        id: 'if-elif-else', fn: 'if statement', desc: 'Conditional branching.',
+        category: 'Control Flow', subtitle: 'Evaluate conditions in order, execute the first matching branch',
+        signature: 'if condition: ... elif condition: ... else: ...',
+        descLong: 'Python conditionals are straightforward. elif chains are evaluated top to bottom — only the first matching branch runs. Truthiness: empty sequences/dicts/strings/0/None are falsy; everything else is truthy.',
+        code: `score = 85
+if score >= 90:
+    grade = "A"
+elif score >= 80:
+    grade = "B"
+elif score >= 70:
+    grade = "C"
+else:
+    grade = "F"
+# Truthiness:
+if lst:          # true if list is non-empty
+if not lst:      # true if list is empty
+if x is None:    # identity check for None
+if x is not None:
+# Chained comparisons (Python-specific):
+0 < score <= 100         # True — cleaner than score>0 and score<=100
+1 <= month <= 12         # range check
+# Ternary expression:
+label = "pass" if score >= 60 else "fail"
+n = x if x >= 0 else -x   # same as abs(x)
+# Multiple conditions:
+if name and email and age:    # all truthy
+if not (x < 0 or x > 100):   # equivalent to 0 <= x <= 100`,
+        tips: [
+          'Python supports chained comparisons: `0 < x < 100` — cleaner than `x > 0 and x < 100`',
+          'Test for emptiness with `if lst:` not `if len(lst) > 0:` — more Pythonic and works for all sequences',
+          'Always use `is` to compare to `None`, `True`, `False` — never `== None`',
+          '`and`/`or` short-circuit and return one of their operands: `x = val or default` sets a fallback',
+        ],
+        mistake: 'Using `== None` instead of `is None`. `None` is a singleton — identity check `is None` is correct and slightly faster.',
+        shorthand: {
+          verbose: `if condition:
+    result = a
+else:
+    result = b`,
+          concise: `result = a if condition else b`
+        }
+      },
+      {
+        id: 'ternary', fn: 'Ternary expression', desc: 'Inline conditional expression — value if cond else other_value.',
+        category: 'Control Flow', subtitle: 'Single-line conditional value selection',
+        signature: 'value_if_true if condition else value_if_false',
+        descLong: 'The ternary expression evaluates to one of two values based on a condition. It is an expression (returns a value), not a statement — so it can appear inside other expressions, assignments, list comprehensions, and function calls.',
+        code: `# Basic:
+grade  = "pass" if score >= 60 else "fail"
+parity = "even" if n % 2 == 0 else "odd"
+label  = "admin" if user.is_admin else "user"
+
+# In a list comprehension:
+[abs(x) if x < 0 else x for x in nums]
+# In a function call:
+print("yes" if flag else "no")
+# Nested (keep shallow — deep nesting hurts readability):
+tier = "gold" if pts > 1000 else "silver" if pts > 500 else "bronze"
+# Falsy default pattern (different from ternary):
+name = user_input or "Anonymous"   # or returns first truthy value
+# Compare to if/else block:
+# Ternary — use when both branches are simple expressions
+x = a if a > b else b
+# if/else block — use when branches have side effects or are complex
+if a > b:
+    x = a
+    log(a)
+else:
+    x = b`,
+        tips: [
+          'The ternary is an *expression* — it has a value and can be used anywhere an expression is allowed',
+          'Keep ternaries to one level — nested ternaries become unreadable fast',
+          '`x = val or default` is a common pattern but falsy values (0, "") will trigger the default — use a real ternary when 0 or "" is valid',
+          'Use an if/else block when either branch has side effects',
+        ],
+        mistake: 'Deep nesting: `a if c1 else b if c2 else c if c3 else d`. This is hard to read. Use a dict, a function, or an if/elif chain instead.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'walrus', fn: 'Walrus operator :=', desc: 'Assign and test in a single expression.',
+        category: 'Control Flow', subtitle: 'Named expression — assign inside while, if, and comprehensions',
+        signature: 'if (n := compute()) > 0: use(n)',
+        descLong: 'The walrus operator := (Python 3.8+) assigns a value to a variable as part of an expression. It eliminates the "compute twice" pattern — where you compute a value to test it, then compute it again to use it.',
+        code: `# Without walrus — compute twice:
+data = fetch()
+if data:
+    process(data)
+# With walrus — compute once:
+if (data := fetch()):
+# while loop — read until sentinel:
+while (line := file.readline()):
+    process(line)
+# Reading chunks:
+while (chunk := file.read(8192)):
+    process(chunk)
+
+# In comprehensions — filter and transform in one pass:
+# Without walrus — transform twice:
+results = [transform(x) for x in data if transform(x) > 0]
+# With walrus — transform once:
+results = [y for x in data if (y := transform(x)) > 0]
+# Regex match:
+import re
+if (m := re.search(r"(d{4})", text)):
+    print(m.group(1))   # year found
+# Input loop:
+while (answer := input("Continue? ").lower()) not in ("y", "n"):
+    print("Please enter y or n")`,
+        tips: [
+          'Most useful in `while` loops that read data — replaces the awkward `while True: x = read(); if not x: break`',
+          'The walrus target leaks into the enclosing scope — useful but can surprise you',
+          'In comprehensions, the walrus variable is available in the filter condition AND the output expression',
+          'Wrap in parentheses: `if (n := fn()) > 0:` — the `:=` has lower precedence than comparison operators',
+        ],
+        mistake: 'Using `:=` for simple assignments: `(x := 5)`. This adds no value over `x = 5`. The walrus is only useful when the assignment happens *inside* an expression that is also testing or using the value.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'for-loop', fn: 'for loop', desc: 'Iterate over any iterable — list, string, dict, generator.',
+        category: 'Control Flow', subtitle: 'Python for is for-each — always iterates over items',
+        signature: 'for item in iterable: ... else: ...',
+        descLong: 'Python\'s for loop iterates over any iterable object. It has no index by default — use enumerate() for that. The optional else clause runs only when the loop completes without hitting a break.',
+        code: `# Iterate over items directly:
+for fruit in ["apple", "banana", "cherry"]:
+    print(fruit)
+# String is iterable:
+for char in "hello":
+    print(char)
+# Dict iteration:
+for key in d:             # keys (default)
+for key in d.keys():
+for val in d.values():
+for key, val in d.items():
+# break / continue:
+for n in range(20):
+    if n % 7 == 0 and n != 0:
+        break         # exit loop immediately
+    if n % 2 == 0:
+        continue      # skip to next iteration
+# for / else — else runs only if no break occurred:
+for item in collection:
+    if item.matches(target):
+        result = item
+        break
+else:
+    result = None    # search failed — no break hit
+
+# Nested loops with break:
+found = False
+for row in matrix:
+    for val in row:
+        if val == target:
+            found = True
+            break
+    if found:
+        break`,
+        tips: [
+          'The `for/else` pattern is underused — `else` runs only when the loop completes without `break`',
+          'Never use `for i in range(len(lst))` when you want items — use `for item in lst:` directly',
+          'Modify a copy when iterating: `for item in lst[:]:` — modifying `lst` while iterating causes bugs',
+          '`_` as the loop variable signals you don\'t use the value: `for _ in range(3): do_thing()`',
+        ],
+        mistake: 'Modifying a list while iterating over it. Skips items silently. Iterate over a copy (`lst[:]`) or build a new list with a comprehension.',
+        shorthand: {
+          verbose: `i = 0
+for item in items:
+    print(i, item)
+    i += 1`,
+          concise: `for i, item in enumerate(items):
+    print(i, item)`
+        }
+      },
+      {
+        id: 'while-loop', fn: 'while loop', desc: 'Repeat a block as long as a condition is true.',
+        category: 'Control Flow', subtitle: 'Condition-controlled loop — use for loops without a known endpoint',
+        signature: 'while condition: ... else: ...',
+        descLong: 'while loops repeat as long as a condition is truthy. Use them when the number of iterations is not known in advance. Like for loops, while supports break, continue, and an else clause.',
+        code: `# Basic:
+n = 256
+steps = 0
+while n > 1:
+    n //= 2
+    steps += 1
+print(steps)   # 8
+# while True with break — common for input/retry loops:
+while True:
+    user = input("Enter yes or no: ").lower()
+    if user in ("yes", "no"):
+    print("Invalid — try again")
+# do-while pattern (Python has no do-while):
+    action()
+    if done_condition:
+# while / else — else runs only if condition became False (no break):
+i = 0
+while i < len(lst):
+    if lst[i] == target:
+        print("found at", i)
+        break
+    i += 1
+else:
+    print("not found")   # only if we never broke
+
+# Countdown:
+n = 10
+while n > 0:
+    print(n)
+    n -= 1`,
+        tips: [
+          '`while True: ... if done: break` is the clearest pattern for retry/input loops',
+          'Always ensure the condition can become False — missing an update to the loop variable causes infinite loops',
+          'Use `for` when you know the number of iterations; use `while` when you don\'t',
+          '`while lst:` pops items until the list is empty — a common drain pattern',
+        ],
+        mistake: 'Forgetting to update the loop variable inside the while body. `while n > 0: print(n)` loops forever. Make sure `n` decrements or the condition eventually becomes False.',
+        shorthand: {
+          verbose: `i = 0
+while i < 10:
+    print(i)
+    i += 1`,
+          concise: `while condition:
+    do_something()`
+        }
+      },
+      {
+        id: 'match-case', fn: 'match statement', desc: 'Structural pattern matching — Python 3.10+.',
+        category: 'Control Flow', subtitle: 'Match shapes, values, types, and structures',
+        signature: 'match subject: case pattern: ...',
+        descLong: 'match/case (Python 3.10+) is structural pattern matching — far more powerful than a C-style switch. It can match values, sequences, dicts, class instances, and wildcard patterns. The match expression is evaluated once; the first matching case runs.',
+        code: `# Value matching:
+match command:
+    case "quit" | "exit":
+        quit()
+    case "help":
+        show_help()
+    case _:              # wildcard — always matches
+        print("unknown")
+# Sequence patterns:
+match point:
+    case (0, 0):
+        print("origin")
+    case (x, 0):
+        print(f"on x-axis at {x}")
+    case (0, y):
+        print(f"on y-axis at {y}")
+    case (x, y):
+        print(f"at ({x}, {y})")
+# Dict patterns:
+match event:
+    case {"action": "buy", "ticker": ticker, "qty": qty}:
+        buy(ticker, qty)
+    case {"action": "sell", "ticker": ticker}:
+        sell(ticker)
+# Class patterns:
+match shape:
+    case Circle(radius=r) if r > 0:
+        area = 3.14 * r**2
+    case Rectangle(width=w, height=h):
+        area = w * h
+# Guard clause (if after pattern):
+match n:
+    case x if x < 0:
+        print("negative")
+    case x if x == 0:
+        print("zero")
+    case x:
+        print("positive")`,
+        tips: [
+          'Match evaluates the subject once — unlike if/elif which re-evaluates the subject each time',
+          'Patterns can bind variables: `case (x, y):` binds `x` and `y` for use in the case body',
+          'Guard clauses `case pattern if condition:` add extra constraints after structural matching',
+          '`case _:` is the wildcard (always matches) — equivalent to `else` in if/elif',
+        ],
+        mistake: 'Using `match` as a drop-in for simple `if/elif` equality checks. Match shines for structured data (dicts, sequences, dataclasses). For simple value checks, `if/elif` is more readable.',
+        shorthand: {
+          verbose: `match command:
+case "quit" | "exit":
+quit()
+case "help":`,
+          concise: `print("positive")`
+        }
+      },
+    ],
+  },
+
+  {
+    id: 'functions',
+    title: 'Functions',
+    entries: [
+      {
+        id: 'def', fn: 'def', desc: 'Define a reusable named function.',
+        category: 'Functions', subtitle: 'Function definition with parameters and return values',
+        signature: 'def name(params) -> return_type: ...',
+        descLong: 'def creates a function object and binds it to a name. Functions are first-class objects — they can be passed as arguments, stored in variables, and returned from other functions. Parameters with defaults are optional; those without are required.',
+        code: `# Basic function:
+def greet(name, greeting="Hello"):
+    return f"{greeting}, {name}!"
+greet("Alice")               # "Hello, Alice!"
+greet("Bob", "Hi")           # "Hi, Bob!"
+greet(greeting="Hey", name="Carol")  # keyword args
+# Multiple return values (returns a tuple):
+def min_max(lst):
+    return min(lst), max(lst)
+lo, hi = min_max([3, 1, 4, 1, 5])   # tuple unpacking
+# Type hints (optional but recommended):
+def add(a: int, b: int) -> int:
+    return a + b
+# Mutable default — WRONG pattern:
+def append_to(item, lst=[]):   # lst shared across calls!
+    lst.append(item)
+    return lst
+# Mutable default — correct:
+def append_to(item, lst=None):
+    if lst is None:
+        lst = []
+# Functions as values:
+ops = {"add": lambda a,b: a+b, "mul": lambda a,b: a*b}
+ops["add"](3, 4)   # 7`,
+        tips: [
+          'Never use mutable objects (lists, dicts) as default parameter values — they are created once and shared',
+          'Use `None` as the default and create the mutable object inside the function body',
+          'Type hints (`->`) are documentation — Python does not enforce them at runtime',
+          'Functions are objects — assign them to variables, put them in dicts, pass them as arguments',
+        ],
+        mistake: '`def fn(items=[])` — the default list is created once when `def` executes, not on each call. Every call that triggers the default shares the same list. Use `def fn(items=None): items = items or []`.',
+        shorthand: {
+          verbose: `def greet(name, greeting="Hello"):
+    return f"{greeting}, {name}!"
+result = greet("Alice")`,
+          concise: `def greet(name):
+    return f"Hello, {name}!"`
+        }
+      },
+      {
+        id: 'args-kwargs', fn: '*args / **kwargs', desc: 'Collect variable numbers of positional or keyword arguments.',
+        category: 'Functions', subtitle: '*args collects extra positional args as tuple, **kwargs as dict',
+        signature: 'def fn(*args, **kwargs) | fn(*lst, **dct)',
+        descLong: '*args captures extra positional arguments into a tuple. **kwargs captures extra keyword arguments into a dict. They can be combined with normal parameters in a defined order. The * and ** operators also unpack sequences/dicts when calling a function.',
+        code: `import matplotlib.pyplot as plt
+
+# *args — variable positional:
+def add(*nums):
+    return sum(nums)
+add(1, 2, 3, 4)          # 10
+# **kwargs — variable keyword:
+def configure(**options):
+    for key, val in options.items():
+        print(f"{key} = {val}")
+configure(host="localhost", port=8080)
+# Combined signature order:
+# def fn(pos, /, normal, *args, kw_only, **kwargs)
+def fn(required, *args, **kwargs):
+    print(required, args, kwargs)
+fn("a", 1, 2, x=3, y=4)
+# "a"  (1, 2)  {'x': 3, 'y': 4}
+# Keyword-only (after *):
+def create(name, *, verbose=False, dry_run=False):
+    print(f"Creating {name}, verbose={verbose}, dry_run={dry_run}")
+create("file.txt", verbose=True)  # ok
+create("file.txt", True)          # TypeError!
+# Positional-only (before /):
+def dist(x1, y1, x2, y2, /):     # no keyword form allowed
+    return ((x2-x1)**2 + (y2-y1)**2)**0.5
+# Unpack when calling:
+args   = [1, 2, 3]
+kwargs = {"sep": ", "}
+print(*args, **kwargs)            # 1, 2, 3`,
+        tips: [
+          'Keyword-only parameters (after `*`) force callers to be explicit — great for boolean flags',
+          '`*` in a signature with no name forces all following parameters to be keyword-only: `def fn(a, *, b)`',
+          '`*args` is a tuple (immutable); `**kwargs` is a dict — iterate over them normally',
+          'Unpack with `fn(*lst, **dct)` to pass a list/dict as positional/keyword arguments',
+        ],
+        mistake: 'Using `*args` when the function always receives a fixed number of arguments. Only use `*args` when the count genuinely varies — otherwise named parameters are clearer.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'lambda', fn: 'lambda', desc: 'Create a small anonymous function inline.',
+        category: 'Functions', subtitle: 'Single-expression anonymous function for sort keys and callbacks',
+        signature: 'lambda args: expression',
+        descLong: 'lambda creates an anonymous function limited to a single expression. It is most useful as a sort key, callback, or argument to higher-order functions. For anything more complex — multiple statements, conditionals, loops — use def instead.',
+        code: `# Basic:
+square = lambda x: x**2
+add    = lambda x, y: x + y
+square(5)   # 25
+add(3, 4)   # 7
+
+# Most common use — sort keys:
+people = [("Alice", 30), ("Bob", 25), ("Carol", 35)]
+sorted(people, key=lambda p: p[1])              # by age
+sorted(people, key=lambda p: (-p[1], p[0]))     # desc age, asc name
+# In map/filter (though comprehensions are usually clearer):
+list(map(lambda x: x**2, range(5)))
+list(filter(lambda x: x > 0, [-1, 2, -3, 4]))
+# As callback / argument:
+buttons = [Button(text="OK",     callback=lambda: confirm()),
+           Button(text="Cancel", callback=lambda: cancel())]
+# Closure over loop variable — WRONG:
+fns = [lambda: i for i in range(3)]
+fns[0]()   # 2, not 0 — all capture same i!
+# Fix — default argument captures value at definition time:
+fns = [lambda i=i: i for i in range(3)]
+fns[0]()   # 0 ✓`,
+        tips: [
+          'If a lambda needs a name, a conditional, or more than one expression — use `def`',
+          '`operator.itemgetter(0)` and `operator.attrgetter("name")` are faster than equivalent lambdas for simple access',
+          'The loop-closure bug is classic: `lambda: i` captures `i` by reference, not by value at creation',
+          'Fix with default arg: `lambda i=i: i` — default args are evaluated at definition time',
+        ],
+        mistake: 'Assigning a lambda to a name: `square = lambda x: x**2`. If you\'re naming it, use `def square(x): return x**2` — it\'s more readable, debuggable, and gets proper docstring support.',
+        shorthand: {
+          verbose: `def add(a, b):
+    return a + b
+result = add(2, 3)`,
+          concise: `add = lambda a, b: a + b
+result = add(2, 3)`
+        }
+      },
+      {
+        id: 'generators', fn: 'Generators', desc: 'Functions that lazily produce values one at a time.',
+        category: 'Functions', subtitle: 'yield pauses a function and resumes on next()',
+        signature: 'def gen(): yield value | (expr for x in it)',
+        descLong: 'A generator function contains yield — calling it returns a generator object without executing the body. Each call to next() resumes execution until the next yield. Generators are memory-efficient for large or infinite sequences.',
+        code: `# Generator function:
+def count_up(n):
+    for i in range(n):
+        yield i
+g = count_up(5)
+next(g)         # 0
+next(g)         # 1
+list(count_up(5))  # [0,1,2,3,4]
+# Generator expression (lazy comprehension):
+squares = (x**2 for x in range(1000000))  # no memory used
+next(squares)   # 0
+# Infinite sequence:
+def integers_from(n=0):
+    while True:
+        yield n
+        n += 1
+from itertools import islice
+list(islice(integers_from(10), 5))   # [10,11,12,13,14]
+# yield from — delegate to sub-generator:
+def chain_two(a, b):
+    yield from a
+    yield from b
+list(chain_two([1,2], [3,4]))   # [1,2,3,4]
+# Generator pipeline:
+def read_lines(path):
+    with open(path) as f:
+        yield from f
+
+def strip_comments(lines):
+    for line in lines:
+        if not line.startswith("#"):
+            yield line
+def parse(lines):
+        yield line.strip().split(",")
+# Each stage is lazy — processes one line at a time:
+data = parse(strip_comments(read_lines("data.csv")))`,
+        tips: [
+          'Generator expressions `(... for ...)` are like list comprehensions but lazy — use them to save memory',
+          '`yield from sub_gen` is cleaner than `for item in sub_gen: yield item`',
+          'Generators can only be consumed once — call the function again to restart',
+          'Use `list(gen)` or `for x in gen:` to consume a generator',
+        ],
+        mistake: 'Trying to reuse a consumed generator: `g = gen(); list(g); list(g)` — second `list()` returns `[]`. Generators are single-use iterators. Call the function again to get a fresh one.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'decorators', fn: 'Decorators', desc: 'Wrap a function to add behavior without modifying its body.',
+        category: 'Functions', subtitle: '@syntax wraps a function — always use @functools.wraps inside',
+        signature: '@decorator | def outer(fn): def wrapper(*a,**kw): return fn(*a,**kw)',
+        descLong: 'A decorator is a function that takes a function and returns a function. The @ syntax is shorthand for fn = decorator(fn). Always use @functools.wraps(fn) inside your wrapper to preserve the original function\'s __name__ and __doc__.',
+        code: `import functools, time
+
+def timer(fn):
+    @functools.wraps(fn)    # preserve __name__, __doc__
+    def wrapper(*args, **kwargs):
+        start  = time.perf_counter()
+        result = fn(*args, **kwargs)
+        print(f"{fn.__name__} took {time.perf_counter()-start:.4f}s")
+        return result
+    return wrapper
+
+@timer
+def slow(n):
+    time.sleep(n)
+
+slow(0.1)   # slow took 0.1001s
+
+# Decorator with arguments (needs extra nesting layer):
+def retry(times=3, exceptions=(Exception,)):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            for attempt in range(times):
+                try:
+                    return fn(*args, **kwargs)
+                except exceptions:
+                    if attempt == times - 1:
+                        raise
+        return wrapper
+    return decorator
+
+@retry(times=5, exceptions=(ConnectionError,))
+def fetch():
+    return "fetched data"
+
+# Stack decorators (applied bottom-up):
+@timer
+@retry(times=3)
+def flaky_request():
+    return "response"
+# equivalent to: flaky_request = timer(retry(3)(flaky_request))`,
+        tips: [
+          'Always `@functools.wraps(fn)` inside your decorator — without it `fn.__name__` and `fn.__doc__` are replaced',
+          'Decorators with arguments need three levels: outer factory → decorator → wrapper',
+          'Stack order matters: `@a @b def fn` applies `b` first, then `a` — bottom-up',
+          'Class-based decorators (implementing `__call__`) work well when the decorator needs state',
+        ],
+        mistake: 'Forgetting `@functools.wraps(fn)`. Without it, `help()`, `inspect`, and debugging tools show the wrapper\'s metadata instead of the original function\'s.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'closures', fn: 'Closures', desc: 'Functions that capture and modify variables from their enclosing scope.',
+        category: 'Functions', subtitle: 'Closures capture by reference — nonlocal assigns to enclosing scope',
+        signature: 'def outer(): x=1; def inner(): nonlocal x; x+=1',
+        descLong: 'A closure is a function that remembers variables from its enclosing scope even after the outer function has returned. The nonlocal keyword allows the inner function to reassign (not just read) an enclosing variable. global does the same for module-level variables.',
+        code: `# Basic closure — captures factor:
+def make_multiplier(factor):
+    def multiply(x):
+        return x * factor    # 'factor' captured from outer scope
+    return multiply
+double = make_multiplier(2)
+triple = make_multiplier(3)
+double(5)    # 10
+triple(5)    # 15
+# nonlocal — assign to enclosing variable:
+def counter(start=0):
+    count = start
+    def increment(by=1):
+        nonlocal count   # without this, would raise UnboundLocalError
+        count += by
+        return count
+    return increment
+c = counter()
+c()     # 1
+c()     # 2
+c(5)    # 7
+# global — assign to module-level variable:
+total = 0
+def add_to_total(n):
+    global total
+    total += n
+
+# Loop closure bug — all closures share same variable:
+fns = [lambda: i for i in range(3)]
+fns[0]()  # 2 — NOT 0! (i is 2 when any fn is called)
+# Fix — capture by default argument:
+fns = [lambda i=i: i for i in range(3)]
+fns[0]()  # 0 ✓`,
+        tips: [
+          'Closures capture variables by *reference* — the variable itself, not its current value',
+          '`nonlocal` is needed to *assign* to an enclosing variable; reading it works without `nonlocal`',
+          'The loop-closure bug is one of the most common Python pitfalls — fix with `lambda i=i: i`',
+          'Prefer `nonlocal` over `global` — global state is hard to test and reason about',
+        ],
+        mistake: 'Writing `def inner(): count += 1` without `nonlocal count`. Python sees the assignment and treats `count` as a local variable — reading it before assignment raises `UnboundLocalError`.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'global-nonlocal', fn: 'global / nonlocal', desc: 'Declare that an assignment targets a variable in an outer scope.',
+        category: 'Functions', subtitle: 'nonlocal for enclosing function scope, global for module scope',
+        signature: 'global x | nonlocal x',
+        descLong: 'Without global or nonlocal, any assignment inside a function creates a new local variable. global declares that the name refers to the module-level variable. nonlocal declares it refers to the nearest enclosing function scope (not global).',
+        code: `# Without global — creates a LOCAL variable:
+count = 0
+def increment():
+    count = 1    # creates new local 'count' — does NOT modify outer count
+increment()
+print(count)     # still 0
+# With global — modifies module-level variable:
+    global count
+    count += 1   # modifies the module-level count
+print(count)     # 1
+# nonlocal — modifies enclosing function scope:
+def make_counter():
+    n = 0
+    def increment():
+        nonlocal n   # refers to n in make_counter's scope
+        n += 1
+        return n
+c = make_counter()
+c()   # 1
+c()   # 2
+c()   # 3
+# READING is fine without global/nonlocal:
+x = 10
+def read_x():
+    print(x)    # OK — just reading, no assignment
+read_x()        # 10
+# WRITING requires global/nonlocal:
+def write_x():
+    x = 20      # creates LOCAL x, does not affect outer x
+    print(x)    # 20
+write_x()
+print(x)        # still 10`,
+        tips: [
+          'You can READ an outer variable without global/nonlocal — only WRITING to it requires the declaration',
+          'Prefer nonlocal over global — global state is hard to test and reason about',
+          'If you find yourself using global frequently, consider a class to encapsulate state instead',
+          'global/nonlocal must appear before the first use of the variable name in that function',
+        ],
+        mistake: 'Writing `x += 1` inside a function without `global x` and expecting it to modify the outer variable. Python sees the assignment and creates a local variable — then the `+= 1` fails with UnboundLocalError because the local has no value yet.',
+        shorthand: {
+          verbose: `count = 0
+def increment():
+count = 1    # creates new local 'count' — does NOT modify outer count
+increment()`,
+          concise: `print(x)        # still 10`
+        }
+      },
+    ],
+  },
+
+  {
+    id: 'data-types',
+    title: 'Data Types & Strings',
+    entries: [
+      {
+        id: 'list', fn: 'list', desc: 'Ordered mutable sequence — the most versatile Python container.',
+        category: 'Data Types', subtitle: 'Append, slice, sort, comprehend',
+        signature: 'lst = [] | lst.append(x) | [expr for x in it if cond]',
+        descLong: 'Lists are ordered, mutable sequences of any mix of types. Most methods mutate in place and return None. Comprehensions create new lists and are faster than equivalent for loops.',
+        code: `import pandas as pd
+
+lst = [3, 1, 4, 1, 5, 9]
+
+# Mutation (return None):
+lst.append(2)            # add to end
+lst.extend([6, 5])       # add multiple
+lst.insert(0, 99)        # insert at index
+lst.remove(1)            # remove first occurrence
+popped = lst.pop()       # remove + return last
+lst.pop(2)               # remove + return at index
+lst.sort()               # in-place sort
+lst.sort(key=abs, reverse=True)
+lst.reverse()
+lst.clear()
+
+# Non-mutating:
+sorted(lst)              # new sorted list
+lst + [10, 11]           # concatenate → new list
+lst.index(5)             # first index of value
+lst.count(1)             # count occurrences
+5 in lst                 # membership check O(n)
+
+# Slicing:
+lst[1:4]                 # index 1,2,3
+lst[::2]                 # every other element
+lst[::-1]                # reversed copy
+lst[1:5:2]               # slice with step
+
+# Unpacking:
+a, b, c  = [1, 2, 3]
+first, *rest  = [1, 2, 3, 4]    # rest = [2,3,4]
+*init, last   = [1, 2, 3, 4]    # last = 4
+a, *_, z      = [1, 2, 3, 4, 5] # a=1, z=5
+
+# Comprehension:
+[x**2 for x in range(10)]
+[x for x in lst if x > 3]
+[[row[i] for row in matrix] for i in range(cols)]  # transpose`,
+        tips: [
+          '`list.sort()` returns `None` — it sorts in place. Use `sorted(lst)` to get a new sorted list',
+          '`lst[:]` makes a shallow copy — use `copy.deepcopy(lst)` for nested structures',
+          '`a, *rest = lst` captures remaining elements — cleaner than index slicing',
+          'Comprehensions are optimized by CPython and typically faster than equivalent `for` loops',
+        ],
+        mistake: '`new = lst.sort()` — `sort()` returns `None`, not the sorted list. `new` will be `None`. Use `new = sorted(lst)` if you need the result as a value.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'unpacking', fn: 'Unpacking', desc: 'Unpack sequences into variables using * for remainder capture.',
+        category: 'Data Types', subtitle: 'a, *rest = lst | a, *_, z = lst | fn(*args, **kwargs)',
+        signature: 'a, b, c = iterable | first, *rest = lst | *init, last = lst',
+        descLong: 'Python unpacking assigns iterable elements to variables. The starred expression (*rest) captures any number of remaining elements as a list. Works in assignments, for loops, and function calls. ** unpacks dicts into keyword arguments.',
+        code: `import pandas as pd
+# Basic unpacking:
+a, b, c = [1, 2, 3]
+x, y    = (10, 20)
+first, second = "hi"    # strings are iterable
+# Starred — capture remainder:
+first, *rest  = [1, 2, 3, 4, 5]   # rest = [2,3,4,5]
+*init, last   = [1, 2, 3, 4, 5]   # last = 5
+a, *middle, z = [1, 2, 3, 4, 5]   # middle = [2,3,4]
+# Throwaway with _:
+first, *_ = [1, 2, 3, 4]          # ignore rest
+_, second, *_ = [1, 2, 3, 4]      # ignore except second
+# Swap without temp:
+a, b = b, a
+# Unpack in for loop:
+pairs = [(1, 'a'), (2, 'b'), (3, 'c')]
+for num, letter in pairs:
+    print(num, letter)
+# Unpack into function calls:
+args   = [1, 2, 3]
+kwargs = {'sep': ', ', 'end': '!'}
+print(*args, **kwargs)             # 1, 2, 3!
+def fn(a, b, c): return a + b + c
+fn(*args)                          # 6
+fn(**{'a': 1, 'b': 2, 'c': 3})   # 6
+
+# Merge dicts with **:
+d1 = {'a': 1}
+d2 = {'b': 2}
+merged = {**d1, **d2}              # {'a': 1, 'b': 2}`,
+        tips: [
+          '`first, *rest = lst` is cleaner than `first = lst[0]; rest = lst[1:]`',
+          '`a, b = b, a` swaps in one line — Python evaluates the right side fully before assigning',
+          '`*` in a for loop tuple: `for a, *b in [(1,2,3),(4,5,6)]:` gives b as a list each iteration',
+          '`{**d1, **d2}` is the clean dict merge — right dict wins on duplicate keys',
+        ],
+        mistake: 'Using only one starred expression per unpacking. `a, *b, *c = lst` is a SyntaxError — only one `*` is allowed per assignment.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'dict', fn: 'dict', desc: 'Key-value mapping with O(1) average lookup.',
+        category: 'Data Types', subtitle: 'The most versatile data structure — learn its patterns well',
+        signature: 'd = {} | d.get(key, default) | {k: v for k, v in pairs}',
+        descLong: 'Python dicts are hash maps with O(1) average case for get/set/delete. Since Python 3.7 they maintain insertion order. The collections module\'s defaultdict and Counter extend dict for common patterns — see the DSA sheet.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+d = {"a": 1, "b": 2, "c": 3}
+# Access:
+d["a"]                  # 1 — KeyError if missing
+d.get("z")              # None — safe
+d.get("z", 0)           # 0   — with default
+# Mutation:
+d["d"] = 4              # add or update
+d.update({"e": 5, "f": 6})
+d.update(g=7)           # keyword form
+del d["a"]
+d.pop("b")              # remove + return
+d.pop("missing", None)  # safe pop
+d.setdefault("x", []).append(1)  # init if absent
+# Iteration:
+for k in d:             # keys
+for v in d.values():    # values
+for k, v in d.items():  # both
+# Merge (Python 3.9+):
+merged = d1 | d2        # d2 overrides d1
+d1 |= d2                # in-place
+# Merge (older):
+merged = {**d1, **d2}
+# Comprehension:
+squares = {x: x**2 for x in range(5)}
+{k: v for k, v in d.items() if v > 2}
+{v: k for k, v in d.items()}  # invert
+# Pattern: frequency count
+from collections import Counter
+Counter("mississippi")  # Counter({'s':4,'i':4,'p':2,'m':1})
+# Pattern: group by
+from collections import defaultdict
+groups = defaultdict(list)
+for item in items:
+    groups[item.category].append(item)`,
+        tips: [
+          '`d.get(key, default)` is the safe single-lookup alternative to `if key in d: d[key]`',
+          '`{**d1, **d2}` merge: right dict wins on duplicate keys',
+          '`d.setdefault(key, []).append(val)` initializes a list key on first access — one-line groupby',
+          'For frequency counting use `Counter`; for auto-initializing use `defaultdict` — both in `collections`',
+        ],
+        mistake: 'Checking `if key in d` then `d[key]` — two separate hash lookups. Use `d.get(key, default)` for one lookup, or `try: d[key] except KeyError:` to handle absence.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'dict-comprehension', fn: 'Dict comprehension', desc: 'Create a dictionary from an iterable in a single expression.',
+        category: 'Data Types', subtitle: '{key: value for item in iterable if condition}',
+        signature: '{k: v for k, v in pairs} | {k: fn(k) for k in iterable}',
+        descLong: 'Dict comprehensions build a dictionary inline — one key-value pair per iteration. More concise than a for loop with dict[key] = value. Also useful for inverting dicts, filtering, and transforming.',
+        code: `# Real-world config processing
+raw_config = [
+    ("host", "localhost"),
+    ("port", "8080"),
+    ("debug", "true"),
+    ("timeout", "30"),
+]
+config = {k: v for k, v in raw_config}
+
+# Filter config by key pattern
+defaults = {"host": "0.0.0.0", "port": "5000", "debug": "false"}
+overrides = {k: v for k, v in config.items() if k in defaults}
+# Transform API response to lookup dict
+users = [
+    {"id": 1, "name": "Alice", "email": "alice@example.com"},
+    {"id": 2, "name": "Bob", "email": "bob@example.com"},
+users_by_id = {u["id"]: u for u in users}
+users_by_email = {u["email"]: u for u in users}
+# Invert permission map
+permissions = {"read": 1, "write": 2, "execute": 4}
+perms_by_value = {v: k for k, v in permissions.items()}
+# Filtering with multiple conditions — real data scenario
+scores = {"Alice": 92, "Bob": 65, "Carol": 88, "David": 55}
+honors = {name: score for name, score in scores.items()
+          if score >= 80 and name[0].isupper()}
+# Type conversion — real config loading
+env_vars = {"PORT": "8080", "WORKERS": "4", "DEBUG": "false"}
+config_dict = {
+    "port": int(env_vars.get("PORT", 5000)),
+    "workers": int(env_vars.get("WORKERS", 2)),
+    "debug": env_vars.get("DEBUG", "false").lower() == "true",
+}`,
+        tips: [
+          'Dict comprehension is O(n) like a loop — syntactically cleaner for simple key-value constructions',
+          'Inverting a dict: `{v: k for k, v in d.items()}` — only works if values are unique/hashable',
+          'For complex logic (multiple statements, side effects), use a regular for loop instead',
+          'Nested dict comprehension: `{k: {v: v**2} for k, v in pairs}` — keep nesting shallow',
+        ],
+        mistake: 'Inverting a dict with duplicate values using a comprehension. `{v: k for k, v in d.items()}` silently drops all but the last key for each value. Check `len(d) == len(set(d.values()))` first.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'tuple', fn: 'tuple', desc: 'Immutable ordered sequence — use for fixed records and dict keys.',
+        category: 'Data Types', subtitle: 'Like a list but immutable — hashable when elements are hashable',
+        signature: 't = (1, 2, 3) | t = 1, 2, 3 | a, b = b, a',
+        descLong: 'Tuples are immutable ordered sequences. They are faster than lists, use less memory, and can be used as dict keys or set members (when all elements are hashable). Parentheses are optional — the comma makes the tuple.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+
+# Creation — comma makes the tuple, not parens:
+t = (1, 2, 3)
+t = 1, 2, 3         # same thing
+t = (1,)            # single-element — trailing comma required
+t = ()              # empty tuple
+
+# Access (same as list):
+t[0]                # 1
+t[-1]               # 3
+t[1:3]              # (2, 3)
+
+# Unpacking:
+a, b, c  = (1, 2, 3)
+first, *rest = (1, 2, 3, 4)   # rest = [2,3,4] — a list!
+
+# Swap without temp variable:
+a, b = b, a
+
+# Tuple as dict key (all elements must be hashable):
+d = {}
+d[(0, 0)] = "origin"
+d[(1, 0)] = "right"
+
+# Tuple unpacking in loops:
+pairs = [(1,"a"), (2,"b"), (3,"c")]
+for num, letter in pairs:
+    print(num, letter)
+
+# Named tuple — readable field access:
+from collections import namedtuple
+Point = namedtuple("Point", ["x", "y"])
+p = Point(3, 4)
+p.x, p.y          # 3, 4
+p._asdict()       # {'x': 3, 'y': 4}
+p._replace(x=10)  # Point(x=10, y=4) — new instance`,
+        tips: [
+          'A single-element tuple needs a trailing comma: `(1,)` not `(1)` — the latter is just parentheses',
+          'Tuples can be dict keys or set members; lists cannot — use tuples when hashability matters',
+          '`a, b = b, a` is a tuple swap — no temporary variable needed',
+          'Use `namedtuple` when tuple fields need descriptive names — cheaper than a full class',
+        ],
+        mistake: '`t = (1)` is the integer `1`, not a tuple. The comma makes the tuple: `t = (1,)` or `t = 1,`.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    result.append(x * 2)`,
+          concise: `result = [x * 2 for x in items]`
+        }
+      },
+      {
+        id: 'namedtuple', fn: 'namedtuple', desc: 'Lightweight immutable record type with named fields.',
+        category: 'Data Types', subtitle: 'Tuple with attribute access — no class boilerplate needed',
+        signature: 'Point = namedtuple("Point", ["x", "y"]) | typing.NamedTuple',
+        descLong: 'collections.namedtuple creates a tuple subclass with named fields. Lighter than a class, more readable than a plain tuple. The modern alternative is typing.NamedTuple which supports type hints and default values.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+# Classic namedtuple:
+Point = namedtuple('Point', ['x', 'y'])
+p.x            # 3
+p.y            # 4
+p[0]           # 3 — still works as a tuple
+p._asdict()    # {'x': 3, 'y': 4}
+p._replace(x=10)   # Point(x=10, y=4) — new instance
+# Unpack like a tuple:
+x, y = p
+# Use as dict key (hashable):
+distances = {Point(0,0): 0, Point(1,0): 1}
+# With defaults (Python 3.6.1+):
+Point3D = namedtuple('Point3D', ['x', 'y', 'z'], defaults=[0])
+Point3D(1, 2)      # Point3D(x=1, y=2, z=0)
+# Modern syntax — typing.NamedTuple (preferred):
+from typing import NamedTuple
+class Employee(NamedTuple):
+    name:   str
+    dept:   str
+    salary: float = 0.0
+
+e = Employee('Alice', 'Engineering', 95000)
+e.name     # 'Alice'
+e._asdict()`,
+        tips: [
+          'Use typing.NamedTuple class syntax for new code — supports type hints and default values',
+          'namedtuple is immutable — use _replace() to create a modified copy',
+          'Lighter than a dataclass when you only need field access and no methods',
+          '_asdict() converts to a dict — useful for JSON serialization',
+        ],
+        mistake: 'Using a plain tuple (x, y) where namedtuple would be clearer. point[0] is cryptic; point.x is self-documenting. The overhead is negligible.',
+        shorthand: {
+          verbose: `from collections import Counter, defaultdict, deque, namedtuple
+from collections import namedtuple
+Point = namedtuple('Point', ['x', 'y'])
+p = Point(3, 4)`,
+          concise: `e._asdict()`
+        }
+      },
+      {
+        id: 'set', fn: 'set', desc: 'Unordered collection of unique hashable items.',
+        category: 'Data Types', subtitle: 'O(1) membership testing and set algebra operations',
+        signature: 's = {1,2,3} | a & b | a | b | a - b | a ^ b',
+        descLong: 'Sets store unique items in hash-based storage — O(1) average for add, remove, and membership. Use sets to deduplicate, to test membership in a loop, and for set algebra (union, intersection, difference).',
+        code: `s = {1, 2, 3, 4}
+
+# Mutation:
+s.add(5)
+s.discard(10)           # no error if missing
+s.remove(1)             # KeyError if missing
+s.pop()                 # remove and return arbitrary item
+
+# Set algebra:
+a = {1, 2, 3, 4}
+b = {3, 4, 5, 6}
+
+a & b                   # {3,4}     intersection
+a | b                   # {1,2,3,4,5,6} union
+a - b                   # {1,2}     difference (in a, not b)
+b - a                   # {5,6}     difference (in b, not a)
+a ^ b                   # {1,2,5,6} symmetric difference (in exactly one)
+
+a.issubset(b)           # {1,2} <= {1,2,3}
+a.issuperset(b)
+a.isdisjoint(b)         # True if no common elements
+
+# Membership — O(1) vs list O(n):
+5 in {1, 2, 3, 4, 5}   # True — instant
+5 in [1, 2, 3, 4, 5]   # True — scans list
+
+# Deduplicate (order not preserved):
+unique = list(set([1, 2, 2, 3, 3, 3]))
+
+# Deduplicate preserving order:
+seen = set()
+unique = [x for x in lst if not (x in seen or seen.add(x))]
+
+# frozenset — immutable, hashable:
+fs = frozenset({1, 2, 3})
+d[fs] = "value"         # can use as dict key`,
+        tips: [
+          'Convert a list to `set` for O(1) membership: `lookup = set(items)` then `if x in lookup`',
+          '`a ^ b` (symmetric difference) gives items in exactly one of the two sets — useful for finding changes',
+          '`frozenset` is immutable and hashable — use as dict keys or nested inside other sets',
+          '`s.discard(x)` is safer than `s.remove(x)` — no KeyError when the element is absent',
+        ],
+        mistake: 'Using a list for membership testing in a loop: `if x in large_list`. Convert once: `lookup = set(large_list)`, then every `if x in lookup` is O(1) instead of O(n).',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'set-comprehension', fn: 'Set comprehension', desc: 'Create a set from an iterable in a single expression.',
+        category: 'Data Types', subtitle: '{expr for item in iterable if condition}',
+        signature: '{expr for x in iterable} | {x for x in lst if condition}',
+        descLong: 'Set comprehensions build a set inline — duplicates are automatically removed. Syntactically identical to list comprehensions but with curly braces. Useful for deduplication and extracting unique values.',
+        code: `# Basic:
+squares = {x**2 for x in range(5)}
+# {0, 1, 4, 9, 16} — unordered, unique
+# Deduplicate a list:
+lst = [1, 2, 2, 3, 3, 3, 4]
+unique = {x for x in lst}
+# simpler: set(lst)
+# With condition:
+{x for x in range(20) if x % 3 == 0}
+# {0, 3, 6, 9, 12, 15, 18}
+# Extract unique values from column:
+seen_cities = {row['city'] for row in records}
+# Find elements in one list but not another:
+a = [1, 2, 3, 4, 5]
+b = [3, 4, 5, 6, 7]
+only_in_a = {x for x in a if x not in set(b)}
+# Cleaner:
+only_in_a = set(a) - set(b)
+
+# Case-insensitive unique values:
+{word.lower() for word in words}
+# Nested set comprehension (flatten and dedupe):
+matrix = [[1,2,3],[2,3,4],[3,4,5]]
+all_values = {val for row in matrix for val in row}
+# {1, 2, 3, 4, 5}`,
+        tips: [
+          'For simple deduplication, `set(lst)` is cleaner than `{x for x in lst}`',
+          'Set comprehension is faster than `list(set(...))` when you need a set as the final result',
+          'Sets are unordered — the iteration order of a set comprehension is not guaranteed',
+          'All elements must be hashable — set comprehensions fail on lists, dicts as elements',
+        ],
+        mistake: 'Using `{}` to create an empty set. `{}` creates an empty dict, not a set. Use `set()` for an empty set.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'fstrings', fn: 'f-strings', desc: 'Embed expressions in string literals with format specifications.',
+        category: 'Strings', subtitle: 'The fastest and most readable string formatting — f"{val:.2f}"',
+        signature: 'f"{val}" | f"{val:.2f}" | f"{val:>10}" | f"{val=}"',
+        descLong: 'f-strings (Python 3.6+) embed expressions directly in string literals. The format spec after `:` controls alignment, padding, numeric formatting, and more. The `=` specifier (3.8+) prints both the expression and its value — invaluable for debugging.',
+        code: `name, score, pi = "Alice", 0.9253, 3.14159
+# Basic:
+f"Hello, {name}!"
+f"Score: {score}"
+f"Result: {2 + 2}"         # expressions
+f"Upper: {name.upper()}"   # method calls
+# Conversion:
+f"{name!r}"   # 'Alice' — repr (adds quotes)
+f"{name!s}"   # Alice  — str (default)
+# Number format spec: {value:[fill][align][sign][width][,][.prec][type]}
+f"{pi:.2f}"           # 3.14       — 2 decimal places
+f"{score:.1%}"        # 92.5%      — percentage
+f"{1234567:,}"        # 1,234,567  — thousands separator
+f"{1234567:_}"        # 1_234_567
+f"{255:#x}"           # 0xff       — hex with prefix
+f"{255:08b}"          # 11111111   — binary, zero-padded
+f"{42:05d}"           # 00042      — zero-padded integer
+# Alignment (width 10):
+f"{'left':<10}"       # 'left      '
+f"{'right':>10}"      # '     right'
+f"{'center':^10}"     # '  center  '
+f"{'fill':*^10}"      # '**fill****'
+
+# Debug (3.8+):
+f"{score=}"           # score=0.9253 — name + value
+f"{name=!r}"          # name='Alice'`,
+        tips: [
+          '`f"{val=}"` (3.8+) prints both the variable name and value — best quick debugging tool',
+          '`f"{n:,}"` adds thousands separators with no import',
+          '`f"{val:.2%}"` multiplies by 100 and formats as percent — direct from a 0–1 float',
+          'f-strings are faster than `.format()` and `%` formatting — use them by default',
+        ],
+        mistake: 'Concatenating strings with `+` in a loop: `s += str(x)`. This is O(n²). Use `"".join(str(x) for x in items)` or accumulate in a list then join.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'str-methods', fn: 'str methods', desc: 'Built-in string transformation and searching methods.',
+        category: 'Strings', subtitle: 'split, join, strip, find, replace, startswith, endswith',
+        signature: 's.split(sep) | sep.join(lst) | s.strip() | s.replace(old, new)',
+        descLong: 'Python strings are immutable — all methods return new strings. The most important to know are split/join (converting between strings and lists), strip (whitespace removal), and replace/find (search and substitution).',
+        code: `s = "  Hello, World!  "
+# Case conversion:
+s.lower()               # "  hello, world!  "
+s.upper()               # "  HELLO, WORLD!  "
+s.title()               # "  Hello, World!  "
+s.swapcase()            # "  hELLO, wORLD!  "
+# Whitespace:
+s.strip()               # "Hello, World!" — both ends
+s.lstrip()              # "Hello, World!  " — left only
+s.rstrip()              # "  Hello, World!" — right only
+# Test:
+s.startswith("Hello")   # False
+s.startswith("  Hello") # True
+s.endswith("!")         # False
+s.endswith("!  ")       # True
+"123".isdigit()         # True
+"abc".isalpha()         # True
+"abc123".isalnum()      # True
+"   ".isspace()         # True
+# Split / join:
+"a,b,c".split(",")      # ['a', 'b', 'c']
+"hello world".split()   # ['hello', 'world'] — splits on whitespace
+",".join(["a", "b", "c"])  # "a,b,c"
+"\n".join(["line1", "line2"])  # multi-line string
+# Find / replace:
+s.find("World")         # 12 (index or -1 if not found)
+s.index("World")        # 12 (index or ValueError)
+s.count("l")            # 3 — occurrences
+s.replace("World", "Python")  # "  Hello, Python!  "
+s.replace("l", "L", 2)  # "  HeLLo, World!  " — max 2 replacements
+# Format and alignment:
+"hello".center(11, "-")   # "--hello----"
+"42".zfill(6)             # "000042"
+"abc".ljust(6, ".")       # "abc..."
+"abc".rjust(6, "*")       # "***abc"`,
+        tips: [
+          '`s.split()` (no argument) splits on any whitespace and strips leading/trailing — handles tabs and multiple spaces',
+          '`",".join(lst)` is much faster than concatenating with `+` in a loop',
+          '`s.find()` returns -1 on miss; `s.index()` raises ValueError — use `find()` when absence is expected',
+          '`s.strip()` strips whitespace by default; pass a string to strip those specific chars: `s.strip("$")`',
+        ],
+        mistake: 'Using `str.replace()` when you need regex patterns. `"Hello World".replace(r"\\w+", "X")` does not work — use `re.sub(r"\\w+", "X", text)` for regex replacement.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 're-module', fn: 're module', desc: 'Pattern matching and text manipulation with regular expressions.',
+        category: 'Strings', subtitle: 'search, findall, sub, split, compile — always use raw strings r""',
+        signature: 're.search(r"pattern", text) | re.findall() | re.sub()',
+        descLong: 'The re module provides full regular expression support. Always use raw strings r"" for patterns to avoid double-escaping backslashes. Compile patterns with re.compile() when reusing them. re.search() scans anywhere; re.match() only matches at the start.',
+        code: `import re
+
+text = "Order #1234 shipped on 2024-01-15 to user@example.com"
+# Search — first match anywhere:
+m = re.search(r"\\d{4}-\\d{2}-\\d{2}", text)
+m.group()    # "2024-01-15"
+m.start(), m.end()  # (28, 38)
+# findall — all matches as list:
+re.findall(r"\\d+", text)          # ["1234","2024","01","15"]
+re.findall(r"(\\d{4})-(\\d{2})-(\\d{2})", text)  # list of group tuples
+# sub — replace:
+re.sub(r"\\s+", " ", "too   many  spaces")  # "too many spaces"
+re.sub(r"(\\w+)@(\\w+)", r"user@hidden", text)
+# split — on pattern:
+re.split(r"[,;\\s]+", "a, b;  c d")    # ["a","b","c","d"]
+# match — only at start:
+re.match(r"Order", text)             # Match object
+re.match(r"\\d+", text)              # None — doesn't start with digit
+# Compile for reuse:
+date_re = re.compile(r"(\\d{4})-(\\d{2})-(\\d{2})")
+m = date_re.search(text)
+m.group(1), m.group(2), m.group(3)  # "2024","01","15"
+m.groups()                           # ("2024","01","15")
+# Flags:
+re.search(r"order", text, re.IGNORECASE)
+re.findall(r"^\\w+", text, re.MULTILINE)  # first word of each line`,
+        tips: [
+          'Always use raw strings `r"\\d+"` — avoids double-escaping (`\\\\d` instead of `\\d`)',
+          '`re.compile()` once and reuse — avoids recompiling the pattern on every call',
+          '`re.search()` scans anywhere; `re.match()` only matches at the very start of the string',
+          'Named groups: `(?P<year>\\d{4})` accessed as `m.group("year")` — more readable than numeric groups',
+        ],
+        mistake: 'Using `str.replace()` for pattern substitution. `re.sub(r"\\s+", " ", text)` normalizes all whitespace; `str.replace("  ", " ")` only fixes exactly two spaces.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'type-hints', fn: 'Type hints', desc: 'Annotate variables and functions with static type information.',
+        category: 'Type System', subtitle: 'list[int], dict[str,int], Optional, Union, TypeVar — Python 3.9+',
+        signature: 'def fn(x: int) -> str | None: ...',
+        descLong: 'Type hints make code self-documenting and enable static analysis with mypy or pyright. Python does not enforce them at runtime. Since 3.10+, use `X | Y` instead of `Union[X,Y]`. Since 3.9+, use built-in `list[int]` and `dict[str,int]` directly.',
+        code: `from typing import Callable, TypeVar, Protocol
+# Variable annotations:
+x: int = 42
+name: str = "Alice"
+items: list[str] = []
+mapping: dict[str, int] = {}
+# Function annotations:
+def greet(name: str, times: int = 1) -> str:
+    return (name + " ") * times
+greet("Alice", 2)  # "Alice Alice "
+# Optional (value or None):
+def find(lst: list[int], val: int) -> int | None:
+    try:
+        return lst.index(val)
+    except ValueError:
+        return None
+find([1, 2, 3], 2)    # 1
+find([1, 2, 3], 5)    # None
+# Union (multiple allowed types):
+def process(val: int | str | float) -> str:
+    return str(val).upper()
+process(42)          # "42"
+process("hello")     # "HELLO"
+# Callable:
+def apply(fn: Callable[[int], str], n: int) -> str:
+    return fn(n)
+apply(str, 42)       # "42"
+# TypeVar — generic functions:
+T = TypeVar("T")
+def first(lst: list[T]) -> T:
+    return lst[0]
+first([1, 2, 3])     # 1
+first(["a", "b"])    # "a"
+
+# Protocol — structural typing (duck typing with types):
+class Drawable(Protocol):
+    def draw(self) -> None: ...
+class Circle:
+    def draw(self) -> None:
+        print("Drawing circle")
+def render(item: Drawable) -> None:
+    item.draw()
+circle = Circle()
+render(circle)  # Works! Any class with .draw() satisfies Drawable
+# Check types with mypy or pyright
+# mypy script.py
+# pyright script.py`,
+        tips: [
+          'Python 3.10+: use `X | Y` and `X | None` — cleaner than `Union[X,Y]` and `Optional[X]`',
+          'Python 3.9+: use `list[int]`, `dict[str,int]` — no need to import from `typing`',
+          '`Protocol` is structural subtyping (duck typing) — any class with the right methods satisfies it, no inheritance required',
+          'Type hints are documentation — mypy/pyright catch bugs before runtime',
+        ],
+        mistake: 'Using `List[int]` (capital L, from `typing`) in Python 3.9+. Use built-in `list[int]` directly. The typing module versions still work but are deprecated.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'abc', fn: 'Abstract Base Classes', desc: 'Define interfaces that subclasses must implement.',
+        category: 'Type System', subtitle: 'ABC + @abstractmethod enforces method implementation',
+        signature: 'from abc import ABC, abstractmethod',
+        descLong: 'Abstract Base Classes define interfaces — they specify what methods a subclass must implement without providing the implementation. Attempting to instantiate a class with unimplemented abstract methods raises TypeError.',
+        code: `from abc import ABC, abstractmethod
+class Shape(ABC):
+    @abstractmethod
+    def area(self) -> float:
+        ...    # subclass must implement this
+    def perimeter(self) -> float: ...
+    def describe(self):    # concrete — shared by all subclasses
+        return f"area={self.area():.2f}"
+class Circle(Shape):
+    def __init__(self, radius: float):
+        self.radius = radius
+    def area(self):
+        return 3.14159 * self.radius ** 2
+    def perimeter(self):
+        return 2 * 3.14159 * self.radius
+# Shape()   → TypeError: Cannot instantiate abstract class
+c = Circle(5)
+c.area()         # 78.54
+c.describe()
+# Abstract property:
+class Config(ABC):
+    @property
+    def db_url(self) -> str: ...
+# collections.abc for isinstance checks:
+from collections.abc import Iterable, Mapping, Sequence, Callable
+
+isinstance([1,2,3], Iterable)     # True
+isinstance({}, Mapping)           # True
+isinstance('abc', Sequence)       # True
+isinstance(len, Callable)         # True`,
+        tips: [
+          'ABCs raise TypeError at instantiation if abstract methods are missing — catches mistakes early',
+          'Use ... (Ellipsis) as abstract method body — cleaner than pass or raise NotImplementedError',
+          'collections.abc provides ABCs for isinstance checks: Iterable, Mapping, Sequence, Callable',
+          'ABCs enforce via inheritance; Protocol enforces via structural typing — different use cases',
+        ],
+        mistake: 'Forgetting @abstractmethod and leaving the method body with pass. Without the decorator, the method is concrete — subclasses can skip it without any error.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+    ],
+  },
+
+  {
+    id: 'stdlib',
+    title: 'Standard Library',
+    entries: [
+      {
+        id: 'itertools', fn: 'itertools', desc: 'Lazy combinatorial iterators for sequences.',
+        category: 'Standard Library', subtitle: 'chain, product, combinations, permutations, groupby, islice',
+        signature: 'chain(*its) | product(*its) | groupby(it, key=fn) | islice(it, n)',
+        descLong: 'itertools provides memory-efficient iterators for combinatorial and sequence operations. All functions are lazy — they generate values on demand. groupby() only groups consecutive equal elements — sort by key first for full grouping.',
+        code: `import itertools as it
+# Chain — concatenate iterables:
+list(it.chain([1, 2], [3, 4], [5]))  # [1, 2, 3, 4, 5]
+list(it.chain.from_iterable([[1, 2], [3, 4]]))  # flatten one level
+# Slice — take first n:
+list(it.islice(range(1000), 5))      # [0, 1, 2, 3, 4]
+list(it.islice(range(100), 2, 8, 2)) # [2, 4, 6]
+# Combinatorics:
+list(it.product("AB", repeat=2))     # [('A','A'),('A','B'),('B','A'),('B','B')]
+list(it.combinations("ABCD", 2))     # [('A','B'),('A','C'),('A','D'),('B','C'),('B','D'),('C','D')]
+list(it.permutations("ABC", 2))      # [('A','B'),('A','C'),('B','A'),('B','C'),('C','A'),('C','B')]
+list(it.combinations_with_replacement("AB", 2))  # [('A','A'),('A','B'),('B','B')]
+# groupby — groups consecutive equal elements (sort first!):
+data = [("a", 1), ("b", 3), ("a", 2), ("a", 4)]
+data_sorted = sorted(data, key=lambda x: x[0])
+for key, group in it.groupby(data_sorted, key=lambda x: x[0]):
+    print(f"{key}: {list(group)}")
+# Accumulate — running computation:
+list(it.accumulate([1, 2, 3, 4, 5]))      # [1, 3, 6, 10, 15]
+list(it.accumulate([1, 2, 3, 4], max))    # [1, 2, 3, 4]
+# Infinite iterators:
+list(it.islice(it.count(10, 2), 5))       # [10, 12, 14, 16, 18]
+list(it.islice(it.cycle("ABC"), 7))       # ['A', 'B', 'C', 'A', 'B', 'C', 'A']
+list(it.repeat(1, 5))                      # [1, 1, 1, 1, 1]`,
+        tips: [
+          '`itertools.groupby()` groups only *consecutive* equal elements — always sort by key first',
+          '`chain.from_iterable()` flattens one level without building intermediate lists',
+          '`product(range(10), repeat=3)` generates all 1000 3-digit combinations for grid search',
+          'Wrap in `list()` only when you need all results — itertools iterators are lazy by design',
+        ],
+        mistake: 'Using `itertools.groupby()` on unsorted data expecting all matching items grouped. It only groups *consecutive* matches. Sort by the key first: `sorted(data, key=fn)`.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'collections-deque', fn: 'collections.deque', desc: 'Double-ended queue with O(1) append and pop at both ends.',
+        category: 'Standard Library', subtitle: 'Use instead of list when you need O(1) ops at both ends',
+        signature: 'from collections import deque | deque(maxlen=n)',
+        descLong: 'collections.deque provides O(1) append and pop from both ends — unlike list which is O(n) for operations at the front. Essential for queues, sliding windows, and BFS. maxlen= creates a fixed-size circular buffer.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+from collections import deque
+
+# O(1) at both ends:
+q = deque()
+q.append(1)         # add right
+q.append(2)
+q.appendleft(0)     # add left — O(1)
+q.popleft()         # remove left — O(1)!
+q.pop()             # remove right — O(1)
+# vs list — list.pop(0) is O(n):
+lst = [1, 2, 3]
+lst.pop(0)          # O(n) — shifts every element!
+# Fixed-size circular buffer:
+window = deque(maxlen=3)
+for x in [1, 2, 3, 4, 5]:
+    window.append(x)
+    print(list(window))
+# [1], [1,2], [1,2,3], [2,3,4], [3,4,5]
+# Rotate:
+d = deque([1, 2, 3, 4, 5])
+d.rotate(2)     # [4,5,1,2,3] — rotate right
+d.rotate(-1)    # rotate left
+# Extend:
+d.extend([6, 7])
+d.extendleft([0, -1])  # adds reversed to left
+list(d)         # convert to list`,
+        tips: [
+          'Use deque when you need O(1) popleft — list.pop(0) is O(n) and causes performance issues in loops',
+          'maxlen=n creates a circular buffer — old items drop off automatically',
+          'BFS always uses a deque — O(1) popleft is critical for performance',
+          'deque is O(n) for random index access — use list if you need d[i] frequently',
+        ],
+        mistake: 'Using list.pop(0) in a loop to simulate a queue. This is O(n) per operation, O(n²) total. Use deque.popleft() for O(1).',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'functools', fn: 'functools', desc: 'Higher-order function utilities — caching, partial application, ordering.',
+        category: 'Standard Library', subtitle: 'lru_cache, partial, reduce, wraps, total_ordering',
+        signature: '@lru_cache(maxsize=128) | partial(fn, *args) | reduce(fn, it)',
+        descLong: 'functools provides tools for working with higher-order functions. lru_cache memoizes results — one of the easiest performance wins in Python. partial() fixes arguments. total_ordering generates comparison methods from just two.',
+        code: `import functools
+
+# lru_cache — memoize results:
+@functools.lru_cache(maxsize=256)
+def fib(n: int) -> int:
+    return n if n < 2 else fib(n-1) + fib(n-2)
+
+fib(100)             # instant
+fib.cache_info()     # CacheInfo(hits=98, misses=101, ...)
+fib.cache_clear()
+
+@functools.cache     # Python 3.9+ — unbounded cache, cleaner
+def expensive(n): return n**2
+
+# partial — fix arguments:
+from functools import partial
+def power(base, exp): return base ** exp
+
+square = partial(power, exp=2)
+cube   = partial(power, exp=3)
+square(5)    # 25
+
+# reduce — fold a binary function:
+from functools import reduce
+reduce(lambda acc, x: acc + x, [1,2,3,4,5])  # 15
+reduce(lambda acc, x: acc * x, [1,2,3,4,5])  # 120
+
+# wraps — preserve function metadata in decorators:
+def my_decorator(fn):
+    @functools.wraps(fn)   # fn.__name__ and __doc__ preserved
+    def wrapper(*args, **kwargs):
+        return fn(*args, **kwargs)
+    return wrapper
+
+# total_ordering — fill in comparison methods:
+from functools import total_ordering
+
+@total_ordering
+class Version:
+    def __init__(self, major, minor):
+        self.major, self.minor = major, minor
+    def __eq__(self, other):
+        return (self.major, self.minor) == (other.major, other.minor)
+    def __lt__(self, other):
+        return (self.major, self.minor) < (other.major, other.minor)
+    # >, >=, <= generated automatically`,
+        tips: [
+          '`@functools.cache` (3.9+) is the simplest memoization — no `maxsize` argument needed',
+          '`partial()` is cleaner than a lambda for simple argument fixing when you need a name',
+          '`@total_ordering` requires `__eq__` + one comparison method — generates the other three',
+          '`@lru_cache` on a method with `self` caches the instance — use `@cached_property` for instance-level caching instead',
+        ],
+        mistake: '`@lru_cache` on an instance method caches all calls including `self`, which prevents garbage collection of the instance. Cache only module-level functions, or use `@cached_property`.',
+        shorthand: {
+          verbose: `def fib(n):
+    if n < 2: return n
+    return fib(n-1) + fib(n-2)
+fib(100)  # Slow without cache`,
+          concise: `@functools.lru_cache(maxsize=128)
+def fib(n):
+    return n if n < 2 else fib(n-1) + fib(n-2)
+fib(100)  # Instant with caching`
+        }
+      },
+      {
+        id: 'datetime', fn: 'datetime module', desc: 'Work with dates, times, and durations.',
+        category: 'Standard Library', subtitle: 'date, time, datetime, timedelta, timezone — parsing and arithmetic',
+        signature: 'datetime.now() | datetime.strptime(s, fmt) | dt + timedelta(days=7)',
+        descLong: 'The datetime module provides date and time objects. datetime.now() returns local time; datetime.utcnow() returns UTC. Use strptime() to parse strings and strftime() to format. timedelta represents a duration and supports arithmetic.',
+        code: `from datetime import datetime, timedelta
+from datetime import datetime, date, time, timedelta, timezone
+# Current time:
+now   = datetime.now()                    # local time
+utcnow = datetime.now(timezone.utc)       # timezone-aware UTC
+# Create:
+dt = datetime(2024, 1, 15, 9, 30, 0)
+d  = date(2024, 1, 15)
+t  = time(9, 30, 0)
+# Extract components:
+dt.year, dt.month, dt.day
+dt.hour, dt.minute, dt.second
+dt.weekday()    # 0=Monday, 6=Sunday
+dt.isoformat()  # "2024-01-15T09:30:00"
+# Parse string → datetime:
+dt = datetime.strptime("2024-01-15", "%Y-%m-%d")
+dt = datetime.strptime("Jan 15 2024 09:30", "%b %d %Y %H:%M")
+# Format datetime → string:
+dt.strftime("%Y-%m-%d")          # "2024-01-15"
+dt.strftime("%B %d, %Y")         # "January 15, 2024"
+dt.strftime("%d/%m/%Y %H:%M")    # "15/01/2024 09:30"
+# Arithmetic with timedelta:
+tomorrow  = datetime.now() + timedelta(days=1)
+last_week = datetime.now() - timedelta(weeks=1)
+delta     = datetime(2024,12,31) - datetime.now()
+delta.days         # days remaining
+delta.total_seconds()
+
+# Compare:
+dt1 < dt2
+dt1 == dt2`,
+        tips: [
+          'Always store and transmit datetimes in UTC — convert to local time only for display',
+          '`timedelta` supports days, hours, minutes, seconds, weeks — and arithmetic with datetime',
+          '`datetime.fromisoformat("2024-01-15")` (Python 3.7+) is faster than `strptime` for ISO format',
+          'For production date handling (timezones, parsing) use the `dateutil` or `arrow` library',
+        ],
+        mistake: 'Using `datetime.utcnow()` — it returns naive UTC with no timezone info attached, making it easy to confuse with local time. Use `datetime.now(timezone.utc)` for timezone-aware UTC.',
+        shorthand: {
+          verbose: `from datetime import datetime, timedelta
+from datetime import datetime, date, time, timedelta, timezone
+now   = datetime.now()                    # local time
+utcnow = datetime.now(timezone.utc)       # timezone-aware UTC`,
+          concise: `dt1 == dt2`
+        }
+      },
+      {
+        id: 'json-module', fn: 'json module', desc: 'Serialize Python objects to JSON and back.',
+        category: 'Standard Library', subtitle: 'loads/dumps for strings, load/dump for files',
+        signature: 'json.dumps(obj, indent=2) | json.loads(string) | json.load(file)',
+        descLong: 'The json module converts between Python dicts/lists and JSON strings. dumps() serializes to a string; loads() parses a string. dump()/load() work with file objects. Only basic Python types are supported — custom objects need a custom encoder.',
+code: `
+import json
+data = {"name": "Alice", "age": 30, "scores": [92, 88, 95]}
+# Python → JSON string:
+s = json.dumps(data)                        # compact
+s = json.dumps(data, indent=2)             # pretty-printed
+s = json.dumps(data, sort_keys=True)       # sorted keys
+s = json.dumps(data, ensure_ascii=False)   # keep Unicode
+# JSON string → Python:
+obj = json.loads('{"name": "Bob", "age": 25}')
+obj["name"]    # "Bob"
+# File I/O:
+with open("data.json", "w") as f:
+    json.dump(data, f, indent=2)
+with open("data.json") as f:
+    obj = json.load(f)
+# Custom encoder for non-serializable types:
+from datetime import datetime
+class DateEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+json.dumps({"ts": datetime.now()}, cls=DateEncoder)
+# Or use default= for simple cases:
+json.dumps({"ts": datetime.now()},
+           default=lambda o: o.isoformat() if isinstance(o, datetime) else str(o))`,
+        tips: [
+          '`json.dumps(obj, indent=2)` is the standard for writing human-readable JSON config files',
+          'JSON only supports str, int, float, bool, None, list, dict — everything else needs a custom encoder',
+          '`json.loads()` raises `json.JSONDecodeError` on invalid JSON — wrap in try/except for untrusted input',
+          'For large JSON files, use `ijson` for streaming parsing instead of loading everything at once',
+        ],
+        mistake: 'Using str(obj) to serialize a Python dict gives invalid JSON with single quotes. Always use json.dumps() to produce valid JSON output.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'copy-module', fn: 'copy module', desc: 'Make shallow or deep copies of Python objects.',
+        category: 'Standard Library', subtitle: 'copy() for shallow, deepcopy() for fully independent copies',
+        signature: 'copy.copy(obj) | copy.deepcopy(obj)',
+        descLong: 'Assignment in Python copies a reference, not the object. copy.copy() creates a shallow copy — a new object but with references to the same inner objects. copy.deepcopy() recursively copies everything — fully independent.',
+        code: `import copy
+
+# Assignment — same object:
+a = [1, [2, 3], 4]
+b = a            # b IS a — same list in memory
+b[0] = 99
+print(a)         # [99, [2, 3], 4] — a changed!
+# Shallow copy — new outer object, shared inner:
+b = copy.copy(a)      # or: b = a[:]  or: b = list(a)
+b[0] = 99             # outer change — a unaffected
+print(a)              # [1, [2, 3], 4] ✓
+b[1].append(99)       # inner object is SHARED
+print(a)              # [1, [2, 3, 99], 4] — a still affected!
+# Deep copy — fully independent:
+b = copy.deepcopy(a)
+b[1].append(99)
+print(a)              # [1, [2, 3], 4] ✓ — unaffected
+# When to use each:
+# copy.copy()     — flat structures, no nested mutables
+# copy.deepcopy() — nested dicts, lists of objects, complex graphs
+# Caution: deepcopy is slow for large structures
+# Common gotcha — dict:
+d1 = {"a": [1, 2, 3]}
+d2 = d1.copy()         # shallow copy
+d2["a"].append(4)
+print(d1)              # {"a": [1,2,3,4]} — shared list!
+d2 = copy.deepcopy(d1) # deep copy
+print(d1)              # {"a": [1,2,3]} ✓`,
+          tips: [
+          '`lst[:]` and `list(lst)` are shallow copies — same as `copy.copy(lst)` for lists',
+          '`dict.copy()` is also shallow — nested lists/dicts are still shared',
+          'Use `deepcopy` when passing complex objects to functions that might modify them',
+          '`deepcopy` can be slow on large or circular structures — profile before using in hot paths',
+        ],
+        mistake: 'Assuming `b = a.copy()` (or `b = a[:]`) gives a fully independent copy. These are *shallow* copies — nested mutable objects (like a list inside a list) are still shared.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    result.append(x * 2)`,
+          concise: `result = [x * 2 for x in items]`
+        }
+      },
+      {
+        id: 'bytes', fn: 'bytes', desc: 'Immutable sequence of raw bytes (integers 0-255).',
+        category: 'Standard Library', subtitle: 'Binary data — files, network, encoding/decoding',
+        signature: 'b"hello" | bytes(size) | s.encode("utf-8")',
+        descLong: 'bytes is an immutable sequence of integers 0-255. Create with byte literals (b"..."), the bytes() constructor, or by encoding strings. Use bytes for binary file I/O, network protocols, and any place you need immutable binary data. Access individual bytes as integers, not characters.',
+        code: `# Create bytes:
+b = b"hello"               # literal — immutable
+b = bytes(5)               # 5 zero bytes: b'\\x00\\x00\\x00\\x00\\x00'
+b = bytes([72, 101, 108])  # from iterable of ints: b'Hel'
+b = bytes.fromhex('48656c6c6f')  # from hex string: b'hello'
+
+# String <-> bytes conversion:
+s = "hello"
+b = s.encode('utf-8')      # str → bytes
+s = b.decode('utf-8')      # bytes → str
+# Encoding variants (always specify encoding):
+"hello".encode('utf-8')    # b'hello' — ASCII compatible
+"café".encode('utf-8')     # b'caf\\xc3\\xa9' — 5 bytes
+"café".encode('latin-1')   # b'caf\\xe9' — 4 bytes
+# Indexing returns integers:
+b = b"hello"
+len(b)                     # 5
+b[0]                       # 104 — integer, not 'h'
+b[0:2]                     # b'he' — slicing returns bytes
+b[0] == ord('h')           # True — 104
+# Binary file I/O:
+with open('image.png', 'rb') as f:
+    data = f.read()        # returns bytes
+with open('out.bin', 'wb') as f:
+    f.write(data)          # write bytes
+# Inspection:
+b = b"ABC"
+b.hex()                    # '414243'
+list(b)                    # [65, 66, 67] — list of ints`,
+        tips: [
+          'Always specify encoding explicitly: `s.encode("utf-8")` — never rely on platform default',
+          'Open binary files with "rb" or "wb" mode — missing the b causes silent corruption on Windows',
+          'Indexing bytes returns an int (0-255), not a character: `b"hi"[0]` is 104, not "h"',
+          '`bytes` is immutable — use `bytearray` if you need to modify individual bytes',
+        ],
+        mistake: 'Opening a binary file in text mode: `open("image.png", "r")`. Python decodes bytes as text and corrupts binary data. Always use "rb" for binary read.',
+        shorthand: {
+          verbose: `b = b"hello"               # literal — immutable
+b = bytes(5)               # 5 zero bytes: b'\\x00\\x00\\x00\\x00\\x00'
+b = bytes([72, 101, 108])  # from iterable of ints: b'Hel'
+b = bytes.fromhex('48656c6c6f')  # from hex string: b'hello'`,
+          concise: `list(b)                    # [65, 66, 67] — list of ints`
+        }
+      },
+      {
+        id: 'bytearray', fn: 'bytearray', desc: 'Mutable sequence of raw bytes — the editable version of bytes.',
+        category: 'Standard Library', subtitle: 'Modify bytes in place — append, extend, slice assignment',
+        signature: 'bytearray(size) | bytearray(b"hello") | s.encode(...)',
+        descLong: 'bytearray is like bytes but mutable — you can modify individual elements, append, extend, and slice-assign. Essential for building binary data incrementally without the O(n²) overhead of bytes concatenation. Convert to bytes when done.',
+        code: `import numpy as np
+
+# Create bytearray:
+ba = bytearray(5)          # 5 zero bytes, mutable
+ba = bytearray(b"hello")   # from bytes
+ba = bytearray("hello", "utf-8")  # from string
+
+# Modify elements:
+ba = bytearray(b"hello")
+ba[0] = 72                 # modify first byte
+ba[0] = ord('H')           # same thing, using ord()
+print(ba)                  # bytearray(b'Hello')
+
+# Append and extend:
+ba = bytearray(b"hello")
+ba.append(33)              # add one byte (int): bytearray(b'hello!')
+ba.extend(b" world")       # add multiple bytes
+print(ba)                  # bytearray(b'hello! world')
+
+# Slice assignment:
+ba = bytearray(b"hello")
+ba[1:3] = b"XX"            # replace slice
+print(ba)                  # bytearray(b'hXXlo')
+ba[0:2] = b"ABC"           # replace with longer sequence
+print(ba)                  # bytearray(b'ABCXlo')
+
+# Remove bytes:
+ba = bytearray(b"hello")
+ba.pop()                   # remove last byte
+ba.remove(ord('l'))        # remove first 'l'
+del ba[0]                  # delete by index
+print(ba)                  # bytearray(b'elo')
+
+# Build binary data incrementally:
+ba = bytearray()
+ba.extend([0xFF, 0x00])    # PNG header bytes
+ba.extend(b"PNG")
+ba.extend([0x0D, 0x0A])    # CRLF
+print(ba.hex())            # 'ff00504e470d0a'
+
+# Convert to bytes when done:
+final = bytes(ba)          # immutable bytes object`,
+        tips: [
+          'Use `bytearray` to build binary data incrementally — avoids O(n²) copying from bytes concatenation',
+          'When appending a single byte, pass an int (0-255), not a byte: `ba.append(65)` not `ba.append(b"A")`',
+          'Convert to `bytes` when done mutating: `b = bytes(ba)` — bytes is more memory-efficient',
+          'Slice assignment can change length: `ba[1:3] = b"XXXXX"` replaces 2 bytes with 5',
+        ],
+        mistake: 'Building binary data with bytes concatenation: `b += chunk` in a loop. This is O(n²). Use `bytearray`, append, then convert: `ba = bytearray(); ba.extend(chunks); b = bytes(ba)`.',
+        shorthand: {
+          verbose: `        import numpy as np
+ba = bytearray(5)          # 5 zero bytes, mutable
+ba = bytearray(b"hello")   # from bytes
+ba = bytearray("hello", "utf-8")  # from string
+ba = bytearray(b"hello")`,
+          concise: `final = bytes(ba)          # immutable bytes object`
+        }
+      },
+      {
+        id: 'pathlib', fn: 'pathlib.Path', desc: 'Object-oriented filesystem path manipulation.',
+        category: 'Standard Library', subtitle: 'Cross-platform paths — / operator, read_text, glob, mkdir',
+        signature: 'Path("dir") / "file.txt" | path.read_text() | path.glob("*.csv")',
+        descLong: 'pathlib.Path is the modern replacement for os.path. It is object-oriented, cross-platform (handles / vs \\ automatically), and far more readable. Use it for all file system operations — file reading, directory creation, globbing.',
+        code: `from pathlib import Path
+# Build paths with / operator:
+p = Path("data") / "input.csv"
+p = Path.home() / "Documents" / "report.pdf"
+p = Path.cwd() / "output"
+# Properties:
+p.name       # "input.csv"
+p.stem       # "input"
+p.suffix     # ".csv"
+p.parent     # Path("data")
+p.parts      # ("data", "input.csv")
+# Test:
+p.exists()
+p.is_file()
+p.is_dir()
+p.stat().st_size   # bytes
+# Read / write:
+text = p.read_text(encoding="utf-8")
+p.write_text("hello", encoding="utf-8")
+data = p.read_bytes()
+p.write_bytes(b"binary")
+# Line by line (memory efficient):
+with open(p) as f:
+    for line in f:
+        process(line.rstrip())
+# Directory operations:
+p.mkdir(parents=True, exist_ok=True)
+p.unlink(missing_ok=True)    # delete file
+p.rename(new_path)
+
+# Glob:
+list(Path(".").glob("*.py"))         # *.py in current dir
+list(Path(".").rglob("*.csv"))       # recursive
+sorted(Path("data").glob("**/*.json"))`,
+        tips: [
+          '`Path.home() / "docs" / "file.txt"` is cross-platform — no hardcoded `/` or `\\\\`',
+          '`path.read_text()` / `write_text()` for simple files; `open()` context manager for streaming',
+          '`path.rglob("*.csv")` recursively finds all CSVs — replaces `os.walk()` for most cases',
+          '`exist_ok=True` in `mkdir()` is idempotent — create if absent, no error if present',
+        ],
+        mistake: 'String concatenation for paths: `path = dir + "/" + filename`. Breaks on Windows where the separator is `\\\\`. Use `Path(dir) / filename`.',
+        shorthand: {
+          verbose: `from pathlib import Path
+p = Path("data") / "input.csv"
+p = Path.home() / "Documents" / "report.pdf"
+p = Path.cwd() / "output"`,
+          concise: `sorted(Path("data").glob("**/*.json"))`
+        }
+      },
+      {
+        id: 'builtin-exceptions', fn: 'Built-in exceptions', desc: 'The standard exception hierarchy and most common exception types.',
+        category: 'Standard Library', subtitle: 'Know which exception to catch — never catch Exception blindly',
+        signature: 'ValueError | TypeError | KeyError | AttributeError | ...',
+        descLong: 'Python has a rich hierarchy of built-in exceptions. Catching the right exception type makes error handling precise and debuggable. The most common ones to know: ValueError (bad value), TypeError (wrong type), KeyError (missing dict key), AttributeError (missing attribute), IndexError (out of range), FileNotFoundError.',
+        code: `# Most common exceptions:
+try:
+    int("abc")           # ValueError — invalid literal
+except ValueError as e:
+    print(e)
+    1 + "2"              # TypeError — wrong type
+except TypeError as e:
+    print(f"TypeError: {e}")
+    d = {}
+    d['missing']         # KeyError — key not in dict
+except KeyError as e:
+    print(f"KeyError: {e}")
+    obj.nonexistent      # AttributeError — attribute missing
+except AttributeError as e:
+    print(f"AttributeError: {e}")
+    lst = [1, 2, 3]
+    lst[10]              # IndexError — out of range
+except IndexError as e:
+    print(f"IndexError: {e}")
+    open('missing.txt')  # FileNotFoundError
+except FileNotFoundError as e:
+    print(f"FileNotFoundError: {e}")
+    None + 1             # TypeError
+except (TypeError, ValueError) as e:  # catch multiple
+    print(f"Error caught: {e}")
+# Exception hierarchy (simplified):
+# BaseException
+#   Exception
+#     ValueError
+#     TypeError
+#     KeyError (subclass of LookupError)
+#     IndexError (subclass of LookupError)
+#     AttributeError
+#     OSError
+#       FileNotFoundError
+#       PermissionError
+#     RuntimeError
+#       RecursionError
+#     StopIteration
+#   SystemExit
+#   KeyboardInterrupt`,
+          tips: [
+          'Catch the most specific exception possible — catching Exception hides bugs',
+          'FileNotFoundError, PermissionError are subclasses of OSError — catch OSError for both',
+          'KeyboardInterrupt and SystemExit are NOT subclasses of Exception — bare except: catches them, except Exception: does not',
+          'Use except (TypeError, ValueError) to catch multiple types in one clause',
+        ],
+        mistake: 'Using bare except: or except Exception: to catch everything. This silences real bugs. Always catch the specific exception type you expect.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'with-statement', fn: 'with statement', desc: 'Execute a block with guaranteed setup and teardown via context managers.',
+        category: 'Standard Library', subtitle: 'Guarantees cleanup even if an exception occurs',
+        signature: 'with open("f") as f: | with contextlib.contextmanager',
+        descLong: 'The with statement calls __enter__ before the block and __exit__ after — even if an exception is raised. Used for file handles, database connections, locks, and temporary state. contextlib.contextmanager lets you write a context manager with a generator function.',
+        code: `import os
+
+# File — always closed even on exception:
+with open('data.txt', 'r') as f:
+    content = f.read()
+# f.close() called automatically
+# Multiple context managers:
+with open('input.txt') as fin, open('output.txt', 'w') as fout:
+    fout.write(fin.read().upper())
+# Database transaction:
+with db.transaction():
+    db.execute("INSERT ...")
+    db.execute("UPDATE ...")
+# commit on success, rollback on exception
+# Threading lock:
+import threading
+lock = threading.Lock()
+with lock:
+    shared_resource += 1   # lock released automatically
+# Custom context manager with contextlib:
+from contextlib import contextmanager
+@contextmanager
+def timer(label=''):
+    import time
+    start = time.perf_counter()
+    try:
+        yield             # block executes here
+    finally:
+        elapsed = time.perf_counter() - start
+        print(f"{label}: {elapsed:.4f}s")
+with timer('my operation'):
+    do_expensive_work()
+# Suppress specific exceptions:
+from contextlib import suppress
+with suppress(FileNotFoundError):
+    os.remove('maybe_missing.txt')  # no error if missing`,
+        tips: [
+          'with is cleaner than try/finally for resource cleanup — the intent is explicit',
+          'Multiple context managers on one line: `with open(a) as f1, open(b) as f2:`',
+          '@contextmanager turns a generator function into a context manager — yield is the with block',
+          'contextlib.suppress is the cleanest way to ignore specific expected exceptions',
+        ],
+        mistake: 'Using try/finally for file handling: `f = open("x"); try: ... finally: f.close()`. Use with open("x") as f — it is shorter, clearer, and handles the exception-during-close edge case.',
+        shorthand: {
+          verbose: `f = open("file.txt")
+try:
+    data = f.read()
+finally:
+    f.close()`,
+          concise: `with open("file.txt") as f:
+    data = f.read()`
+        }
+      },
+      {
+        id: 'exceptions', fn: 'Exception handling', desc: 'Handle, raise, and define exceptions.',
+        category: 'Standard Library', subtitle: 'Catch specific exceptions, use else/finally, define custom types',
+        signature: 'try: ... except ValueError as e: ... else: ... finally: ...',
+        descLong: 'Always catch specific exceptions — bare except catches everything including SystemExit and KeyboardInterrupt. The else clause runs only when no exception occurred. finally always runs — use it for cleanup. Custom exceptions should inherit from Exception.',
+        code: `# Specific exception handling:
+try:
+    result = int(user_input)
+except ValueError:
+    print("Not a number")
+except (TypeError, AttributeError) as e:
+    print(f"Type error: {e}")
+except Exception as e:
+    print(f"Unexpected: {e}")
+    raise   # re-raise original
+else:
+    print("Success!")    # runs only if no exception raised
+finally:
+    cleanup()            # always runs
+
+# Raise:
+raise ValueError("must be positive")
+raise ValueError(f"got {x!r}, expected > 0")
+raise               # re-raise current exception
+# Exception chaining (preserve context):
+    connect_to_db()
+except ConnectionError as e:
+    raise RuntimeError("database unavailable") from e
+# Custom exceptions:
+class AppError(Exception):
+    """Base for all app errors."""
+class ValidationError(AppError):
+    def __init__(self, field: str, message: str):
+        self.field = field
+        super().__init__(f"{field}: {message}")
+raise ValidationError("age", "must be positive")
+    raise ValidationError("email", "invalid format")
+except ValidationError as e:
+    print(f"Field: {e.field}")`,
+          tips: [
+          'Never use bare `except:` — it catches `SystemExit`, `KeyboardInterrupt`, and generator exits',
+          '`raise ... from e` preserves the exception chain — critical for debugging',
+          'The `else` clause cleanly separates "code that might fail" from "code that runs on success"',
+          'Define a base `AppError` so callers can catch all app errors with one `except AppError`',
+        ],
+        mistake: '`except Exception as e: print(e); pass` silently swallows exceptions. At minimum, use `logging.exception("msg")` — it logs the full traceback.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'main-guard', fn: '__name__ == "__main__"', desc: 'Guard code that should only run when the file is executed directly.',
+        category: 'Standard Library', subtitle: 'Separates runnable script from importable module',
+        signature: 'if __name__ == "__main__": main()',
+        descLong: 'When Python runs a file directly, it sets __name__ to "__main__". When the file is imported as a module, __name__ is set to the module name. The guard ensures that script code (like calling main()) only runs when the file is executed directly, not when it is imported.',
+        code: `# module: my_utils.py
+def add(a, b):
+    return a + b
+def greet(name):
+    return f"Hello, {name}!"
+# This block runs ONLY when: python my_utils.py
+# NOT when: import my_utils from another file
+if __name__ == "__main__":
+    print(add(3, 4))       # 7
+    print(greet("Alice"))  # Hello, Alice!
+
+# Best practice — wrap in a main() function:
+def main():
+    result = add(10, 20)
+    print(f"Result: {result}")
+    main()
+# Why it matters:
+# Without the guard, import my_utils would print output
+# With the guard, import my_utils only loads the functions
+# Check from inside a module:
+print(__name__)   # "__main__" if run directly, else module name
+# Entry point for packages:
+# mypackage/__main__.py runs when: python -m mypackage`,
+        tips: [
+          'Always wrap your script logic in `main()` and call it from the guard — makes it testable',
+          'Without the guard, `import mymodule` would run all top-level code including side effects',
+          'Put `if __name__ == "__main__": main()` at the very end of every script',
+          '`__main__.py` in a package lets you run it with `python -m mypackage`',
+        ],
+        mistake: 'Putting import-time side effects (file reads, DB connections, print statements) at module top level without a guard. Any file that imports your module will trigger those side effects.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'pathlib-module', fn: 'pathlib (Path Objects)', desc: 'Modern, object-oriented file path handling.',
+        category: 'File System', subtitle: 'Cross-platform path manipulation without os.path',
+        signature: 'from pathlib import Path\npath = Path("/home/user/file.txt")',
+        descLong: 'pathlib provides Path objects for filesystem operations — cleaner than os.path strings. Methods like .exists(), .read_text(), .glob() work directly on Path objects. Handles cross-platform paths automatically (/ vs \\\\).',
+        code: `from pathlib import Path, PureWindowsPath, PurePosixPath
+import os
+# Create Path objects (works cross-platform)
+home = Path.home()  # /Users/user or C:\\Users\\user
+cwd = Path.cwd()    # Current working directory
+file_path = Path('/home/user/documents/report.pdf')
+# Path operations
+print(file_path.name)       # 'report.pdf' (filename)
+print(file_path.stem)       # 'report' (filename without extension)
+print(file_path.suffix)     # '.pdf' (extension)
+print(file_path.parent)     # Path('/home/user/documents')
+print(file_path.parent.parent)  # Path('/home/user')
+# Join paths (use / operator, not os.path.join)
+data_dir = Path('data')
+csv_file = data_dir / 'sales.csv'  # Path('data/sales.csv')
+print(csv_file)
+# Check existence and type
+print(csv_file.exists())    # True/False
+print(csv_file.is_file())   # True if regular file
+print(csv_file.is_dir())    # True if directory
+print(csv_file.is_symlink()) # True if symlink
+# Read and write files easily
+text_file = Path('README.md')
+content = text_file.read_text()     # Read entire file as string
+text_file.write_text('New content') # Write entire file
+# Binary file operations
+data_file = Path('data.bin')
+bytes_data = data_file.read_bytes()
+data_file.write_bytes(bytes_data)
+# Iterate files in directory
+dir_path = Path('projects')
+for py_file in dir_path.glob('*.py'):    # Find all .py files
+    print(py_file.name)
+for py_file in dir_path.rglob('*.py'):   # Recursive glob
+    print(py_file.relative_to(dir_path))  # Show relative path
+# List all items
+for item in dir_path.iterdir():
+    if item.is_dir():
+        print(f'Dir: {item.name}')
+    else:
+        print(f'File: {item.name}')
+# File operations
+file_path = Path('output.txt')
+file_path.touch()  # Create empty file (or update mtime)
+file_path.chmod(0o644)  # Change permissions (Unix)
+# Create directories
+Path('data/output').mkdir(parents=True, exist_ok=True)
+# parents=True creates parent dirs if needed
+# exist_ok=True doesn't error if dir exists
+# Rename/move/delete
+old_path = Path('temp.txt')
+new_path = Path('permanent.txt')
+old_path.rename(new_path)  # Move or rename
+# old_path.unlink()  # Delete file
+# Path('empty_dir').rmdir()  # Delete empty directory
+# Path resolution and parts
+path = Path('/home/user/documents/report.pdf')
+print(path.resolve())  # Absolute path with symlinks resolved
+print(path.parts)      # ('/', 'home', 'user', 'documents', 'report.pdf')
+# Match patterns
+if file_path.match('*.txt'):
+    print('Text file')
+if file_path.match('*/documents/*'):
+    print('In documents folder')
+# Get stat info
+stat = file_path.stat()
+print(stat.st_size)     # File size in bytes
+print(stat.st_mtime)    # Modification time (Unix timestamp)
+# Open file without Path (still compatible)
+with open(file_path) as f:
+    lines = f.readlines()
+# Compare paths
+path1 = Path('data/file.txt')
+path2 = Path('./data/file.txt').resolve()
+print(path1.resolve() == path2)  # True
+# Windows-specific paths (for Windows path syntax on any OS)
+windows_path = PureWindowsPath(r'C:\\Users\\username\\file.txt')
+print(windows_path.drive)  # 'C:\\'
+print(windows_path.parts)  # ('C:\\\\', 'Users', 'username', 'file.txt')
+# POSIX-specific paths (for Unix path syntax on any OS)
+posix_path = PurePosixPath('/home/user/file.txt')
+print(posix_path.as_posix())  # '/home/user/file.txt'`,
+          tips: [
+          'Use Path / operator instead of os.path.join() — much cleaner syntax',
+          'Path.home(), Path.cwd() get common directories without os module',
+          'glob() and rglob() replace os.walk() for finding files by pattern',
+          '.read_text() and .write_text() eliminate open/close boilerplate',
+        ],
+        mistake: 'Mixing string paths with Path objects. Convert early: path = Path(string_path), then use Path methods throughout.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'functools-partial-cache', fn: 'functools (partial, lru_cache, reduce)', desc: 'Functional programming utilities: function wrapping, caching, reduction.',
+        category: 'Functions', subtitle: 'Partial application, memoization, and functional composition',
+        signature: 'from functools import partial, lru_cache, reduce, wraps',
+        descLong: 'functools provides higher-order functions for composition and optimization. partial pre-fills function arguments, lru_cache memoizes results, reduce folds a function over an iterable, wraps preserves function metadata in decorators.',
+        code: `from functools import partial, lru_cache, reduce, wraps
+from operator import mul, add
+# partial: Create specialized versions of functions
+def multiply(a, b):
+    return a * b
+double = partial(multiply, 2)  # Pre-fill first arg
+triple = partial(multiply, 3)
+print(double(5))   # 10 (2 * 5)
+print(triple(5))   # 15 (3 * 5)
+# Useful with built-in functions
+def add_prefix(prefix, text):
+    return prefix + text
+add_hello = partial(add_prefix, 'Hello ')
+print(add_hello('World'))  # 'Hello World'
+
+# Pre-fill multiple arguments
+def power(base, exponent):
+    return base ** exponent
+square = partial(power, exponent=2)
+cube = partial(power, exponent=3)
+print(square(5))  # 25
+print(cube(5))    # 125
+# lru_cache: Memoize function results
+@lru_cache(maxsize=128)  # Cache up to 128 results
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+print(fibonacci(10))  # Fast (cached results)
+print(fibonacci(10))  # Instant (from cache)
+# Cache info
+print(fibonacci.cache_info())  # CacheInfo(hits=8, misses=11, ...)
+fibonacci.cache_clear()        # Clear cache
+# Expensive computation example
+@lru_cache(maxsize=32)
+def fetch_data(url):
+    print(f'Fetching {url}...')
+    # Simulate slow API call
+    import time
+    time.sleep(1)
+    return f'Data from {url}'
+print(fetch_data('http://api.example.com'))  # Fetches
+print(fetch_data('http://api.example.com'))  # Instant (cached)
+# reduce: Fold (accumulate) a function over items
+numbers = [1, 2, 3, 4, 5]
+total = reduce(add, numbers)
+print(total)  # 15 (1+2+3+4+5)
+product = reduce(mul, numbers)
+print(product)  # 120 (1*2*3*4*5)
+# With custom function
+def combine(a, b):
+    return f'{a},{b}'
+result = reduce(combine, ['a', 'b', 'c', 'd'])
+print(result)  # 'a,b,c,d'
+# reduce with initializer
+total = reduce(add, numbers, 100)  # Start with 100
+print(total)  # 115 (100 + sum of numbers)
+# wraps: Preserve original function metadata in decorators
+def my_decorator(func):
+    @wraps(func)  # Copy __name__, __doc__, __module__ etc.
+    def wrapper(*args, **kwargs):
+        print(f'Calling {func.__name__}')
+        return func(*args, **kwargs)
+    return wrapper
+@my_decorator
+def greet(name):
+    '''Greet a person.'''
+    return f'Hello {name}'
+print(greet.__name__)  # 'greet' (not 'wrapper')
+print(greet.__doc__)   # 'Greet a person.'
+# Composition: chain partial and reduce
+def apply_operations(value, *operations):
+    return reduce(lambda x, op: op(x), operations, value)
+double_fn = partial(multiply, 2)
+add_ten = partial(add, 10)
+result = apply_operations(5, double_fn, add_ten)
+print(result)  # 20 (5 * 2 + 10)
+# Cache with custom key (unhashable args)
+@lru_cache(maxsize=128)
+def process_tuple(data_tuple):
+    return sum(data_tuple)
+print(process_tuple((1, 2, 3)))  # 6 (cached)
+# process_tuple([1, 2, 3])  # TypeError: unhashable type (use tuple)
+# Update wrapper: Advanced decorator pattern
+def timing_decorator(func):
+    @wraps(func)
+        import time
+        start = time.time()
+        result = func(*args, **kwargs)
+        elapsed = time.time() - start
+        print(f'{func.__name__} took {elapsed:.4f}s')
+        return result
+@timing_decorator
+def slow_operation():
+    time.sleep(0.1)
+    return 'Done'
+slow_operation()  # Prints timing info`,
+        tips: [
+          'partial(func, arg1) creates a new function with arg1 pre-filled — useful for callbacks',
+          'lru_cache requires hashable arguments (no lists/dicts). Convert to tuple if needed',
+          'reduce(func, iterable, init) accumulates: result = func(func(func(init, x0), x1), ...)',
+          '@wraps in decorators preserves __name__, __doc__ — helps with debugging and documentation',
+        ],
+        mistake: 'Using @lru_cache with unhashable arguments (lists, dicts). Convert to hashable: @lru_cache works with tuples, strings, frozensets.',
+        shorthand: {
+          verbose: `from functools import partial, lru_cache, reduce, wraps
+from operator import mul, add
+def multiply(a, b):
+return a * b`,
+          concise: `slow_operation()  # Prints timing info`
+        }
+      },
+      {
+        id: 'collections-counter-deque', fn: 'collections (Counter, defaultdict, deque, namedtuple)', desc: 'Specialized data structures for counting, defaults, queues, and tuples.',
+        category: 'Data Structures', subtitle: 'Efficient alternatives to dict and list for specific use cases',
+        signature: 'from collections import Counter, defaultdict, deque, namedtuple',
+        descLong: 'collections module provides optimized data structures. Counter counts occurrences, defaultdict avoids KeyError, deque is a fast double-ended queue, namedtuple creates lightweight tuple subclasses with named fields.',
+        code: `from collections import Counter, defaultdict, deque, namedtuple
+# Counter: Count occurrences
+words = ['apple', 'banana', 'apple', 'cherry', 'banana', 'apple']
+word_counts = Counter(words)
+print(word_counts)  # Counter({'apple': 3, 'banana': 2, 'cherry': 1})
+print(word_counts['apple'])   # 3
+print(word_counts['orange'])  # 0 (missing keys return 0)
+print(word_counts.most_common(2))  # [('apple', 3), ('banana', 2)]
+# Count string characters
+char_counts = Counter('abracadabra')
+print(char_counts)  # Counter({'a': 5, 'b': 2, 'r': 2, 'c': 1, 'd': 1})
+# Update counts
+word_counts.update(['apple', 'date'])  # Increment counts
+print(word_counts)  # apple: 4, date: 1
+# Arithmetic with Counter
+counter1 = Counter({'a': 3, 'b': 1})
+counter2 = Counter({'a': 1, 'b': 2, 'c': 3})
+print(counter1 + counter2)  # Counter({'a': 4, 'b': 3, 'c': 3})
+print(counter1 - counter2)  # Counter({'a': 2})
+print(counter1 & counter2)  # Counter({'a': 1, 'b': 1}) (intersection)
+print(counter1 | counter2)  # Counter({'c': 3, 'a': 3, 'b': 2}) (union)
+
+# defaultdict: Avoid KeyError with default values
+def_dict = defaultdict(list)  # Default: empty list
+def_dict['fruits'].append('apple')
+def_dict['fruits'].append('banana')
+def_dict['veggies'].append('carrot')
+print(dict(def_dict))  # {'fruits': ['apple', 'banana'], 'veggies': ['carrot']}
+# Grouping with defaultdict
+sentences = ['hello world', 'hello python', 'goodbye world']
+words_by_length = defaultdict(list)
+for sentence in sentences:
+    for word in sentence.split():
+        words_by_length[len(word)].append(word)
+print(dict(words_by_length))  # {5: ['hello', 'world', 'python'], 7: ['goodbye']}
+# defaultdict with int (for counting)
+counts = defaultdict(int)
+for letter in 'abracadabra':
+    counts[letter] += 1
+print(dict(counts))  # {'a': 5, 'b': 2, 'r': 2, 'c': 1, 'd': 1}
+# deque: Fast double-ended queue
+queue = deque([1, 2, 3, 4])
+queue.append(5)      # Add to right
+queue.appendleft(0)  # Add to left
+print(queue)  # deque([0, 1, 2, 3, 4, 5])
+value = queue.pop()       # Remove from right → 5
+value = queue.popleft()   # Remove from left → 0
+print(queue)  # deque([1, 2, 3, 4])
+# Rotating
+queue.rotate(1)   # Rotate right
+print(queue)  # deque([4, 1, 2, 3])
+# Fixed-size deque (sliding window)
+window = deque(maxlen=3)
+for i in range(6):
+    window.append(i)
+    if len(window) == 3:
+        print(list(window))  # [0, 1, 2], [1, 2, 3], [2, 3, 4], [3, 4, 5]
+# namedtuple: Lightweight tuple with named fields
+Point = namedtuple('Point', ['x', 'y'])
+point = Point(1, 2)
+print(point.x, point.y)  # 1 2
+print(point[0], point[1])  # 1 2 (still indexable)
+# Unpack namedtuple
+x, y = point
+print(x, y)  # 1 2
+# Factory for multiple instances
+Person = namedtuple('Person', ['name', 'age', 'email'])
+people = [
+    Person('Alice', 30, 'alice@example.com'),
+    Person('Bob', 25, 'bob@example.com'),
+    Person('Charlie', 35, 'charlie@example.com')
+]
+for person in people:
+    print(f'{person.name} ({person.age}): {person.email}')
+# namedtuple with defaults
+Color = namedtuple('Color', ['red', 'green', 'blue'], defaults=[0, 0, 0])
+black = Color()
+white = Color(255, 255, 255)
+print(black)   # Color(red=0, green=0, blue=0)
+print(white)   # Color(red=255, green=255, blue=255)
+# Convert namedtuple to dict
+point = Point(10, 20)
+point_dict = point._asdict()
+print(point_dict)  # {'x': 10, 'y': 20}
+# Replace fields
+updated = point._replace(x=5)
+print(updated)  # Point(x=5, y=20)`,
+          tips: [
+          'Counter most_common(n) returns top N items — efficient for finding most frequent',
+          'defaultdict avoids try/except or .get() for missing keys — cleaner code',
+          'deque with maxlen auto-evicts oldest when full — perfect for sliding windows',
+          'namedtuple lightweight than dataclass, no methods — use for simple data containers',
+        ],
+        mistake: 'Using regular dict when defaultdict would simplify code. defaultdict eliminates if key in dict checks.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'context-managers-with', fn: 'Context Managers (with statement)', desc: 'Safely acquire/release resources with __enter__ and __exit__.',
+        category: 'Control Flow', subtitle: 'Automatic cleanup of files, locks, connections',
+        signature: 'class MyContext:\n    def __enter__(self): ...\n    def __exit__(self, exc_type, exc, tb): ...',
+        descLong: 'Context managers (with statement) ensure setup and cleanup code runs. Use for files, database connections, locks, and temporary state changes. Define __enter__ (acquire) and __exit__ (release).',
+        code: `import os
+# File context manager (most common)
+with open('data.txt', 'r') as f:
+    content = f.read()
+    # File automatically closed after block, even if error occurs
+# Multiple resources
+with open('input.txt') as infile, open('output.txt', 'w') as outfile:
+    for line in infile:
+        outfile.write(line.upper())
+# Database connection example
+class DatabaseConnection:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.connected = False
+    def __enter__(self):
+        print(f'Connecting to {self.host}:{self.port}...')
+        self.connected = True
+        return self  # Return resource to use in 'as' clause
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print('Disconnecting...')
+        # Suppress exception if you return True
+        if exc_type is not None:
+            print(f'Error occurred: {exc_val}')
+        return False  # Don't suppress exception
+# Usage
+with DatabaseConnection('localhost', 5432) as db:
+    print(f'Connected: {db.connected}')
+    # Do stuff with db
+# Lock context manager (thread safety)
+from threading import Lock
+lock = Lock()
+def critical_section():
+    with lock:
+        # Only one thread at a time enters here
+        print('In critical section')
+        # do work
+    # Lock automatically released
+# Timer context manager
+import time
+class Timer:
+    def __init__(self, name=''):
+        self.name = name
+        self.start = None
+        self.start = time.time()
+        return self
+    def __exit__(self, *args):
+        elapsed = time.time() - self.start
+        print(f'{self.name} took {elapsed:.4f}s')
+with Timer('database query') as timer:
+    time.sleep(0.1)  # Simulate work
+# Temporary directory cleanup
+from tempfile import TemporaryDirectory
+with TemporaryDirectory() as tmpdir:
+    print(f'Working in {tmpdir}')
+    # Create files here
+# Directory automatically deleted after block
+# Suppress exceptions
+from contextlib import suppress
+with suppress(FileNotFoundError):
+    import os
+    os.remove('nonexistent.txt')  # No error raised
+# Redirect stdout
+from contextlib import redirect_stdout
+import io
+output = io.StringIO()
+with redirect_stdout(output):
+    print('This is redirected')
+result = output.getvalue()
+print(result)  # 'This is redirected\\n'
+# contextlib.contextmanager decorator (simpler syntax)
+from contextlib import contextmanager
+
+@contextmanager
+def my_context(name):
+    print(f'Entering {name}')
+    try:
+        yield f'Resource for {name}'
+    finally:
+        print(f'Exiting {name}')
+with my_context('my_task') as resource:
+    print(f'Using {resource}')
+# Nested contexts with cleanup
+def database_transaction():
+    conn = get_connection()
+    print('Transaction started')
+        yield conn
+    except Exception as e:
+        print(f'Rolling back: {e}')
+        conn.rollback()
+        raise
+    else:
+        print('Committing')
+        conn.commit()
+        conn.close()
+with database_transaction() as conn:
+    cursor = conn.cursor()
+    cursor.execute('INSERT ...')
+# ExitStack: Manage multiple contexts dynamically
+from contextlib import ExitStack
+with ExitStack() as stack:
+    files = [stack.enter_context(open(f'file{i}.txt')) for i in range(3)]
+    # All files opened and will be closed when exiting block
+    for f in files:
+        print(f.read())`,
+        tips: [
+          '__exit__ receives exception info (type, value, traceback) — return True to suppress',
+          'Use @contextmanager decorator for simple context managers — often cleaner than class',
+          'ExitStack manages multiple resources dynamically — perfect for variable number of files',
+          'finally in context manager always runs — use for guaranteed cleanup',
+        ],
+        mistake: 'Forgetting to use with statement. Always use with for file/connection handling — don\'t manually call __enter__/__exit__.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'itertools-module', fn: 'itertools (Combinations, Permutations, Chain)', desc: 'Memory-efficient iterators for combinatorics and chaining.',
+        category: 'Iteration', subtitle: 'Lazy sequences without creating full lists',
+        signature: 'from itertools import combinations, permutations, chain, groupby, islice',
+        descLong: 'itertools provides lazy iterators for combinations, permutations, chaining, grouping, and slicing. Memory-efficient because they generate values on-the-fly, not all at once.',
+        code: `from itertools import chain, product, combinations, permutations
+from itertools import groupby, islice, repeat, cycle
+# Combinations: all unordered subsets
+items = ['a', 'b', 'c', 'd']
+combos = combinations(items, 2)
+print(list(combos))  # [('a', 'b'), ('a', 'c'), ('a', 'd'), ('b', 'c'), ('b', 'd'), ('c', 'd')]
+# Useful for finding pairs
+numbers = [1, 2, 3, 4, 5]
+pairs = combinations(numbers, 2)
+print(list(pairs))  # All (n choose 2) pairs
+# Permutations: all ordered arrangements
+perms = permutations(['a', 'b', 'c'], 2)
+print(list(perms))  # [('a', 'b'), ('a', 'c'), ('b', 'a'), ('b', 'c'), ('c', 'a'), ('c', 'b')]
+# All arrangements of 3 items (3! = 6 permutations)
+all_perms = permutations(['x', 'y', 'z'])
+print(list(all_perms))  # 6 permutations
+# chain: Flatten multiple iterables
+iter1 = [1, 2, 3]
+iter2 = [4, 5, 6]
+iter3 = [7, 8, 9]
+chained = chain(iter1, iter2, iter3)
+print(list(chained))  # [1, 2, 3, 4, 5, 6, 7, 8, 9]
+# More efficient than + operator
+result = list(chain(['a', 'b'], ['c', 'd'], ['e', 'f']))
+print(result)  # ['a', 'b', 'c', 'd', 'e', 'f']
+# chain.from_iterable: Flatten list of lists
+lists = [[1, 2], [3, 4], [5, 6]]
+flat = chain.from_iterable(lists)
+print(list(flat))  # [1, 2, 3, 4, 5, 6]
+# islice: Lazy slicing (like list slicing but for iterators)
+numbers = range(10)
+subset = islice(numbers, 2, 7)  # From index 2 to 7
+print(list(subset))  # [2, 3, 4, 5, 6]
+# Take first N
+first_five = islice(range(100), 5)
+print(list(first_five))  # [0, 1, 2, 3, 4]
+# Every Nth item
+every_third = islice(range(10), 0, None, 3)
+print(list(every_third))  # [0, 3, 6, 9]
+# groupby: Group consecutive equal items
+data = [1, 1, 1, 2, 2, 3, 1, 1]
+grouped = groupby(data)
+for key, group in grouped:
+    print(f'{key}: {list(group)}')
+    # 1: [1, 1, 1]
+    # 2: [2, 2]
+    # 3: [3]
+    # 1: [1, 1]
+# Group words by first letter
+words = ['apple', 'apricot', 'banana', 'blueberry', 'cherry']
+sorted_words = sorted(words)
+for letter, group in groupby(sorted_words, key=lambda w: w[0]):
+    print(f'{letter}: {list(group)}')
+    # a: ['apple', 'apricot']
+    # b: ['banana', 'blueberry']
+    # c: ['cherry']
+# repeat: Repeat value infinitely
+repeated = repeat(42, 3)  # Repeat 42 three times
+print(list(repeated))  # [42, 42, 42]
+# Infinite repeat
+infinite = repeat('x')
+first_ten = islice(infinite, 10)
+print(list(first_ten))  # ['x', 'x', 'x', ...]
+# cycle: Cycle through iterable infinitely
+colors = cycle(['red', 'green', 'blue'])
+first_seven = islice(colors, 7)
+print(list(first_seven))  # ['red', 'green', 'blue', 'red', 'green', 'blue', 'red']
+# product: Cartesian product
+colors = ['red', 'blue']
+sizes = ['S', 'M', 'L']
+items = product(colors, sizes)
+print(list(items))
+# [('red', 'S'), ('red', 'M'), ('red', 'L'), ('blue', 'S'), ('blue', 'M'), ('blue', 'L')]
+
+# Equivalent to nested loops
+for color in colors:
+    for size in sizes:
+        print(f'{color}-{size}')
+# Memory efficiency
+print('Combinations object:', combinations(range(100), 2))  # Iterator, not list
+# Same as: sum(1 for _ in combinations(range(100), 2))  # 4950 (memory-efficient)
+# Practical example: Find all unique pairs and their sums
+numbers = [1, 2, 3, 4]
+pairs_with_sum = [(a, b, a+b) for a, b in combinations(numbers, 2)]
+print(pairs_with_sum)
+# [(1, 2, 3), (1, 3, 4), (1, 4, 5), (2, 3, 5), (2, 4, 6), (3, 4, 7)]`,
+          tips: [
+          'combinations/permutations return iterators (lazy) — don\'t convert to list unless needed',
+          'chain.from_iterable() flattens nested iterables without creating intermediate lists',
+          'groupby requires data sorted by key — sort first if needed',
+          'islice + repeat/cycle create infinite lazy sequences — process with islice or list comprehension',
+        ],
+        mistake: 'Calling list() immediately on itertools results for large datasets. Use iterators directly in loops when possible to save memory.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 're-module-regex', fn: 're Module (Regular Expressions)', desc: 'Pattern matching and text manipulation with regex.',
+        category: 'Text Processing', subtitle: 'Search, split, and replace text with patterns',
+        signature: 'import re\nre.search(pattern, string)\nre.match(pattern, string)\nre.findall(pattern, string)',
+        descLong: 're module provides regex functionality for pattern matching, extraction, substitution, and splitting. Compile patterns for reuse, use groups for extraction, leverage named groups for clarity.',
+        code: `import re
+# Basic search (returns Match object or None)
+text = 'The quick brown fox jumps over the lazy dog'
+if re.search(r'fox', text):
+    print('Found fox!')
+# match vs search
+# match: from start of string
+# search: anywhere in string
+print(re.match(r'The', text))      # Match (starts with 'The')
+print(re.match(r'quick', text))    # None (doesn't start with 'quick')
+print(re.search(r'quick', text))   # Match (found 'quick' anywhere)
+# Compile for reuse (faster)
+phone_pattern = re.compile(r'\\d{3}-\\d{3}-\\d{4}')
+phones = ['123-456-7890', '999-888-7777', '555-123-4567']
+for phone in phones:
+    if phone_pattern.match(phone):
+        print(f'Valid phone: {phone}')
+# findall: Find all matches
+text = 'Emails: alice@example.com, bob@test.org, charlie@demo.net'
+emails = re.findall(r'[\\w.-]+@[\\w.-]+', text)
+print(emails)  # ['alice@example.com', 'bob@test.org', 'charlie@demo.net']
+# Extract numbers
+text = 'Prices: $10, $25, $50, $100'
+prices = re.findall(r'\\$?\\d+', text)
+print(prices)  # ['10', '25', '50', '100']
+# Groups: Extract parts of a match
+pattern = r'(\\w+)@([\\w.]+)'  # (user) @ (domain)
+match = re.search(pattern, 'alice@example.com')
+print(match.group(0))   # Full match: 'alice@example.com'
+print(match.group(1))   # Group 1: 'alice'
+print(match.group(2))   # Group 2: 'example.com'
+# Named groups: More readable
+pattern = r'(?P<user>\\w+)@(?P<domain>[\\w.]+)'
+print(match.group('user'))     # 'alice'
+print(match.group('domain'))   # 'example.com'
+print(match.groupdict())       # {'user': 'alice', 'domain': 'example.com'}
+# finditer: Iterate matches with details
+text = 'Meetings: 2pm (Office), 3pm (Remote), 4:30pm (Lab)'
+pattern = r'(\\d{1,2}):?(\\d{2})?pm \\(([^)]+)\\)'
+for match in re.finditer(pattern, text):
+    time_str = f'{match.group(1)}:{match.group(2) or "00"}'
+    location = match.group(3)
+    print(f'{time_str} @ {location}')
+    # 2:00 @ Office
+    # 3:00 @ Remote
+    # 4:30 @ Lab
+# sub: Replace matches
+text = 'Hello World'
+result = re.sub(r'World', 'Python', text)
+print(result)  # 'Hello Python'
+# Replace with groups
+text = 'Name: John, Age: 30'
+result = re.sub(r'(\\w+): (\\w+)', r'\\2=\\1', text)
+print(result)  # 'John=Name, 30=Age'
+# Replace with function
+def uppercase_match(match):
+    return match.group(0).upper()
+text = 'hello world'
+result = re.sub(r'\\w+', uppercase_match, text)
+print(result)  # 'HELLO WORLD'
+# split: Split by pattern
+text = 'apple, banana; orange:grape'
+parts = re.split(r'[,;:]', text)
+print(parts)  # ['apple', ' banana', ' orange', 'grape']
+# Capture groups in split
+text = 'a1b2c3d'
+parts = re.split(r'(\\d)', text)
+print(parts)  # ['a', '1', 'b', '2', 'c', '3', 'd']
+# Flags
+text = 'HELLO hello Hello'
+# Case-insensitive search
+matches = re.findall(r'hello', text, re.IGNORECASE)
+print(len(matches))  # 3
+# Multiline mode (^ and $ match line boundaries)
+text = '''Line 1
+Line 2
+Line 3'''
+lines = re.findall(r'^Line.*', text, re.MULTILINE)
+print(lines)  # ['Line 1', 'Line 2', 'Line 3']
+# VERBOSE: Readable regex with comments
+pattern = re.compile(r'''
+    (\\d{1,2})/       # Day
+    (\\d{1,2})/       # Month
+    (\\d{4})          # Year
+''', re.VERBOSE)
+match = pattern.search('3/16/2026')
+print(match.groups())  # ('03', '16', '2026')
+# Lookahead/Lookbehind (advanced)
+text = 'price: $100 and cost: $50'
+amounts = re.findall(r'(?<=\\$)\\d+', text)  # Positive lookbehind
+print(amounts)  # ['100', '50']`,
+        tips: [
+          'Compile complex patterns once: pattern = re.compile(...), then reuse',
+          'Use raw strings: r\'...\\d...\' not \'...\\\\d...\' (backslash escaping cleaner)',
+          'Named groups (?P<name>...) make patterns self-documenting',
+          'Test regex: use regex101.com or regexpal.com before using in code',
+        ],
+        mistake: 'Not using raw strings (r\'...\') — backslashes need escaping in regular strings. Always use r\'...\' for regex patterns.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'logging-module', fn: 'logging Module', desc: 'Configure and output structured logs with levels and handlers.',
+        category: 'Debugging', subtitle: 'Replace print() with configurable logging',
+        signature: 'import logging\nlogging.basicConfig(...)\nlogger.info(...)\nlogger.error(...)',
+        descLong: 'logging module provides levels (DEBUG, INFO, WARNING, ERROR, CRITICAL), handlers (file, stream, email), and formatters. More flexible than print() for production code.',
+        code: `import logging
+from logging.handlers import RotatingFileHandler
+
+# Basic setup
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+logger.debug('Debug message')
+logger.info('Info message')
+logger.warning('Warning message')
+logger.error('Error message')
+logger.critical('Critical message')
+# Output:
+# 2026-03-16 12:34:56,789 - __main__ - DEBUG - Debug message
+# 2026-03-16 12:34:56,790 - __main__ - INFO - Info message
+# ...
+# Log levels (only messages >= level are logged)
+logging.basicConfig(level=logging.WARNING)
+logger.debug('Not shown')
+logger.info('Not shown')
+logger.warning('Shown!')
+logger.error('Shown!')
+# Logger hierarchy (by module)
+logger1 = logging.getLogger('myapp.database')
+logger2 = logging.getLogger('myapp.api')
+logger3 = logging.getLogger('myapp')  # Parent
+# All share same handlers (set on parent)
+logging.basicConfig(format='%(name)s: %(message)s')
+logger1.info('Database info')
+logger2.info('API info')
+logger3.info('App info')
+# File handler (write to file)
+handler = logging.FileHandler('app.log')
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+# Rotating file handler (create new files when size limit reached)
+rotating_handler = RotatingFileHandler(
+    'app.log',
+    maxBytes=1000000,  # 1 MB
+    backupCount=5      # Keep 5 backup files
+rotating_handler.setFormatter(formatter)
+logger.addHandler(rotating_handler)
+# Log to file and console
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.WARNING)
+logger.addHandler(console_handler)
+# Exception logging
+try:
+    result = 1 / 0
+except ZeroDivisionError:
+    logger.exception('Math error occurred')  # Includes traceback
+# Log variables
+user = 'Alice'
+age = 30
+logger.info(f'User {user} is {age} years old')
+# Structured logging with extra fields
+logger.info('Event', extra={'user_id': 123, 'action': 'login'})
+# Lazy string formatting (efficient)
+logger.debug('Value: %s', expensive_calculation())  # Only called if DEBUG is enabled
+# Disable certain loggers (third-party libraries)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('requests').setLevel(logging.WARNING)
+# Configuration from dict
+config = {
+    'version': 1,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'INFO',
+            'formatter': 'standard'
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'level': 'DEBUG',
+            'formatter': 'standard',
+            'filename': 'debug.log'
+    'root': {
+        'level': 'DEBUG',
+        'handlers': ['console', 'file']
+    }
+}
+import logging.config
+logging.config.dictConfig(config)
+logger.debug('Debug to file only')
+logger.info('Info to console and file')`,
+          tips: [
+          'Use logger per module: logger = logging.getLogger(__name__) — hierarchy makes filtering easy',
+          'Avoid logging sensitive data (passwords, tokens) — set level to WARNING in production',
+          'File rotation prevents massive log files — RotatingFileHandler auto-manages backups',
+          'Use lazy formatting: logger.info("x=%s", var) only formats if level enabled',
+        ],
+        mistake: 'Using print() in production code. Replace with logging — allows runtime filtering, file output, and structured logging.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'argparse-cli', fn: 'argparse (Command-Line Arguments)', desc: 'Parse and validate CLI arguments with help messages.',
+        category: 'I/O', subtitle: 'Professional CLI with argument validation',
+        signature: 'import argparse\nparser = ArgumentParser()\nparser.add_argument(...)\nargs = parser.parse_args()',
+        descLong: 'argparse provides CLI argument parsing with automatic help, type conversion, and validation. Better than sys.argv parsing manually.',
+        code: `import argparse
+# Basic script argument
+parser = argparse.ArgumentParser(
+    description='Analyze sales data and generate reports'
+# Positional arguments (required)
+parser.add_argument('input_file', help='Input CSV file')
+parser.add_argument('output_file', help='Output report file')
+# Optional arguments (flags)
+parser.add_argument(
+    '--format', '-f',
+    choices=['pdf', 'html', 'txt'],
+    default='pdf',
+    help='Output format (default: pdf)'
+    '--verbose', '-v',
+    action='store_true',
+    help='Enable verbose output'
+    '--year', '-y',
+    type=int,
+    default=2026,
+    help='Year to analyze (default: 2026)'
+args = parser.parse_args()
+# Access arguments as attributes
+print(f'Input: {args.input_file}')
+print(f'Output: {args.output_file}')
+print(f'Format: {args.format}')
+print(f'Verbose: {args.verbose}')
+print(f'Year: {args.year}')
+# Usage:
+# python script.py sales.csv report.pdf --format html -v --year 2025
+# Advanced: Multiple values
+parser2 = argparse.ArgumentParser()
+parser2.add_argument(
+    'files',
+    nargs='+',  # One or more files
+    help='Files to process'
+
+    '--exclude',
+    nargs='*',  # Zero or more
+    default=[],
+    help='Files to exclude'
+)
+args2 = parser2.parse_args()
+# python script.py file1.py file2.py file3.py --exclude test.py
+# Validation with custom type
+def positive_int(value):
+    ivalue = int(value)
+    if ivalue < 0:
+        raise argparse.ArgumentTypeError(f'{value} is invalid (must be positive)')
+    return ivalue
+parser3 = argparse.ArgumentParser()
+parser3.add_argument('count', type=positive_int, help='Number of items')
+# Mutually exclusive group
+parser4 = argparse.ArgumentParser()
+group = parser4.add_mutually_exclusive_group(required=True)
+group.add_argument('--add', action='store_true', help='Add item')
+group.add_argument('--remove', action='store_true', help='Remove item')
+# Subcommands
+parser5 = argparse.ArgumentParser(description='Database management tool')
+subparsers = parser5.add_subparsers(dest='command', help='Command')
+# init subcommand
+init_parser = subparsers.add_parser('init', help='Initialize database')
+init_parser.add_argument('--path', required=True, help='Database path')
+# backup subcommand
+backup_parser = subparsers.add_parser('backup', help='Backup database')
+backup_parser.add_argument('--destination', required=True, help='Backup path')
+backup_parser.add_argument('--compress', action='store_true', help='Compress backup')
+# python script.py init --path /data/mydb.sqlite
+# python script.py backup --destination /backup/mydb.backup --compress
+args5 = parser5.parse_args()
+if args5.command == 'init':
+    print(f'Initializing at {args5.path}')
+elif args5.command == 'backup':
+    print(f'Backing up to {args5.destination}')
+# Environment variable fallback
+import os
+parser6 = argparse.ArgumentParser()
+parser6.add_argument(
+    '--api-key',
+    default=os.getenv('API_KEY'),
+    help='API key (default from API_KEY env var)'
+# Auto help (always generated)
+# python script.py --help
+# usage: script.py [-h] [--format {pdf,html,txt}] [-v] [-y YEAR] input_file output_file
+#
+# Analyze sales data and generate reports
+# positional arguments:
+#   input_file          Input CSV file
+#   output_file         Output report file
+# optional arguments:
+#   -h, --help          show this help message and exit
+#   --format, -f        Output format (default: pdf)
+#   ...`,
+        tips: [
+          'nargs="+" for at least one, "*" for zero or more, "?" for optional argument',
+          'action="store_true" for boolean flags (no value needed)',
+          'required=True on add_argument for mandatory options',
+          'Custom type functions validate inputs (e.g., positive_int)',
+        ],
+        mistake: 'Using sys.argv directly instead of argparse. argparse provides validation, help, and better defaults.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'typing-module-hints', fn: 'typing Module (Type Hints)', desc: 'Add type annotations for better IDE support and static checking.',
+        category: 'Type System', subtitle: 'Optional runtime type hints for clarity and tooling',
+        signature: 'from typing import List, Dict, Optional, Callable, Union\ndef func(x: int) -> str: ...',
+        descLong: 'Type hints document expected types and enable IDE autocompletion and static checkers (mypy). Python enforces at runtime but hints help tooling and developers.',
+        code: `import pandas as pd
+from typing import Optional, Union, List, Dict, Callable, Tuple, Any
+from typing import List, Dict, Optional, Callable, Union, Tuple, Any, TypeVar, Generic
+# Basic type hints
+def greet(name: str) -> str:
+    return f'Hello {name}'
+def add(a: int, b: int) -> int:
+    return a + b
+# Collection types
+def process_items(items: List[str]) -> None:
+    for item in items:
+        print(item)
+def get_config() -> Dict[str, Any]:
+    return {'host': 'localhost', 'port': 8080}
+# Optional (can be None)
+def get_user(user_id: int) -> Optional[Dict[str, str]]:
+    if user_id > 0:
+        return {'id': user_id, 'name': 'Alice'}
+    return None  # Can return None
+# Union (multiple types)
+def process(data: Union[str, int, List[str]]) -> None:
+    if isinstance(data, str):
+        print(data)
+    elif isinstance(data, int):
+        print(data * 2)
+# Tuple (fixed-size, typed)
+def get_coordinates() -> Tuple[float, float]:
+    return (1.5, 2.5)
+def unpack() -> Tuple[str, int, bool]:
+    return ('Alice', 30, True)
+# Callable (function type)
+def apply_func(x: int, func: Callable[[int], int]) -> int:
+    return func(x)
+square = lambda x: x ** 2
+result = apply_func(5, square)  # result = 25
+# TypeVar (generic type)
+T = TypeVar('T')
+def first(items: List[T]) -> T:
+    return items[0]
+# Can be any type, but consistent
+num = first([1, 2, 3])     # T = int
+name = first(['a', 'b'])   # T = str
+# Generic class
+class Container(Generic[T]):
+    def __init__(self, value: T):
+        self.value = value
+    def get(self) -> T:
+        return self.value
+# Usage
+int_container = Container[int](42)
+str_container = Container[str]('hello')
+# Class annotations
+class Person:
+    name: str
+    age: int
+    def __init__(self, name: str, age: int) -> None:
+        self.name = name
+        self.age = age
+    def display(self) -> str:
+        return f'{self.name}, {self.age}'
+# Dataclass with type hints
+from dataclasses import dataclass
+@dataclass
+class Point:
+    x: float
+    y: float
+    def distance_from_origin(self) -> float:
+        return (self.x ** 2 + self.y ** 2) ** 0.5
+# Default arguments
+def greet_default(name: str = 'Guest') -> str:
+# Variable annotations
+numbers: List[int] = [1, 2, 3, 4, 5]
+config: Dict[str, Any] = {'debug': True, 'timeout': 30}
+user_name: Optional[str] = None
+
+# Literal (specific values)
+from typing import Literal
+def set_level(level: Literal['DEBUG', 'INFO', 'WARNING', 'ERROR']) -> None:
+    print(f'Level: {level}')
+set_level('INFO')
+# set_level('UNKNOWN')  # Type checker warns
+# Type checking with mypy (external tool)
+# mypy script.py   # Check types without running
+# Forward reference (class referencing itself)
+class Node:
+    def __init__(self, value: int, next: Optional['Node'] = None):
+        self.next = next
+# Any (opt-out of type checking)
+def process_any(data: Any) -> Any:
+    return data  # Can be anything
+# TypedDict (dictionary structure)
+from typing import TypedDict
+class UserDict(TypedDict):
+    id: int
+    email: str
+def get_user() -> UserDict:
+    return {'id': 1, 'name': 'Alice', 'email': 'alice@example.com'}`,
+          tips: [
+          'Type hints don\'t enforce at runtime — use mypy (static checker) for validation',
+          'Optional[T] is equivalent to Union[T, None]',
+          'TypeVar for generic functions — type must be consistent within function',
+          'IDE uses hints for autocompletion — huge productivity boost',
+        ],
+        mistake: 'Thinking type hints enforce runtime constraints. They don\'t — they\'re for tooling. Use isinstance() checks for runtime validation.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+]
+
+export default { meta, sections }

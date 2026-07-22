@@ -1,0 +1,1310 @@
+/**
+ * data/python/testing.js
+ * Testing — pytest, fixtures, mocking, coverage
+ * One subject per entry.
+ */
+
+export const meta = {
+  title: 'Testing',
+  domain: 'python',
+  sheet: 'testing',
+  icon: '🧪',
+}
+
+export const sections = [
+  {
+    id: 'pytest-basics',
+    title: 'pytest Basics',
+    entries: [
+      {
+        id: 'assertions',
+        fn: 'pytest assertions',
+        desc: 'Write tests with plain assert — pytest rewrites them for detailed output.',
+        category: 'pytest',
+        subtitle: 'Use assert directly — pytest shows exactly what failed and why',
+        signature: 'def test_fn(): assert result == expected',
+        descLong: 'pytest uses plain Python assert statements — no special assertion methods needed. pytest rewrites assert at collection time to produce detailed failure messages showing the actual and expected values. Tests are discovered automatically in files matching test_*.py.',
+        code: `import pytest
+# Test user registration module
+def test_user_registration_success():
+    user = create_user("alice@example.com", "Alice Smith")
+    assert user.email == "alice@example.com"
+    assert user.name == "Alice Smith"
+    assert user.created_at is not None
+def test_user_age_validation():
+    with pytest.raises(ValueError):
+        create_user("bob@example.com", "Bob", age=-5)
+def test_payment_processing():
+    payment = process_payment(amount=99.99, currency="USD")
+    assert payment.status == "completed"
+    assert payment.amount == 99.99
+    assert "transaction_id" in payment.metadata
+def test_email_format():
+    assert validate_email("user@example.com") == True
+    assert validate_email("invalid.email") == False
+    assert validate_email("") == False
+def test_list_operations():
+    orders = get_pending_orders()
+    assert len(orders) >= 0
+    assert all(order.status == "pending" for order in orders)
+    assert isinstance(orders, list)`,
+        tips: [
+          'pytest rewrites `assert` — plain `assert a == b` gives better output than unittest\'s `assertEqual(a, b)`',
+          'Add a message: `assert cond, f"got {val}"` — shown only on failure',
+          'pytest discovers tests in files named `test_*.py` or `*_test.py` automatically',
+          'Run `pytest -v` for verbose output, `pytest -s` to see print() output',
+        ],
+        mistake: 'Using `assert` outside of pytest (e.g., in production code). pytest rewrites assert — outside pytest, a failed assert raises AssertionError with no helpful message.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'test-doubles',
+        fn: 'Test doubles',
+        desc: 'Vocabulary for the different kinds of fake objects used in testing.',
+        subtitle: 'Stub / Fake / Spy / Mock — know which to use when',
+        signature: 'stub → fixed return | mock → verify calls | spy → wrap real obj',
+        descLong: 'Test doubles are objects that stand in for real dependencies. The terms are often used loosely but have distinct meanings: stubs return fixed values, fakes have working implementations, spies record calls without replacing behavior, mocks verify specific interactions were made.',
+        code: `# Stub — returns a fixed value, no logic:
+class StubEmailService:
+    def send(self, to, subject, body):
+        return True   # always succeeds, does nothing real
+# Fake — working implementation, not production-ready:
+class FakeDatabase:
+    def __init__(self):
+        self._store = {}
+
+    def get(self, key):
+        return self._store.get(key)
+    def set(self, key, value):
+        self._store[key] = value
+# Spy — wraps a real object, records calls:
+from unittest.mock import MagicMock, patch, call
+class SpyEmailService:
+    def __init__(self, real_service):
+        self._real = real_service
+        self.calls = []
+        self.calls.append((to, subject))
+        return self._real.send(to, subject, body)
+# Mock — replaces entirely, verifies interactions:
+mock_service = MagicMock()
+mock_service.send.return_value = True
+# Use it:
+send_welcome_email("alice@example.com", mock_service)
+# Verify:
+mock_service.send.assert_called_once_with(
+    "alice@example.com",
+    "Welcome!",
+    mock_service.send.call_args[0][2],
+)
+# When to use each:
+# stub  → you don't care HOW it's called, just need a return value
+# fake  → you need real behavior (in-memory DB for integration tests)
+# spy   → you want to verify calls without breaking real behavior
+# mock  → you want to verify exact interactions (call count, args)`,
+          tips: [
+          'Prefer stubs and fakes over mocks — tests with fewer mock assertions are less brittle',
+          'Mocks test implementation details — if you refactor without changing behavior, mocked tests break',
+          'Fakes (in-memory DB, fake Redis) make integration tests fast without a real infrastructure dependency',
+          'The simplest test double is a lambda: `send_email = lambda to, subj, body: None`',
+        ],
+        mistake: 'Over-mocking — replacing every dependency with a mock. Tests become coupled to implementation details and break on refactoring. Mock at the boundary (external HTTP, DB) not internal function calls.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+
+      {
+        id: 'raises',
+        fn: 'pytest.raises()',
+        desc: 'Assert that code raises a specific exception.',
+        category: 'pytest',
+        subtitle: 'Test that the right exception is raised with the right message',
+        signature: 'with pytest.raises(ExcType, match="regex"): ...',
+        descLong: 'pytest.raises() is a context manager that passes only if the wrapped code raises the specified exception. match= checks the exception message with a regex. Access the exception info via the as clause.',
+        code: `import pytest
+def divide(a, b):
+    if b == 0:
+        raise ValueError("division by zero")
+    return a / b
+# Basic — just check the type:
+def test_divide_by_zero():
+    with pytest.raises(ValueError):
+        divide(1, 0)
+# match= checks the message with regex:
+def test_divide_message():
+    with pytest.raises(ValueError, match="division by zero"):
+def test_divide_message_partial():
+    with pytest.raises(ValueError, match="zero"):  # partial match
+# Access the exception object:
+def test_exception_detail():
+    with pytest.raises(ValueError) as exc_info:
+    assert "zero" in str(exc_info.value)
+    assert exc_info.type is ValueError
+# Test that no exception is raised (use normally):
+def test_valid_divide():
+    result = divide(10, 2)   # no pytest.raises needed
+    assert result == 5.0
+# Custom exception classes:
+class InsufficientFunds(Exception):
+    def __init__(self, amount, balance):
+        self.amount, self.balance = amount, balance
+        super().__init__(f"need {amount}, have {balance}")
+def test_withdraw():
+    with pytest.raises(InsufficientFunds) as exc_info:
+        withdraw(100, balance=50)
+    assert exc_info.value.amount == 100`,
+        tips: [
+          '`match=` uses `re.search()` — it is a partial match, not full-string. Use `^...$` to anchor',
+          'Access `.value` for the exception instance, `.type` for the class, `.traceback` for the stack',
+          'Test the exact exception type — catching a base class like `Exception` misses bugs',
+          'If the code should raise, the test fails if it does NOT raise — no assertion needed inside the block',
+        ],
+        mistake: 'Putting assertions INSIDE the `pytest.raises` block: `with pytest.raises(ValueError): assert thing`. If `assert thing` raises AssertionError, pytest.raises catches it — hiding the real failure.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'approx',
+        fn: 'pytest.approx()',
+        desc: 'Compare floating-point numbers with tolerance.',
+        category: 'pytest',
+        subtitle: 'Never use == for floats — use pytest.approx()',
+        signature: 'assert value == pytest.approx(expected, rel=1e-6, abs=1e-12)',
+        descLong: 'Floating-point arithmetic is inexact — 0.1 + 0.2 is not exactly 0.3 in binary. pytest.approx() compares with a relative tolerance (default 1e-6) so small floating-point errors do not cause false failures. Works on scalars, lists, dicts, and numpy arrays.',
+        code: `import pytest
+
+# The classic float problem:
+0.1 + 0.2 == 0.3          # False in Python!
+# Solution — pytest.approx():
+def test_float():
+    assert 0.1 + 0.2 == pytest.approx(0.3)     # passes ✓
+def test_computation():
+    result = 1 / 3
+    assert result == pytest.approx(0.333333, rel=1e-5)
+# Custom tolerances:
+pytest.approx(0.3, rel=1e-6)  # relative: |a-b| / |b| < 1e-6 (default)
+pytest.approx(0.3, abs=1e-9)  # absolute: |a-b| < 1e-9
+# Works on lists:
+def test_list_floats():
+    result = [0.1 + 0.2, 1.0 / 3]
+    assert result == pytest.approx([0.3, 0.3333])
+# Works on dicts:
+def test_dict_floats():
+    result = {"pi": 3.14159, "e": 2.71828}
+    assert result == pytest.approx({"pi": 3.14159, "e": 2.71828})
+# Works on numpy arrays:
+import numpy as np
+def test_array():
+    result = np.array([0.1, 0.2, 0.3])
+    assert result == pytest.approx(np.array([0.1, 0.2, 0.3]))
+# When NOT to use approx — integers are exact:
+def test_int():
+    assert 10 // 3 == 3     # exact comparison fine`,
+          tips: [
+          'Default tolerance is 1e-6 relative — tight enough for most tests, loose enough for float noise',
+          '`abs=` tolerance is better when the expected value is near zero (relative tolerance breaks down)',
+          'pytest.approx works on nested structures — lists of lists, dicts of lists, numpy arrays',
+          'Only use approx for floats — integer comparisons should always be exact',
+        ],
+        mistake: '`assert 0.1 + 0.2 == 0.3` fails because `0.1 + 0.2 = 0.30000000000000004`. Always use `pytest.approx()` for floating-point assertions.',
+        shorthand: {
+          verbose: `import pytest
+0.1 + 0.2 == 0.3          # False in Python!
+def test_float():
+assert 0.1 + 0.2 == pytest.approx(0.3)     # passes ✓`,
+          concise: `assert 10 // 3 == 3     # exact comparison fine`
+        }
+      },
+      {
+        id: 'parametrize',
+        fn: '@pytest.mark.parametrize',
+        desc: 'Run one test function with many different input/output pairs.',
+        subtitle: 'Data-driven tests — one function, many cases, each pass/fail independently',
+        signature: '@pytest.mark.parametrize("a,b,expected", [(1,2,3), (4,5,9)])',
+        descLong: 'parametrize runs a test multiple times with different arguments. Each set of arguments is a separate test case with its own pass/fail result. Cleaner and more scalable than writing separate test functions for each case.',
+        code: `import numpy as np
+import pytest
+def is_palindrome(s):
+    s = s.lower().replace(" ", "")
+    return s == s[::-1]
+# Single parameter:
+@pytest.mark.parametrize("word", ["racecar", "level", "noon"])
+def test_palindromes(word):
+    assert is_palindrome(word)
+# Multiple parameters:
+@pytest.mark.parametrize("text, expected", [
+    ("racecar", True),
+    ("hello",   False),
+    ("",        True),
+    ("A",       True),
+    ("ab",      False),
+])
+def test_palindrome(text, expected):
+    assert is_palindrome(text) == expected
+
+# Named IDs for readable output:
+@pytest.mark.parametrize("a, b, expected", [
+    pytest.param(2,  3,  5,  id="positive"),
+    pytest.param(-1, -2, -3, id="negative"),
+    pytest.param(0,  0,  0,  id="zeros"),
+def test_add(a, b, expected):
+    assert a + b == expected
+# Combine with fixtures:
+@pytest.mark.parametrize("role", ["admin", "user", "guest"])
+def test_login(client, role):        # client is a fixture
+    r = client.post("/login", json={"role": role})
+    assert r.status_code == 200
+# Two @parametrize decorators = cartesian product:
+@pytest.mark.parametrize("x", [1, 2])
+@pytest.mark.parametrize("y", [10, 20])
+def test_grid(x, y):                 # runs 4 times: (1,10),(1,20),(2,10),(2,20)
+    assert x * y > 0`,
+        tips: [
+          'Use `pytest.param(..., id="name")` for readable test names instead of `test_fn[param0-param1]`',
+          'Two `@parametrize` decorators run the cartesian product — N × M test cases',
+          'Mark individual params: `pytest.param(val, marks=pytest.mark.xfail)` for expected failures',
+          'Extract large parameter lists to a module-level constant: `CASES = [...]; @parametrize("a,b", CASES)`',
+        ],
+        mistake: 'Writing ten nearly identical test functions differing only by input. Use `@parametrize` — each case gets its own pass/fail, clearer output, and easier to add more cases.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+    ],
+  },
+  {
+    id: 'fixtures',
+    title: 'Fixtures',
+    entries: [
+      {
+        id: 'fixture-basic',
+        fn: '@pytest.fixture',
+        desc: 'Provide reusable setup — and teardown — for tests.',
+        category: 'Fixtures',
+        subtitle: 'yield fixtures run setup before the test and teardown after',
+        signature: '@pytest.fixture\\ndef my_fixture(): yield value',
+        descLong: 'Fixtures provide reusable setup and teardown. A fixture with yield runs code before the test (setup), yields a value to the test, then runs code after (teardown). Teardown runs even when the test fails.',
+        code: `import pytest
+@pytest.fixture
+def sample_database():
+    """Setup: create test DB"""
+    db = connect_db(":memory:")
+    db.setup_schema()
+    yield db
+    db.close()  # Teardown
+
+def user_data():
+    """Fixture returning user test data"""
+    return {
+        "email": "test@example.com",
+        "name": "Test User",
+        "age": 30
+    }
+def test_user_creation(sample_database, user_data):
+    """Uses fixtures"""
+    user_id = sample_database.create_user(**user_data)
+    user = sample_database.get_user(user_id)
+    assert user.email == "test@example.com"
+    assert user.name == "Test User"
+def test_database_isolation(sample_database):
+    """Each test gets fresh DB due to fixture"""
+    assert sample_database.count_users() == 0
+    sample_database.create_user("alice@ex.com", "Alice")
+    assert sample_database.count_users() == 1`,
+        tips: [
+          'Always use `yield` fixtures over `request.addfinalizer` — setup and teardown in one function is cleaner',
+          'Teardown after `yield` runs even when the test raises — guaranteed cleanup',
+          'Fixtures are injected by parameter name — the name of the fixture function must match the parameter',
+          'Put shared fixtures in `conftest.py` — pytest discovers them automatically without imports',
+        ],
+        mistake: 'Doing cleanup with `return` instead of `yield`. Code after `return` never runs. Use `yield` to split setup/teardown, or `request.addfinalizer(cleanup_fn)`.',
+        shorthand: {
+          verbose: `import pytest
+@pytest.fixture
+def sample_database():
+"""Setup: create test DB"""`,
+          concise: `assert sample_database.count_users() == 1`
+        }
+      },
+      {
+        id: 'fixture-scope',
+        fn: 'Fixture scope',
+        desc: 'Control how often a fixture is created and torn down.',
+        subtitle: 'function | class | module | session — match cost to lifetime',
+        signature: '@pytest.fixture(scope="session")',
+        descLong: 'scope= controls how often a fixture is set up and torn down. The default is "function" — fresh instance per test. Use "session" for expensive resources like database connections or server startup that can be shared safely.',
+        code: `import pytest
+# scope="function" (default) — fresh per test:
+def fresh_list():
+    return []
+# scope="module" — once per test file:
+@pytest.fixture(scope="module")
+def db_connection():
+    conn = create_connection()
+    yield conn
+    conn.close()
+# scope="session" — once for the entire test run:
+@pytest.fixture(scope="session")
+def app():
+    app = create_app({"TESTING": True})
+    yield app
+# scope="class" — once per test class:
+@pytest.fixture(scope="class")
+def class_resource(request):
+    request.cls.resource = setup_resource()
+    yield
+    teardown_resource(request.cls.resource)
+# autouse — run for every test automatically:
+@pytest.fixture(autouse=True)
+def reset_database():
+    clear_all_tables()     # runs after every single test
+# Combining scopes — session DB + per-test rollback:
+def engine():
+    return create_engine("sqlite:///:memory:")
+def tables(engine):
+    Base.metadata.create_all(engine)
+    Base.metadata.drop_all(engine)
+
+@pytest.fixture              # function scope — rolls back per test
+def db(engine, tables):
+    with engine.connect() as conn:
+        trans = conn.begin()
+        yield conn
+        trans.rollback()`,
+        tips: [
+          'Use `scope="session"` for expensive setup (DB engine, test server) — runs once for the whole suite',
+          'Use `scope="function"` (default) for anything that mutates state — guarantees isolation',
+          '`autouse=True` applies the fixture to every test in scope — great for resetting global state',
+          'Scoped fixtures can only request fixtures of equal or broader scope: function < class < module < session',
+        ],
+        mistake: '`scope="session"` with a fixture that mutates shared state. Tests become order-dependent and flaky. Use `scope="function"` with transactions that roll back after each test.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'factory-boy',
+        fn: 'Factory Boy',
+        desc: 'Generate test data with factories — no more brittle fixture dicts.',
+        category: 'Fixtures',
+        subtitle: 'factory_boy creates realistic model instances with sensible defaults',
+        signature: 'class UserFactory(factory.Factory): name = factory.Faker("name")',
+        descLong: 'Factory Boy creates test data factories — classes that generate model instances with sensible defaults. Faker generates realistic data. SQLAlchemy factories integrate with the session. Much cleaner than manually constructing dicts or objects in every test.',
+        code: `import pytest
+import factory
+from factory import Faker, SubFactory, LazyAttribute
+from factory.alchemy import SQLAlchemyModelFactory
+# Basic factory:
+class UserFactory(factory.Factory):
+    class Meta:
+        model = User
+    name  = Faker("name")           # "John Smith"
+    email = Faker("email")          # "john.smith@example.com"
+    age   = Faker("random_int", min=18, max=80)
+# Use it:
+user = UserFactory()
+user.name    # "Sarah Johnson"
+user.email   # "sarah.johnson@fake.com"
+# Override specific fields:
+user = UserFactory(name="Alice", age=30)
+# Build multiple:
+users = UserFactory.build_batch(5)
+# SQLAlchemy factory:
+class UserSQLFactory(SQLAlchemyModelFactory):
+        model   = User
+        sqlalchemy_session = db_session   # from a fixture
+    name  = Faker("name")
+    email = LazyAttribute(lambda o: f"{o.name.lower().replace(' ','.')}@test.com")
+# Nested factory:
+class PostFactory(factory.Factory):
+        model = Post
+    title  = Faker("sentence", nb_words=5)
+    author = SubFactory(UserFactory)   # creates a User automatically
+    body   = Faker("paragraphs", nb=3, as_text=True)
+# Sequences for unique values:
+class ProductFactory(factory.Factory):
+        model = Product
+    sku  = factory.Sequence(lambda n: f"SKU-{n:04d}")
+    name = Faker("word")`,
+        tips: [
+          'Factories give you sane defaults — only override what matters for each specific test',
+          'LazyAttribute computes a value from other fields: `email = LazyAttribute(lambda o: f"{o.name}@test.com")`',
+          'SubFactory creates related objects automatically — no need to create dependencies by hand',
+          'factory.Sequence guarantees unique values — essential for fields with unique constraints',
+        ],
+        mistake: 'Creating test data manually in each test: `{"name": "test", "email": "test@test.com", ...}`. When models change, every test breaks. Factories centralize test data construction.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+
+      {
+        id: 'conftest',
+        fn: 'conftest.py',
+        desc: 'Share fixtures across test files without imports.',
+        subtitle: 'pytest discovers conftest.py automatically at each directory level',
+        signature: '# tests/conftest.py — no import needed in test files',
+        descLong: 'conftest.py is a special file pytest discovers automatically. Fixtures defined in conftest.py are available to all tests in the same directory and subdirectories — no import required. Use it to share fixtures, register plugins, and configure pytest.',
+        code: `# Project layout:
+# myapp/
+# tests/
+#   conftest.py          ← shared fixtures for all tests
+#   unit/
+#     conftest.py        ← fixtures only for unit tests
+#     test_models.py
+#   integration/
+#     conftest.py        ← fixtures only for integration tests
+#     test_api.py
+# tests/conftest.py:
+import pytest
+from myapp import create_app
+from myapp.db import db as _db
+@pytest.fixture(scope="session")
+def app():
+    app = create_app({"TESTING": True,
+                      "DATABASE_URL": "sqlite:///:memory:"})
+    with app.app_context():
+        _db.create_all()
+        yield app
+        _db.drop_all()
+@pytest.fixture
+def client(app):
+    return app.test_client()
+def db(app):
+        yield _db
+        _db.session.rollback()
+# tests/unit/test_models.py — uses fixtures from conftest:
+def test_user_create(db):        # no import — pytest injects it
+    user = User(name="Alice")
+    db.session.add(user)
+    db.session.commit()
+    assert user.id is not None
+# tests/integration/test_api.py:
+def test_get_users(client):      # no import needed
+    r = client.get("/api/users")
+    assert r.status_code == 200`,
+        tips: [
+          'Fixtures in `tests/conftest.py` are available to ALL test files in `tests/` and subdirectories',
+          'Layer conftest.py files — shared fixtures at the top level, specific ones in subdirectories',
+          'No import statement needed — pytest injects conftest fixtures automatically by name',
+          'Use conftest.py for pytest plugins, hooks (`pytest_configure`), and custom marks too',
+        ],
+        mistake: 'Defining fixtures inside individual test files and duplicating them. Move shared fixtures to conftest.py — it is discoverable without imports and scoped to the right directory.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'integration-tests',
+        fn: 'Integration test patterns',
+        desc: 'Test multiple components together — DB, HTTP, file system.',
+        category: 'Fixtures',
+        subtitle: 'TestClient for FastAPI, in-memory DB, temp directories',
+        signature: 'TestClient(app) | SQLite in-memory | tmp_path fixture',
+        descLong: 'Integration tests verify that components work together correctly. FastAPI\'s TestClient makes HTTP requests without starting a server. Use SQLite in-memory for DB tests. pytest\'s tmp_path fixture provides a temporary directory per test.',
+        code: `import json
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+# FastAPI integration test — TestClient:
+from myapp.main import app
+client = TestClient(app)
+def test_create_user():
+    response = client.post("/users/", json={"name": "Alice", "email": "a@b.com"})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Alice"
+    assert "id" in data
+
+def test_get_nonexistent_user():
+    response = client.get("/users/99999")
+    assert response.status_code == 404
+# In-memory SQLite for DB integration tests:
+def test_db():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+    yield db
+    db.close()
+    Base.metadata.drop_all(engine)
+# Override FastAPI DB dependency in tests:
+def client_with_db(test_db):
+    def override_get_db():
+        yield test_db
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+# tmp_path — temp directory per test (built-in fixture):
+def test_file_processing(tmp_path):
+    input_file = tmp_path / "input.csv"
+    input_file.write_text("name,age\nAlice,30\nBob,25")
+    output_file = tmp_path / "output.json"
+    process_csv(input_file, output_file)
+    assert output_file.exists()
+    data = json.loads(output_file.read_text())
+    assert len(data) == 2`,
+        tips: [
+          'TestClient does not start a real server — it calls the ASGI app directly, very fast',
+          'Override dependencies with `app.dependency_overrides[fn] = override` — clear after test',
+          'SQLite in-memory is fast enough for most integration tests and requires no setup',
+          'tmp_path is automatically cleaned up — never use hardcoded paths in tests',
+        ],
+        mistake: 'Using the production database in tests. Tests must be isolated — use a test database, in-memory SQLite, or transaction rollback so tests do not affect each other or real data.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+
+    ],
+  },
+  {
+    id: 'mocking',
+    title: 'Mocking',
+    entries: [
+      {
+        id: 'patch',
+        fn: 'unittest.mock.patch()',
+        desc: 'Temporarily replace an object with a mock for the duration of a test.',
+        category: 'Mocking',
+        subtitle: 'Patch where the name is USED — not where it is defined',
+        signature: '@patch("myapp.module.ClassName") | with patch(...) as mock:',
+        descLong: 'patch() replaces an object in a module with a MagicMock for the duration of the test, then restores the original. The critical rule: patch the object where it is looked up (the importing module), not where it is defined.',
+        code: `import requests
+from unittest.mock import Mock, patch, MagicMock
+import pytest
+
+
+def test_email_sent_to_user():
+    """Mock external email service"""
+    mock_email = Mock()
+    user = create_user("alice@example.com", email_service=mock_email)
+    
+    # Verify email was called:
+    mock_email.send.assert_called_once()
+    call_args = mock_email.send.call_args
+    assert call_args[1]['to'] == "alice@example.com"
+
+@patch('payment_service.process_payment')
+def test_payment_with_mock(mock_process):
+    """Patch external payment API"""
+    mock_process.return_value = {"status": "success", "id": 12345}
+    
+    result = complete_checkout(amount=99.99)
+    assert result['status'] == "success"
+    mock_process.assert_called_once_with(99.99)
+
+def test_api_error_handling():
+    """Mock API failure"""
+    with patch('requests.get') as mock_get:
+        mock_get.side_effect = ConnectionError("API down")
+        
+        with pytest.raises(ConnectionError):
+            fetch_user_data(user_id=1)`,
+        tips: [
+          'Patch where the name is USED: `patch("myapp.views.requests.get")` not `patch("requests.get")`',
+          'Stacked `@patch` decorators are applied bottom-up but injected top-down into the function args',
+          'Use `patch.object(instance, "method")` to patch a method on a specific object',
+          'Use `patch.dict(os.environ, {"KEY": "value"})` to temporarily set environment variables',
+        ],
+        mistake: 'Patching the wrong location. `from requests import get` in your module means `get` is a local name. You must patch `"myapp.module.get"`, not `"requests.get"`.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+      {
+        id: 'responses',
+        fn: 'responses',
+        desc: 'Mock HTTP requests made by the requests library in tests.',
+        category: 'Mocking',
+        subtitle: 'Intercept requests library calls — no code changes needed',
+        signature: '@responses.activate | responses.add(GET, url, json={...})',
+        descLong: 'The responses library intercepts HTTP calls made by the requests library and returns fake responses without hitting real servers. No changes to application code required. Use for unit testing code that makes HTTP calls — cleaner and more reliable than manual mocking.',
+        code: `import responses
+import requests
+import pytest
+# Decorator form:
+@responses.activate
+def test_api_call():
+    responses.add(
+        responses.GET,
+        "https://api.example.com/users/1",
+        json   = {"id": 1, "name": "Alice"},
+        status = 200,
+    )
+    result = my_function_that_calls_api(user_id=1)
+    assert result["name"] == "Alice"
+    assert len(responses.calls) == 1   # verify one call was made
+# pytest fixture form:
+@pytest.fixture
+def mocked_responses():
+    with responses.RequestsMock() as rsps:
+        yield rsps
+
+def test_with_fixture(mocked_responses):
+    mocked_responses.add(
+        responses.POST,
+        "https://api.example.com/users",
+        json   = {"id": 99, "name": "Bob"},
+        status = 201,
+    result = create_user({"name": "Bob"})
+    assert result["id"] == 99`,
+        tips: [
+          'responses only works with the requests library — use respx for httpx',
+          'Check `len(responses.calls)` to verify the right number of HTTP calls were made',
+          'Use `responses.add(match_querystring=True)` to match specific query parameters',
+          'responses.add() can take match= with matchers like responses.matchers.json_params_matcher()',
+        ],
+        mistake: 'Using unittest.mock.patch to mock requests.get directly. It requires knowing the internal call path and breaks if the library is refactored. Use responses — it intercepts at a higher level.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'httpretty',
+        fn: 'httpretty',
+        desc: 'Mock HTTP requests at the socket level — works with any HTTP library.',
+        subtitle: 'Socket-level interception — library-agnostic HTTP mocking',
+        signature: '@httpretty.activate | httpretty.register_uri(GET, url, body=...)',
+        descLong: 'httpretty mocks HTTP requests at the socket level, intercepting all HTTP libraries (requests, urllib, httpx, etc.). More flexible than responses but slightly heavier. Use when you need to mock multiple HTTP libraries or have unusual HTTP scenarios.',
+        code: `import requests
+import httpretty
+@httpretty.activate
+def test_api_with_httpretty():
+    httpretty.register_uri(
+        httpretty.GET,
+        body='{"id": 1, "name": "Alice"}',
+        status=200,
+    result = requests.get("https://api.example.com/users/1")
+    assert result.json()["name"] == "Alice"
+# Context manager form:
+def test_with_context():
+    with httpretty.enable():
+        httpretty.register_uri(
+            httpretty.POST,
+            "https://api.example.com/users",
+            body='{"id": 99}',
+            status=201,
+        )
+        result = requests.post("https://api.example.com/users", json={"name": "Bob"})
+        assert result.json()["id"] == 99
+# Mock response headers:
+httpretty.register_uri(
+    httpretty.GET,
+    "https://api.example.com/data",
+    body='[1, 2, 3]',
+    adding_headers={"X-Custom-Header": "value"},
+)`,
+        tips: [
+          'httpretty works with any HTTP library (requests, urllib, httpx) — responses is requests-only',
+          'httpretty.last_request() accesses details of the last mocked request',
+          'Use body= for string responses or responses= for httpretty.Response objects',
+          'httpretty.reset() clears all registered URIs — useful between tests',
+        ],
+        mistake: 'Mixing httpretty with responses in the same test — they can conflict. Choose one and stick with it for each test.',
+        shorthand: {
+          verbose: `result = {}
+for k, v in pairs:
+    result[k] = v`,
+          concise: `result = {k: v for k, v in pairs}`
+        }
+      },
+
+      {
+        id: 'magicmock',
+        fn: 'MagicMock',
+        desc: 'A flexible mock object that auto-creates attributes and tracks calls.',
+        category: 'Mocking',
+        subtitle: 'Set return values, track calls, assert how a mock was used',
+        signature: 'mock.return_value = x | mock.side_effect = [a,b,exc] | mock.assert_called_once_with()',
+        descLong: 'MagicMock auto-creates any attribute or method you access on it. Set return_value for what a call should return. Set side_effect to a list (yields each in turn) or an exception class (raises it). spec= constrains the mock to a real class\'s interface.',
+        code: `import pytest
+from unittest.mock import MagicMock, AsyncMock, call
+# Create a mock:
+mock_db = MagicMock()
+mock_db.get_user.return_value = {"id": 1, "name": "Alice"}
+mock_db.get_product.return_value = {"id": 5, "price": 20.0}
+result = process_order(mock_db, user_id=1, product_id=5, qty=3)
+assert result["total"] == 60.0
+# Assertion methods:
+mock_db.get_user.assert_called_once()
+mock_db.get_user.assert_called_once_with(1)
+mock_db.get_product.assert_called_with(5)
+mock_db.save.assert_not_called()
+# side_effect — list: yields one per call:
+mock.side_effect = [
+    ConnectionError("timeout"),   # first call raises
+    ConnectionError("timeout"),   # second call raises
+    {"status": "ok"},             # third call returns
+]
+result = retry_three_times(mock)
+assert mock.call_count == 3
+# side_effect — exception: always raises:
+mock.side_effect = ValueError("bad input")
+# side_effect — callable: full control:
+def custom(x):
+    return x * 2
+mock.side_effect = custom
+# spec= — only real attributes accessible (catches typos):
+from myapp.db import Database
+mock_db = MagicMock(spec=Database)
+mock_db.get_user(1)    # ok — real method
+mock_db.get_usr(1)     # AttributeError — typo caught!
+# Call history:
+mock(1, 2); mock(3, 4)
+mock.call_args_list     # [call(1,2), call(3,4)]
+mock.call_args          # call(3,4) — most recent
+# Async mocks:
+mock_fetch = AsyncMock(return_value={"data": [1, 2, 3]})`,
+        tips: [
+          '`assert_called_once_with(args)` is stricter than `assert_called_once()` — always prefer it',
+          '`MagicMock(spec=RealClass)` is best practice — catches typos and wrong method names at test time',
+          '`side_effect` list is consumed one per call — useful for testing retry logic',
+          'Use `AsyncMock` for `async def` functions — regular `MagicMock` is not awaitable',
+        ],
+        mistake: 'Using `mock.assert_called()` instead of `mock.assert_called_once_with(expected_args)`. The latter verifies both that it was called exactly once AND with the right arguments.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+      {
+        id: 'mocker',
+        fn: 'mocker fixture',
+        desc: 'pytest-mock\'s mocker fixture — cleaner mocking without decorators.',
+        subtitle: 'Automatically undone after each test — no context managers needed',
+        signature: 'def test_fn(mocker): mock = mocker.patch("module.fn")',
+        descLong: 'pytest-mock provides the mocker fixture — a thin wrapper around unittest.mock that integrates with pytest\'s fixture lifecycle. Patches are automatically undone after each test. No decorator or context manager needed.',
+        code: `import requests
+
+# pip install pytest-mock
+def test_fetch_user(mocker):
+    mock_get = mocker.patch("myapp.service.requests.get")
+    mock_get.return_value.json.return_value = {"id": 1, "name": "Alice"}
+    mock_get.return_value.status_code = 200
+    result = fetch_user(1)
+    assert result["name"] == "Alice"
+    mock_get.assert_called_once()
+# mocker.patch.object:
+def test_calculate(mocker):
+    mock = mocker.patch.object(Calculator, "add", return_value=100)
+    svc  = MyService(Calculator())
+    assert svc.run() == 100
+    mock.assert_called_once_with(40, 60)
+# mocker.spy — wraps the real function, also tracks calls:
+def test_spy(mocker):
+    spy = mocker.spy(Calculator, "add")   # calls real function!
+    result = Calculator().add(2, 3)
+    assert result == 5                    # real result
+    spy.assert_called_once_with(mocker.ANY, 2, 3)
+# mocker.MagicMock — same as unittest.mock.MagicMock:
+def test_with_mock(mocker):
+    mock_db = mocker.MagicMock(spec=Database)
+    mock_db.get_user.return_value = {"id": 1}
+    result = fetch_with_db(mock_db)
+    assert result is not None
+# mocker.ANY — match any argument:
+def test_any_arg(mocker):
+    mock_fn = mocker.patch("myapp.send_email")
+    trigger_signup()
+    mock_fn.assert_called_once_with(
+        mocker.ANY,          # any email address
+        subject="Welcome!"
+    )`,
+        tips: [
+          '`mocker.patch()` is automatically undone after the test — no need for context managers or decorators',
+          '`mocker.spy()` wraps the real function — lets you assert on calls while still running real logic',
+          '`mocker.ANY` matches any value in assert_called_with — useful when you do not care about one argument',
+          'Install with `pip install pytest-mock` — it is the standard pytest mocking plugin',
+        ],
+        mistake: 'Using raw `unittest.mock.patch` as a decorator inside pytest when `mocker` is available. Decorators are not automatically undone — `mocker` handles cleanup via the fixture lifecycle.',
+        shorthand: {
+          verbose: `import requests
+def test_fetch_user(mocker):
+mock_get = mocker.patch("myapp.service.requests.get")
+mock_get.return_value.json.return_value = {"id": 1, "name": "Alice"}`,
+          concise: `)`
+        }
+      },
+      {
+        id: 'pytest-asyncio',
+        fn: 'pytest-asyncio',
+        desc: 'Test async functions with pytest.',
+        category: 'Mocking',
+        subtitle: '@pytest.mark.asyncio or asyncio_mode="auto" in pytest.ini',
+        signature: '@pytest.mark.asyncio async def test_fn(): await ...',
+        descLong: 'pytest-asyncio allows pytest to run async test functions. Either mark each test with @pytest.mark.asyncio or set asyncio_mode="auto" in pytest.ini to apply globally. Also provides async fixtures. Install: pip install pytest-asyncio.',
+        code: `# pytest.ini or pyproject.toml:
+# [pytest]
+# asyncio_mode = auto    # applies to all async tests automatically
+
+import pytest
+import pytest_asyncio
+import httpx
+# Mark individual test:
+@pytest.mark.asyncio
+async def test_async_function():
+    result = await some_async_function()
+    assert result == expected
+# Async fixture:
+@pytest_asyncio.fixture
+async def async_client():
+    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+        yield client
+# Test with async fixture:
+async def test_get_user(async_client):
+    response = await async_client.get("/users/1")
+    assert response.status_code == 200
+# Test async exception:
+async def test_raises_async():
+    with pytest.raises(ValueError):
+        await failing_async_function()
+# Mock async function:
+from unittest.mock import AsyncMock, patch
+async def test_with_async_mock():
+    with patch("mymodule.fetch_data", new=AsyncMock(return_value={"id": 1})):
+        result = await my_function_that_calls_fetch()
+        assert result["id"] == 1`,
+        tips: [
+          'Set asyncio_mode = "auto" in pytest.ini to avoid @pytest.mark.asyncio on every test',
+          'Use AsyncMock not MagicMock when mocking async functions — MagicMock does not support await',
+          'httpx.AsyncClient with app= lets you test FastAPI without starting a real server',
+          'Async fixtures must use @pytest_asyncio.fixture, not @pytest.fixture',
+        ],
+        mistake: 'Using MagicMock for an async function. `mock = MagicMock(); await mock()` raises TypeError. Use `AsyncMock` for anything that will be awaited.',
+        shorthand: {
+          verbose: `try:
+    result = risky()
+except ValueError as e:
+    print(e)`,
+          concise: `try:
+    result = risky()
+except ValueError:
+    result = None`
+        }
+      },
+
+    ],
+  },
+  {
+    id: 'advanced',
+    title: 'Advanced Testing',
+    entries: [
+      {
+        id: 'coverage',
+        fn: 'pytest coverage',
+        desc: 'Measure which lines of code are exercised by your tests.',
+        category: 'Advanced',
+        subtitle: 'pytest-cov — run coverage alongside tests, fail below a threshold',
+        signature: 'pytest --cov=myapp --cov-report=term-missing --cov-fail-under=80',
+        descLong: 'pytest-cov integrates coverage.py with pytest. It measures which lines are executed during tests and reports uncovered lines. Use --cov-fail-under= in CI to prevent coverage regressions.',
+        code: `# Install pytest-cov
+# pip install pytest-cov coverage
+import coverage
+from pathlib import Path
+# ── Method 1: Using coverage.py programmatically ──────
+cov = coverage.Coverage(
+    source=['myapp'],
+    omit=['*/migrations/*', '*/tests/*']
+)
+# Start measuring coverage
+cov.start()
+# Code you want to measure
+def add(a, b):
+    return a + b
+def divide(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a / b
+# Run some code to exercise it
+result = add(1, 2)
+try:
+    divide(10, 2)
+except ValueError:
+    pass
+# Stop measuring and save results
+cov.stop()
+cov.save()
+# Generate reports
+cov.report()  # Terminal report
+cov.html_report(directory='htmlcov')  # HTML report
+# ── Method 2: pytest-cov with CLI ────────────────────
+# Run with coverage (shows totals):
+# pytest --cov=myapp
+# Show uncovered lines:
+# pytest --cov=myapp --cov-report=term-missing
+# Generate HTML report → htmlcov/:
+# pytest --cov=myapp --cov-report=html
+# Fail if coverage drops below threshold:
+# pytest --cov=myapp --cov-fail-under=80
+# Branch coverage (covers if/else paths, not just lines):
+# pytest --cov=myapp --cov-branch
+# Coverage for specific test file:
+# pytest tests/unit/ --cov=myapp.models
+# ── pyproject.toml configuration ──────────────────────
+# [tool.pytest.ini_options]
+# addopts = "--cov=myapp --cov-report=term-missing --cov-fail-under=80"
+#
+# [tool.coverage.run]
+# source = ["myapp"]
+# omit = ["*/migrations/*", "*/tests/*", "*/__init__.py"]
+# [tool.coverage.report]
+# fail_under = 80
+# show_missing = true
+# precision = 2
+# ── Example test with coverage exclusion ──────────────
+import pytest
+def test_basic_math():
+    assert add(1, 2) == 3
+def test_division_success():
+    assert divide(10, 2) == 5.0
+def test_division_by_zero():
+        divide(10, 0)
+def debug_function():  # pragma: no cover
+    """This line is excluded from coverage."""
+    print("Debug info")`,
+        tips: [
+          'Add `--cov-fail-under=80` to CI to create a coverage gate — prevents regressions silently slipping in',
+          'Branch coverage (`--cov-branch`) is more thorough — catches untested if/else paths',
+          'Aim for meaningful coverage — 80% with important paths tested beats 95% with trivial getter/setter tests',
+          '`# pragma: no cover` on a line excludes it from coverage — use for unreachable/legacy code only',
+        ],
+        mistake: 'Chasing 100% coverage by testing trivial getters and setters. Coverage measures lines run, not correctness. Focus on testing behavior, edge cases, and error paths — not line counts.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'cov-config',
+        auditExempt: true,
+        fn: 'pytest-cov configuration',
+        desc: 'Configure coverage reporting — omit paths, set thresholds, generate HTML.',
+        subtitle: '.coveragerc or pyproject.toml — omit, fail_under, report formats',
+        signature: 'pytest --cov=myapp --cov-report=html --cov-fail-under=80',
+        descLong: 'pytest-cov generates coverage reports. Configure via .coveragerc or pyproject.toml to omit test files, migrations, and virtual envs. fail_under= enforces a minimum coverage threshold in CI. HTML reports show exactly which lines are missed.',
+        code: `# ── .coveragerc (legacy, still supported) ─────────────
+coveragerc_content = """
+[run]
+source = myapp
+omit =
+    */tests/*
+    */migrations/*
+    */venv/*
+    setup.py
+    conftest.py
+[report]
+fail_under = 80
+show_missing = true
+skip_covered = false
+precision = 2
+[html]
+directory = htmlcov
+[xml]
+output = coverage.xml
+"""
+# ── pyproject.toml (modern approach) ───────────────────
+pyproject_content = """
+[tool.coverage.run]
+source = ["myapp"]
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*/venv/*",
+    "setup.py",
+    "conftest.py"
+]
+
+[tool.coverage.report]
+[tool.coverage.html]
+directory = "htmlcov"
+[tool.coverage.xml]
+output = "coverage.xml"
+[tool.pytest.ini_options]
+addopts = "--cov=myapp --cov-report=term-missing --cov-report=html --cov-fail-under=80"
+# ── Command line usage ─────────────────────────────────
+# Basic coverage report:
+# Show which lines are missing:
+# Generate HTML report (in htmlcov/ directory):
+# Fail if coverage drops below 80%:
+# Branch coverage (covers if/else paths):
+# pytest --cov=myapp --cov-branch --cov-report=html
+# Coverage for specific module:
+# pytest --cov=myapp.models --cov-report=html
+# ── Excluding lines from coverage ──────────────────────
+from typing import TYPE_CHECKING
+def regular_function(x):
+    return x * 2
+def debug_only():  # pragma: no cover
+    print("Debug information")
+if TYPE_CHECKING:  # pragma: no cover
+    from myapp.types import SomeType
+    from myapp.models import User
+# ── Running coverage programmatically ──────────────────
+import coverage
+cov = coverage.Coverage(
+    source=['myapp'],
+    omit=['*/tests/*', '*/migrations/*'],
+    config_file='.coveragerc'
+)
+cov.start()
+# Code to measure here
+def test_function():
+    return add(1, 2)
+print(cov.report())
+cov.html_report(directory='htmlcov')
+cov.xml_report(outfile='coverage.xml')
+# Combine reports:
+# pytest --cov=myapp --cov-report=xml --cov-report=html
+# xml for CI (codecov/coveralls), html for local review`,
+        tips: [
+          'Add .coveragerc to version control — consistent settings across all developers and CI',
+          '`pragma: no cover` on a line or branch excludes it — use sparingly for truly untestable code',
+          'aim for 80% coverage as a baseline — 100% coverage does not mean no bugs',
+          'HTML report (`--cov-report=html`) shows exactly which lines are not covered — open htmlcov/index.html',
+        ],
+        mistake: 'Chasing 100% coverage at the expense of test quality. Cover the important paths well rather than writing trivial tests just to bump the percentage.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+
+      {
+        id: 'freezegun',
+        fn: 'freezegun',
+        desc: 'Freeze time in tests — mock datetime.now() and time.time().',
+        category: 'Advanced',
+        subtitle: '@freeze_time("2024-01-15") — all datetime calls return the frozen time',
+        signature: '@freeze_time("2024-01-15") | with freeze_time("2024-01-15"):',
+        descLong: 'freezegun patches all datetime and time calls to return a fixed moment. Works transparently — no code changes needed. Use it to test time-dependent logic like expiry, scheduling, age calculation, and token TTL. Install: pip install freezegun.',
+        code: `from datetime import datetime, timedelta
+from freezegun import freeze_time
+from datetime import datetime
+import pytest
+# Decorator — freeze for entire test:
+@freeze_time("2024-01-15 12:00:00")
+def test_user_age():
+    user = User(birth_date=datetime(1990, 1, 15))
+    assert user.age == 34   # datetime.now() returns 2024-01-15
+# Context manager — freeze for a block:
+def test_token_expiry():
+    with freeze_time("2024-01-15"):
+        token = create_token(expires_in=3600)
+    with freeze_time("2024-01-15 01:30:00"):  # 90 min later
+        assert not is_expired(token)
+    with freeze_time("2024-01-15 02:00:01"):  # just past expiry
+        assert is_expired(token)
+# pytest fixture:
+@pytest.fixture
+def frozen_time():
+    with freeze_time("2024-06-01") as ft:
+        yield ft
+def test_with_fixture(frozen_time):
+    assert datetime.now().date() == date(2024, 6, 1)
+    frozen_time.move_to("2024-06-15")
+    assert datetime.now().date() == date(2024, 6, 15)
+# Works with:
+# datetime.now(), datetime.today(), date.today()
+# time.time(), time.localtime(), time.gmtime()
+# time.strftime() if called without args`,
+        tips: [
+          'freezegun patches all datetime sources — datetime.now(), time.time(), date.today()',
+          'Use .move_to() or .tick() on the frozen_time object to advance time within a test',
+          'Works with third-party libraries too — any code that uses standard datetime is frozen',
+          'For testing across time zones, combine with freeze_time("2024-01-15", tz_offset=-5)',
+        ],
+        mistake: 'Using datetime.now() directly in production code without dependency injection. If you pass now as a parameter, you can test without freezegun at all — but freezegun handles legacy code gracefully.',
+        shorthand: {
+          verbose: `from datetime import datetime, timedelta
+from freezegun import freeze_time
+from datetime import datetime
+import pytest`,
+          concise: `assert datetime.now().date() == date(2024, 6, 15)`
+        }
+      },
+
+      {
+        id: 'marks-config',
+        fn: 'Marks & configuration',
+        desc: 'Categorize tests with marks and configure pytest via pyproject.toml.',
+        subtitle: 'skip, xfail, slow, integration — run subsets without touching test files',
+        signature: '@pytest.mark.slow | pytest -m "not slow" | pyproject.toml',
+        descLong: 'Marks categorize tests so you can run subsets from the command line. Register custom marks in pyproject.toml to avoid warnings. Use skip/xfail for known issues. Configure default options in pyproject.toml so you never have to type long pytest commands.',
+        code: `import pytest
+import sys
+# Built-in marks:
+@pytest.mark.skip(reason="not implemented yet")
+def test_future_feature(): ...
+@pytest.mark.skipif(sys.platform == "win32", reason="unix only")
+def test_unix_only(): ...
+@pytest.mark.xfail(reason="known bug #123")
+def test_known_broken():
+    assert False          # expected to fail — test suite still passes
+@pytest.mark.xfail(strict=True)  # FAIL if it unexpectedly passes
+def test_must_fail(): ...
+# Custom marks:
+@pytest.mark.slow
+def test_big_computation(): ...
+@pytest.mark.integration
+def test_full_api_flow(): ...
+# Run subsets:
+# pytest -m slow                    only slow tests
+# pytest -m "not slow"              skip slow tests
+# pytest -m "integration and slow"  only slow integration tests
+# pyproject.toml — register marks + default options:
+# [tool.pytest.ini_options]
+# testpaths = ["tests"]
+# addopts   = "-v --tb=short"
+# markers   = [
+#     "slow: marks tests as slow (deselect with -m 'not slow')",
+#     "integration: marks integration tests",
+#     "unit: marks unit tests",
+# ]
+# pytest.ini alternative:
+# [pytest]
+# testpaths = tests
+# addopts = -v --tb=short
+# markers =
+#     slow: slow tests
+#     integration: integration tests`,
+        tips: [
+          'Register custom marks in `pyproject.toml` — unregistered marks cause `PytestUnknownMarkWarning`',
+          'Use `pytest -m "not slow"` during development for fast feedback — full suite only in CI',
+          '`addopts` in config runs those flags on every `pytest` invocation — no more typing `--tb=short`',
+          '`@pytest.mark.xfail(strict=True)` catches bugs that get silently fixed — forces you to remove the mark',
+        ],
+        mistake: 'Not registering custom marks. Every `@pytest.mark.slow` produces a warning unless the mark is declared in `markers` inside `pyproject.toml` or `pytest.ini`.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'hypothesis',
+        fn: 'Hypothesis',
+        desc: 'Property-based testing — generate hundreds of random inputs automatically.',
+        category: 'Advanced',
+        subtitle: '@given(st.integers()) — Hypothesis finds edge cases you would not think of',
+        signature: 'from hypothesis import given, strategies as st',
+        descLong: 'Hypothesis generates random inputs and shrinks failing cases to the minimal example. Instead of testing specific values, you test properties that should hold for all valid inputs. Excellent for finding edge cases in parsers, math operations, and data transformations.',
+        code: `import json
+from hypothesis import given, assume, settings
+from hypothesis import strategies as st
+
+# Test a property — must hold for ALL inputs:
+@given(st.lists(st.integers()))
+def test_sort_is_idempotent(lst):
+    assert sorted(sorted(lst)) == sorted(lst)
+@given(st.integers(), st.integers())
+def test_addition_commutative(a, b):
+    assert a + b == b + a
+# assume() — skip inputs that violate preconditions:
+@given(st.floats(allow_nan=False), st.floats(allow_nan=False, min_value=0.01))
+def test_division(a, b):
+    assume(b != 0)
+    result = a / b
+    assert abs(result * b - a) < 1e-10
+# Common strategies:
+st.integers(min_value=0, max_value=100)
+st.text(min_size=1, max_size=50)
+st.floats(allow_nan=False, allow_infinity=False)
+st.lists(st.integers(), min_size=1, max_size=20)
+st.dictionaries(st.text(), st.integers())
+st.one_of(st.integers(), st.text())     # union of strategies
+st.sampled_from(["red", "green", "blue"])
+# Test a serialization round-trip:
+@given(st.dictionaries(
+    st.text(min_size=1),
+    st.one_of(st.integers(), st.text(), st.booleans()),
+))
+def test_json_round_trip(data):
+    import json
+    assert json.loads(json.dumps(data)) == data
+# Settings — control runs:
+@settings(max_examples=500)  # run 500 examples (default: 100)
+@given(st.integers())
+def test_with_more_examples(n):
+    assert isinstance(n, int)`,
+        tips: [
+          'Hypothesis remembers failing examples in a database — reruns them first on subsequent runs',
+          'When Hypothesis finds a failure it shrinks to the minimal failing input — much easier to debug',
+          'Use assume() sparingly — too many skipped inputs make the test less useful',
+          'Property-based testing complements, not replaces, example-based tests — use both',
+        ],
+        mistake: 'Writing `@given(st.integers())` then using `n` in a way that only fails for very large numbers. Hypothesis will find it — but increase max_examples if the failure is rare.',
+        shorthand: {
+          verbose: `import json
+from hypothesis import given, assume, settings
+from hypothesis import strategies as st
+@given(st.lists(st.integers()))`,
+          concise: `assert isinstance(n, int)`
+        }
+      },
+
+    ],
+  },
+]
+
+export default { meta, sections }

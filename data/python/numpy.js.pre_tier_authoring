@@ -1,0 +1,1353 @@
+/**
+ * data/python/numpy.js
+ * NumPy — Numerical computing. One subject per entry.
+ */
+
+export const meta = {
+  title: 'NumPy',
+  domain: 'python',
+  sheet: 'numpy',
+  icon: '🔢',
+}
+
+export const sections = [
+  {
+    id: 'creation',
+    title: 'Array Creation',
+    entries: [
+      {
+        id: 'np-array',
+        fn: 'np.array()',
+        desc: 'Create a NumPy array from a Python list or nested list.',
+        category: 'Creation',
+        subtitle: 'The fundamental constructor — specify dtype= for clarity',
+        signature: 'np.array(data, dtype=None)',
+        descLong: 'np.array() converts Python lists, tuples, or nested lists into a NumPy ndarray. Arrays are fixed-type and store data in contiguous memory — this is why they are 10-100x faster than lists for numeric operations. Always specify dtype= for clarity.',
+        code: `import numpy as np
+# From list:
+a = np.array([1, 2, 3, 4, 5])
+a = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+# 2D from nested list:
+A = np.array([[1, 2, 3],
+              [4, 5, 6]])   # shape (2, 3)
+# Common dtypes:
+np.array([1, 2, 3], dtype=np.int32)
+np.array([1, 2, 3], dtype=np.float64)  # default for floats
+np.array([1, 2, 3], dtype=np.bool_)
+# Inspect:
+a.shape      # (5,)
+a.ndim       # 1
+a.dtype      # dtype('float64')
+a.size       # 5 — total elements
+a.itemsize   # 8 — bytes per element
+a.nbytes     # 40 — total bytes
+# Convert types:
+a.astype(np.float32)
+a.astype(int)
+# Copy vs view:
+b = a.copy()   # new array
+b = a.view()   # shared memory — modifying b modifies a`,
+        tips: [
+          'Use `dtype=np.float32` instead of default `float64` when memory matters — halves storage',
+          'NumPy infers dtype from the data — mixed int/float input gives float64',
+          '`a.copy()` makes an independent array; `a.view()` shares memory with the original',
+          '`a.astype(np.float32)` always returns a copy — the dtype is changed',
+        ],
+        mistake: 'Creating a 2D array with rows of different lengths: `np.array([[1,2],[3,4,5]])`. This creates a 1D array of Python lists, not a 2D ndarray. All rows must have the same length.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'np-zeros',
+        fn: 'np.zeros()',
+        desc: 'Create an array filled with zeros.',
+        category: 'Creation',
+        subtitle: 'Safe zero-initialized array — use np.empty() only when you will fill every element',
+        signature: 'np.zeros(shape, dtype=float)',
+        descLong: 'np.zeros() creates an array of a given shape filled with 0.0 (float64 by default). np.zeros_like() creates a zero array matching an existing array\'s shape and dtype. np.empty() is faster but contains uninitialized garbage — only use it when you will write to every element.',
+        code: `import numpy as np
+
+np.zeros(5)                      # [0. 0. 0. 0. 0.]
+np.zeros((3, 4))                 # 3×4 matrix of zeros
+np.zeros((2, 3, 4))              # 3D — shape (2,3,4)
+np.zeros((3, 3), dtype=int)      # integer zeros
+np.zeros((3, 3), dtype=bool)     # boolean zeros (False)
+# Match an existing array's shape and dtype:
+np.zeros_like(a)                 # same shape and dtype as a
+np.zeros_like(a, dtype=float)    # override dtype
+# np.empty — faster but UNINITIALIZED:
+np.empty((3, 3))                 # contains garbage values!
+np.empty_like(a)                 # same shape/dtype, uninitialized
+# np.full — fill with any value:
+np.full((3, 3), 7)               # 3×3 of sevens
+np.full((2, 2), np.inf)          # fill with infinity
+np.full_like(a, fill_value=99)   # same shape/dtype as a, filled with 99
+# np.eye / np.identity — identity matrix:
+np.eye(4)                        # 4×4 identity matrix (float)
+np.eye(4, dtype=int)
+np.eye(4, k=1)                   # ones on first superdiagonal`,
+        tips: [
+          'Default dtype is `float64` — specify `dtype=int` or `dtype=bool` when needed',
+          '`np.zeros_like(a)` is the clearest way to create a zero array with the same shape as an existing one',
+          '`np.empty()` is faster than `np.zeros()` but contains garbage — only safe when every element will be written',
+          '`np.full((n, m), val)` is cleaner than `np.zeros(...) + val` or `np.ones(...) * val`',
+        ],
+        mistake: 'Using `np.empty()` expecting zeros. It returns uninitialized memory — values can be anything. Use `np.zeros()` if you need actual zeros.',
+        shorthand: {
+          verbose: `import numpy as np
+np.zeros(5)                      # [0. 0. 0. 0. 0.]
+np.zeros((3, 4))                 # 3×4 matrix of zeros
+np.zeros((2, 3, 4))              # 3D — shape (2,3,4)`,
+          concise: `np.eye(4, k=1)                   # ones on first superdiagonal`
+        }
+      },
+      {
+        id: 'np-ones',
+        fn: 'np.ones()',
+        desc: 'Create an array filled with ones.',
+        category: 'Creation',
+        subtitle: 'One-initialized array — useful for masks, weights, and initialization',
+        signature: 'np.ones(shape, dtype=float)',
+        descLong: 'np.ones() creates an array filled with 1.0. Commonly used for weight arrays, boolean masks (all True), and as a starting point for multiplicative operations. np.ones_like() creates a ones array matching an existing array.',
+        code: `import numpy as np
+
+np.ones(5)                       # [1. 1. 1. 1. 1.]
+np.ones((3, 3))                  # 3×3 matrix of ones
+np.ones((2, 3, 4))               # 3D
+np.ones((3, 3), dtype=int)       # integer ones
+np.ones((3, 3), dtype=bool)      # True everywhere
+# Match an existing array:
+np.ones_like(a)                  # same shape and dtype as a
+# Common uses:
+weights = np.ones(n) / n         # uniform weights summing to 1
+mask    = np.ones(shape, bool)   # all-True mask — then clear some
+# Combine with math:
+np.ones((3,3)) * 5               # same as np.full((3,3), 5)
+np.diag(np.ones(4))              # same as np.eye(4)
+# Homogeneous coordinates (add column of ones):
+X = np.random.randn(100, 3)
+X_h = np.hstack([X, np.ones((100, 1))])  # (100, 4)`,
+        tips: [
+          '`np.ones((n, 1))` creates a column vector — useful for homogeneous coordinates and broadcasting',
+          '`np.ones(n, dtype=bool)` creates an all-True mask — then set specific elements to False',
+          '`np.ones_like(a)` copies shape and dtype — safer than hardcoding the shape',
+          'For non-1 fill values, use `np.full(shape, value)` — more explicit than `np.ones(...) * value`',
+        ],
+        mistake: 'Using `np.ones((n,)) * val` to create an array of a constant value. `np.full((n,), val)` is clearer and communicates intent directly.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'np-arange',
+        fn: 'np.arange()',
+        desc: 'Generate values from start to stop with a fixed step.',
+        subtitle: 'Like Python range() but returns an array — avoid float steps',
+        signature: 'np.arange(start, stop, step)',
+        descLong: 'np.arange() generates values from start up to (not including) stop with a given step — like Python range() but returns an ndarray. For float steps, use np.linspace() instead — floating-point rounding can give ±1 element with arange.',
+        code: `import numpy as np
+# Integer sequences:
+np.arange(5)              # [0 1 2 3 4]
+np.arange(2, 8)           # [2 3 4 5 6 7]
+np.arange(0, 10, 2)       # [0 2 4 6 8]   — step of 2
+np.arange(10, 0, -1)      # [10 9 8 ... 1] — countdown
+
+# Float steps (use with caution):
+np.arange(0.0, 1.0, 0.1)  # may give 10 or 11 points!
+# dtype:
+np.arange(5, dtype=float)  # [0. 1. 2. 3. 4.]
+# Common use — index into arrays:
+indices = np.arange(len(arr))
+# Common use — generate x values for a plot:
+x = np.arange(0, 100)
+y = x ** 2
+# arange vs range:
+# range(n)      → lazy Python iterator
+# np.arange(n)  → numpy array (use for math operations)`,
+        tips: [
+          'For integer sequences `np.arange` is safe; for float steps use `np.linspace` — no rounding surprises',
+          '`np.arange(n)` is equivalent to `np.array(range(n))` but much faster',
+          'Stop is **exclusive** — same as Python `range()`: `np.arange(0, 5)` gives `[0,1,2,3,4]`',
+          'When you need a specific number of points between two values, use `np.linspace` instead',
+        ],
+        mistake: '`np.arange(0, 1, 0.1)` may return 10 or 11 points depending on floating-point rounding. Use `np.linspace(0, 1, 11)` when you need a guaranteed exact count.',
+        shorthand: {
+          verbose: `import numpy as np
+np.arange(5)              # [0 1 2 3 4]
+np.arange(2, 8)           # [2 3 4 5 6 7]
+np.arange(0, 10, 2)       # [0 2 4 6 8]   — step of 2`,
+          concise: `y = x ** 2`
+        }
+      },
+      {
+        id: 'np-linspace',
+        fn: 'np.linspace()',
+        desc: 'Generate exactly N evenly spaced values between start and stop.',
+        category: 'Creation',
+        subtitle: 'Count-based spacing — stop is inclusive, exact number guaranteed',
+        signature: 'np.linspace(start, stop, num=50, endpoint=True)',
+        descLong: 'np.linspace() generates exactly num values evenly spaced between start and stop (inclusive by default). Unlike arange(), the count is guaranteed regardless of floating-point rounding. Use it for plotting and numerical analysis.',
+        code: `import numpy as np
+# Basic:
+np.linspace(0, 1, 11)         # [0.0  0.1  0.2  ...  1.0] — 11 points
+np.linspace(0, 1, 5)          # [0.    0.25  0.5  0.75  1. ] — 5 points
+np.linspace(0, 100, 101)      # 0 to 100 inclusive
+# Exclude endpoint:
+np.linspace(0, 1, 10, endpoint=False)  # [0.0  0.1  ...  0.9]
+# Get the step size too:
+values, step = np.linspace(0, 1, 11, retstep=True)
+print(step)   # 0.1
+
+# Standard uses:
+x = np.linspace(0, 2 * np.pi, 100)  # trig function plot
+y = np.sin(x)
+x = np.linspace(-3, 3, 200)         # Gaussian curve
+y = np.exp(-x**2)
+# Log-spaced (use logspace or geomspace):
+np.logspace(0, 3, 4)          # [1, 10, 100, 1000] — log10
+np.geomspace(1, 1000, 4)      # [1, 10, 100, 1000] — geometric`,
+        tips: [
+          'Use `linspace` for plotting — you control exactly how many points you get',
+          '`endpoint=False` is equivalent to `np.arange` behavior — useful for periodic signals',
+          '`retstep=True` also returns the step size — handy to verify spacing',
+          '`np.geomspace(a, b, n)` is linspace on a log scale — better than `np.logspace` for intuitive use',
+        ],
+        mistake: 'Using `np.linspace(0, n-1, n)` to get integer indices. Just use `np.arange(n)` — it is clearer and faster.',
+        shorthand: {
+          verbose: `import numpy as np
+np.linspace(0, 1, 11)         # [0.0  0.1  0.2  ...  1.0] — 11 points
+np.linspace(0, 1, 5)          # [0.    0.25  0.5  0.75  1. ] — 5 points
+np.linspace(0, 100, 101)      # 0 to 100 inclusive`,
+          concise: `np.geomspace(1, 1000, 4)      # [1, 10, 100, 1000] — geometric`
+        }
+      },
+      {
+        id: 'np-random',
+        fn: 'np.random.default_rng()',
+        desc: 'Generate random arrays with the modern NumPy random API.',
+        subtitle: 'default_rng(seed) for reproducible results — replaces legacy np.random',
+        signature: 'rng = np.random.default_rng(seed=42)',
+        descLong: 'The modern NumPy random API uses default_rng() to create a Generator object. Always pass a seed for reproducibility. This replaces the legacy np.random.seed() / np.random.rand() API which used global state.',
+        code: `import numpy as np
+rng = np.random.default_rng(seed=42)   # reproducible
+# Uniform [0, 1):
+rng.random(5)              # 1D array
+rng.random((3, 3))         # 2D matrix
+# Integers:
+rng.integers(0, 10, size=5)        # [0, 10) exclusive
+rng.integers(1, 7, size=(2, 3))    # like dice rolls
+# Normal distribution:
+rng.normal(loc=0, scale=1, size=1000)    # mean=0, std=1
+rng.normal(loc=5, scale=2, size=(3, 3))
+# Other distributions:
+rng.uniform(low=0, high=10, size=100)
+rng.binomial(n=10, p=0.5, size=100)
+rng.poisson(lam=3, size=100)
+rng.exponential(scale=1.0, size=100)
+# Choice:
+rng.choice(['a', 'b', 'c'], size=10, replace=True)
+rng.choice(100, size=10, replace=False)  # without replacement
+
+# Shuffle:
+arr = np.arange(10)
+rng.shuffle(arr)           # in-place
+shuffled = rng.permutation(arr)  # returns new array`,
+        tips: [
+          'Always use `default_rng(seed)` — not the legacy `np.random.seed()` which is global state',
+          'The same seed gives the same sequence — essential for reproducible experiments',
+          '`rng.integers(lo, hi)` is exclusive at `hi` — like Python `range(lo, hi)`',
+          'For ML: set both `np.random.default_rng(42)` and `random.seed(42)` for full reproducibility',
+        ],
+        mistake: 'Using the legacy API: `np.random.rand()` or `np.random.seed(42)`. The seed is global state — it interferes across threads and modules. Use `rng = np.random.default_rng(42)` instead.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'indexing',
+    title: 'Indexing & Slicing',
+    entries: [
+      {
+        id: 'array-slicing',
+        fn: 'Array slicing',
+        desc: 'Select subarrays by position using start:stop:step syntax.',
+        category: 'Indexing',
+        subtitle: 'Slices return views — modifying them modifies the original',
+        signature: 'a[start:stop:step, ...]',
+        descLong: 'NumPy slices return views — they share memory with the original array. Modifying a slice modifies the original. Use .copy() when you need an independent copy. Slicing is O(1) because no data is copied.',
+        code: `import numpy as np
+# Sales revenue: 4 stores × 6 quarters (in thousands)
+sales = np.array([
+    [120, 145, 180, 210, 195, 230],  # Store A
+    [98, 110, 130, 150, 165, 180],   # Store B
+    [210, 220, 240, 260, 280, 310],  # Store C
+    [150, 160, 175, 190, 200, 215]   # Store D
+])
+# 1D indexing:
+sales[0]           # Store A full year: [120 145 180 210 195 230]
+sales[-1]          # Last store: [150 160 175 190 200 215]
+sales[1:3]         # Stores B & C (rows 1-2)
+# 2D indexing — [row, col]:
+sales[0, 0]        # Store A, Q1: 120
+sales[2, 5]        # Store C, Q6: 310
+sales[-1, -1]      # Last store, last quarter: 215
+# Select subsets:
+sales[:, 0]        # All stores, Q1: [120 98 210 150]
+sales[1:3, 2:5]    # Stores B-C, Q3-Q5
+sales[::2, ::2]    # Every other store and quarter
+# Reverse (e.g., by descending year):
+sales[:, ::-1]     # All quarters reversed (Q6→Q1)
+# Slices return VIEWS — shared memory:
+q1_data = sales[:, 0]
+q1_data[0] = 999      # also changes sales[0, 0]!
+q1_data.base is sales # True — is a view
+
+# Create independent copy:
+q1_copy = sales[:, 0].copy()
+q1_copy[0] = 999      # doesn't affect sales
+q1_copy.base is None  # True — owns data`,
+        tips: [
+          'Slices are views — free O(1) operation, but modifications propagate to the original',
+          'Use `.copy()` when you need to modify a slice without affecting the source array',
+          '`a.base is None` checks if an array owns its data (True = owns, None = owns, not None = view)',
+          '`a[::-1]` reverses a 1D array; `a[:, ::-1]` reverses columns of a 2D array',
+        ],
+        mistake: 'Assuming `b = a[1:3]` creates an independent copy. It is a view — `b[0] = 99` also changes `a[1]`. Use `b = a[1:3].copy()` for independence.',
+        shorthand: {
+          verbose: `import numpy as np
+sales = np.array([
+[120, 145, 180, 210, 195, 230],  # Store A
+[98, 110, 130, 150, 165, 180],   # Store B`,
+          concise: `q1_copy.base is None  # True — owns data`
+        }
+      },
+      {
+        id: 'boolean-masking',
+        fn: 'Boolean masking',
+        desc: 'Select elements where a condition is True.',
+        subtitle: 'Returns a copy — combine conditions with & | ~',
+        signature: 'a[a > 0] | a[(a > 0) & (a < 10)]',
+        descLong: 'Boolean indexing creates a boolean array and uses it to select elements. Always returns a copy (not a view). Combine multiple conditions with & (and), | (or), ~ (not) — never Python `and`/`or`/`not`.',
+        code: `import numpy as np
+# Customer satisfaction scores (0-100)
+scores = np.array([85, 42, 92, 38, 88, 76, 29, 94, 67, 81])
+# Single condition:
+scores[scores >= 80]         # Satisfied: [85 92 88 94 81]
+scores[scores < 50]          # Unsatisfied: [42 38 29]
+# Multiple conditions (use &, |, ~ not and/or/not):
+scores[(scores >= 80) & (scores <= 90)]  # [85 88]
+scores[(scores < 40) | (scores > 95)]    # [38 29]
+scores[~(scores >= 80)]      # Not satisfied
+# Categorical mapping (np.where):
+category = np.where(scores >= 80, 'Happy', 'Unhappy')
+# Find indices where True:
+unhappy_idx = np.where(scores < 50)[0]  # [1 3 6]
+# Modify in-place:
+scores_clean = scores.copy()
+scores_clean[scores_clean < 50] = 50   # Floor minimum at 50
+# 2D: Regional performance (sales in thousands)
+regions = np.array([
+    [82, 91, 78],  # North
+    [45, 38, 52],  # South
+    [88, 85, 79]   # West
+])
+# Extract high performers (>80):
+high_perf = regions[regions > 80]  # [82 91 88 85] — flattened
+# Find which regions exceeded target (80):
+target_met = regions > 80
+print(f"Exceeded target: {target_met}")`,
+        tips: [
+          'Boolean indexing always returns a **copy** — unlike slicing which returns a view',
+          'Use `&`, `|`, `~` for conditions — never Python `and`, `or`, `not` on arrays',
+          '`np.where(cond, x, y)` is the vectorized ternary — much faster than any loop',
+          '`a[mask] = value` sets values in-place without creating intermediate arrays',
+        ],
+        mistake: '`a[a > 0 and a < 10]` raises ValueError. Python `and` calls `bool()` on arrays. Use `a[(a > 0) & (a < 10)]` with parentheses around each condition.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'fancy-indexing',
+        fn: 'Fancy indexing',
+        desc: 'Select elements using integer arrays or lists of indices.',
+        category: 'Indexing',
+        subtitle: 'Always returns a copy — enables non-contiguous selection',
+        signature: 'a[[0, 2, 4]] | a[[rows], [cols]]',
+        descLong: 'Fancy indexing selects elements by passing an array of indices. It always returns a copy (never a view). Useful for selecting non-contiguous rows/columns or reordering elements.',
+        code: `import numpy as np
+
+# Customer revenue (in dollars)
+revenue = np.array([1200, 3400, 2100, 950, 5600, 1800])
+# Select specific customers by indices:
+top_customers = revenue[[4, 1, 2]]  # [5600, 3400, 2100]
+duplicates = revenue[[0, 0, 1, 1]]  # [1200, 1200, 3400, 3400]
+# 2D: Sales by product (rows) and region (cols)
+sales = np.array([
+    [1200, 1450, 1800],  # Widget
+    [980, 1100, 1300],   # Gadget
+    [2100, 2200, 2400],  # Doohickey
+    [1500, 1600, 1750]   # Gizmo
+# Select specific products:
+selected = sales[[0, 2]]        # Widget and Doohickey
+reordered = sales[[3, 0, 2, 1]] # Reordered rows
+# Select specific regions:
+east_west = sales[:, [0, 2]]    # Regions 0 and 2 only
+# Select specific (row, col) cells:
+product_idx = np.array([0, 1, 2, 3])
+region_idx = np.array([0, 1, 2, 0])
+selected_cells = sales[product_idx, region_idx]
+# Fancy indexing returns a COPY (independent):
+subset = revenue[[1, 4, 2]]
+subset[0] = 9999
+print(revenue[1])  # still 3400 — subset is independent`,
+        tips: [
+          'Fancy indexing always returns a **copy** — unlike slicing which returns a view',
+          'You can repeat indices: `a[[0, 0, 1]]` returns `[a[0], a[0], a[1]]`',
+          '`a[np.argsort(a)]` sorts by value using fancy indexing — useful for sorting multiple arrays together',
+          'Fancy indexing is slower than slicing — slicing is O(1), fancy indexing is O(k) where k is indices',
+        ],
+        mistake: 'Trying to set values with fancy indexing through a temporary: `b = a[[0,2]]; b[0] = 99`. Since it is a copy, `a` is unchanged. Use `a[[0,2]] = 99` directly.',
+        shorthand: {
+          verbose: `import numpy as np
+revenue = np.array([1200, 3400, 2100, 950, 5600, 1800])
+top_customers = revenue[[4, 1, 2]]  # [5600, 3400, 2100]
+duplicates = revenue[[0, 0, 1, 1]]  # [1200, 1200, 3400, 3400]`,
+          concise: `print(revenue[1])  # still 3400 — subset is independent`
+        }
+      },
+      {
+        id: 'np-unique',
+        fn: 'np.unique()',
+        desc: 'Find unique elements and optionally their counts or inverse indices.',
+        subtitle: 'Deduplicate and count — return_counts=True for frequency',
+        signature: 'np.unique(a, return_counts=False, return_inverse=False)',
+        descLong: 'np.unique() returns the sorted unique elements of an array. With return_counts=True it also returns how many times each unique value appears. With return_inverse=True it returns the indices that reconstruct the original array from the unique values.',
+        code: `import numpy as np
+# Product IDs from customer orders (many duplicates)
+product_ids = np.array([101, 105, 101, 103, 105, 101, 102, 103, 105])
+# Get unique products:
+unique = np.unique(product_ids)  # [101 102 103 105]
+# Count occurrences of each:
+unique, counts = np.unique(product_ids, return_counts=True)
+# unique:  [101 102 103 105]
+# counts:  [3   1   2   3]
+
+# Get indices of first occurrence:
+unique, idx = np.unique(product_ids, return_index=True)
+# idx tells where each unique value first appears
+# Sorted with duplicates removed:
+invoices = np.array([2023001, 2023002, 2023001, 2023003, 2023002])
+np.unique(invoices)  # [2023001 2023002 2023003] — sorted and unique
+# Return indices to reconstruct original:
+unique, inverse_idx = np.unique(product_ids, return_inverse=True)
+# inverse_idx: product_ids = unique[inverse_idx]
+# On 2D arrays (rows are considered):
+orders = np.array([
+    [101, 100],  # Product 101, qty 100
+    [105, 50],
+    [101, 200],
+    [105, 75]
+])
+np.unique(orders, axis=0)  # Unique rows`,
+        tips: [
+          '`np.unique()` always returns sorted values — if you need unsorted unique values use `dict.fromkeys()` or `pd.unique()`',
+          '`return_counts=True` is the numpy equivalent of `value_counts()` in pandas',
+          '`return_inverse=True` lets you reconstruct the original array: `vals[inverse]`',
+          'For 2D unique rows: `np.unique(A, axis=0)` — each row treated as one element',
+        ],
+        mistake: 'Using `set(a.tolist())` to get unique values from a NumPy array. It converts to Python, loses dtype, and is slower. Use `np.unique(a)` directly.',
+        shorthand: {
+          verbose: `import numpy as np
+product_ids = np.array([101, 105, 101, 103, 105, 101, 102, 103, 105])
+unique = np.unique(product_ids)  # [101 102 103 105]
+unique, counts = np.unique(product_ids, return_counts=True)`,
+          concise: `np.unique(orders, axis=0)  # Unique rows`
+        }
+      },
+
+      {
+        id: 'np-where',
+        fn: 'np.where()',
+        desc: 'Vectorized conditional — choose between two values element-wise.',
+        category: 'Indexing',
+        subtitle: 'Replace if/else loops over arrays',
+        signature: 'np.where(condition, x, y) | np.where(condition)',
+        descLong: 'np.where(cond, x, y) returns x where cond is True, y elsewhere — the vectorized ternary. With one argument, np.where(cond) returns the indices where cond is True (same as np.nonzero).',
+        code: `import numpy as np
+# Sales data by region
+sales = np.array([1200, 950, 2100, 1500, 800, 2300])
+target = 1500
+# Simple replacement:
+adjusted = np.where(sales >= target, sales * 1.1, sales * 0.9)
+# Exceeded target? Bonus 10%; miss? Penalty 10%
+# Return status strings:
+status = np.where(sales >= target, 'Exceeded', 'Below target')
+# ['Exceeded', 'Below target', 'Exceeded', ...]
+# Get indices where condition is true:
+above_target = np.where(sales >= target)[0]  # [0, 2, 3, 5]
+# 2D example: Regional performance
+regions = np.array([
+    [1200, 1450, 1800],  # East
+    [950, 1100, 1300],   # West
+    [2100, 2200, 2400]   # North
+# Mark which regions exceeded 1500:
+performance = np.where(regions >= 1500, 'Good', 'Needs Work')
+# Scale underperforming regions:
+improved = np.where(regions >= 1500, regions, regions * 1.15)
+# Nested where (if-elif-else):
+rating = np.where(sales < 1000, 'Poor',
+         np.where(sales < 1500, 'Fair', 'Good'))`,
+        tips: [
+          '`np.where(cond, x, y)` — x and y can be scalars, arrays, or mixed',
+          'For 3+ conditions use `np.select(conditions, choices, default)` instead of nested `np.where`',
+          '`np.where(cond)` (one argument) returns a tuple of index arrays — one per dimension',
+          'np.where is computed for all elements — there is no short-circuit, unlike Python if/else',
+        ],
+        mistake: 'Using nested np.where for 3+ conditions. It becomes unreadable fast. Use `np.select([cond1, cond2, cond3], [val1, val2, val3], default=val4)` instead.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    ],
+  },
+  {
+    id: 'operations',
+    title: 'Operations, Math & Performance',
+    entries: [
+      {
+        id: 'vectorized-ops',
+        fn: 'Vectorized operations',
+        desc: 'Apply element-wise arithmetic to arrays without loops.',
+        category: 'Operations',
+        subtitle: 'Array arithmetic in C — 10-100x faster than Python loops',
+        signature: 'a + b | a * b (element-wise) | a @ b (matrix multiply)',
+        descLong: 'NumPy vectorized operations apply to every element at C speed without Python loops. Operators (+, -, *, /, **, //, %) are all element-wise. Use @ or np.dot() for matrix multiplication.',
+        code: `import numpy as np
+a = np.array([1., 4., 9., 16.])
+b = np.array([2., 2., 3., 4.])
+# Element-wise arithmetic:
+a + b               # [3., 6., 12., 20.]
+a - b
+a * b               # element-wise (NOT matrix multiply!)
+a / b
+a ** 2              # [1., 16., 81., 256.]
+a // b              # floor division
+a % b               # modulo
+# Scalar operations:
+a + 10              # add 10 to every element
+a * 2
+a > 3               # [False, True, True, True]
+# Math functions (ufuncs):
+np.sqrt(a)          # [1., 2., 3., 4.]
+np.exp(a)
+np.log(a)           # natural log
+np.log2(a);  np.log10(a)
+np.abs(np.array([-1, 2, -3]))
+np.sin(a);  np.cos(a);  np.tan(a)
+np.floor(a);  np.ceil(a);  np.round(a, 2)
+np.clip(a, 2, 8)    # clamp values to [2, 8]
+# Matrix multiply — NOT element-wise:
+A = np.array([[1, 2], [3, 4]])
+B = np.array([[5, 6], [7, 8]])
+A @ B               # [[19,22],[43,50]] — matrix multiply
+np.dot(A, B)        # same
+A * B               # [[5,12],[21,32]] — element-wise!`,
+        tips: [
+          '`a @ b` is matrix multiply; `a * b` is element-wise — confusing them is the #1 NumPy mistake',
+          'Vectorized operations run in C — a loop over 1M elements takes ~1s in Python, ~1ms in NumPy',
+          '`np.clip(a, lo, hi)` is the vectorized clamp — no loop needed',
+          '`np.maximum(a, b)` is element-wise max between two arrays; `np.max(a)` is the max of one array',
+        ],
+        mistake: 'Using `a * b` for matrix multiplication. This is element-wise. Use `a @ b` or `np.dot(a, b)` for matrix multiplication.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([1., 4., 9., 16.])
+b = np.array([2., 2., 3., 4.])
+a + b               # [3., 6., 12., 20.]`,
+          concise: `A * B               # [[5,12],[21,32]] — element-wise!`
+        }
+      },
+      {
+        id: 'np-clip',
+        fn: 'np.clip()',
+        desc: 'Clamp array values to a specified range.',
+        category: 'Operations',
+        subtitle: 'Values below min become min, above max become max',
+        signature: 'np.clip(a, a_min, a_max)',
+        descLong: 'np.clip() restricts every element to the range [a_min, a_max]. Values below a_min become a_min; values above a_max become a_max. Vectorized and fast — no loops needed. Also available as a.clip(min, max).',
+        code: `import numpy as np
+
+a = np.array([-3, -1, 0, 2, 5, 8, 12])
+# Clamp to [0, 10]:
+np.clip(a, 0, 10)     # [0, 0, 0, 2, 5, 8, 10]
+# One-sided clamp — use None for no bound:
+np.clip(a, 0, None)   # [0, 0, 0, 2, 5, 8, 12] — clip only below
+np.clip(a, None, 5)   # [-3,-1, 0, 2, 5, 5,  5] — clip only above
+# Method form:
+a.clip(0, 10)         # same as np.clip(a, 0, 10)
+# Common uses:
+# Normalize pixel values:
+pixels = np.random.randint(-10, 300, (100, 100))
+valid  = np.clip(pixels, 0, 255)
+# Bound a probability:
+logits = np.array([0.0001, 0.5, 0.9999])
+safe   = np.clip(logits, 1e-7, 1 - 1e-7)   # avoid log(0)
+# Bound gradient updates in ML:
+gradients = np.clip(gradients, -1.0, 1.0)   # gradient clipping
+# Per-element bounds using arrays:
+lo = np.array([0, 1, 2])
+hi = np.array([5, 5, 5])
+np.clip(np.array([3, 0, 8]), lo, hi)   # [3, 1, 5]`,
+        tips: [
+          '`np.clip(a, 0, None)` clips only the lower bound — `None` means no bound on that side',
+          'Gradient clipping in neural networks: `np.clip(grads, -max_norm, max_norm)`',
+          'Clip probabilities before log: `np.clip(p, 1e-7, 1-1e-7)` prevents `log(0) = -inf`',
+          '`a.clip(lo, hi, out=a)` clips in-place with no copy — saves memory for large arrays',
+        ],
+        mistake: 'Using `np.minimum(np.maximum(a, lo), hi)` for clamping. `np.clip(a, lo, hi)` is shorter, clearer, and slightly faster.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([-3, -1, 0, 2, 5, 8, 12])
+np.clip(a, 0, 10)     # [0, 0, 0, 2, 5, 8, 10]
+np.clip(a, 0, None)   # [0, 0, 0, 2, 5, 8, 12] — clip only below`,
+          concise: `np.clip(np.array([3, 0, 8]), lo, hi)   # [3, 1, 5]`
+        }
+      },
+
+      {
+        id: 'broadcasting',
+        fn: 'Broadcasting',
+        desc: 'Operate on arrays of different shapes by automatically expanding dimensions.',
+        subtitle: 'Align shapes from the right — dimensions must match or be 1',
+        signature: 'a[2,3] + b[3] → b broadcast to [2,3]',
+        descLong: 'Broadcasting allows operations between arrays of different shapes. NumPy automatically expands dimensions of size 1 to match the other array. Shapes are compared from the right — dimensions must be equal or one of them must be 1.',
+        code: `import numpy as np
+# Rule: align shapes from the right.
+# Each dimension must be equal, or one of them must be 1.
+a = np.array([[1, 2, 3],
+              [4, 5, 6]])   # shape (2, 3)
+b = np.array([10, 20, 30]) # shape (3,) → broadcast to (2, 3)
+a + b   # [[11,22,33],[14,25,36]]
+# Column vector broadcasts along columns:
+c = np.array([[100],
+              [200]])       # shape (2, 1) → broadcast to (2, 3)
+a + c   # [[101,102,103],[204,205,206]]
+# Outer product via broadcasting:
+row = np.array([1, 2, 3])   # shape (3,)
+col = np.array([[1],[2],[3]])# shape (3,1)
+row * col   # 3×3 multiplication table
+# Center each row (subtract row mean):
+a - a.mean(axis=1, keepdims=True)
+# Scale each column (divide by col std):
+a / a.std(axis=0)
+# Shape compatibility check:
+# (3, 4) + (4,)   → OK: (3, 4)
+# (3, 4) + (3, 1) → OK: (3, 4)
+# (3, 4) + (3,)   → ERROR: shapes 4 and 3 don't match`,
+        tips: [
+          'Broadcasting rule: align shapes from the right — each dimension must match or be 1',
+          '`keepdims=True` preserves the reduced axis as size-1, enabling broadcasting back to the original shape',
+          '`a - a.mean(axis=1, keepdims=True)` centers each row — the classic use of keepdims',
+          'If shapes are incompatible, NumPy raises `ValueError: operands could not be broadcast`',
+        ],
+        mistake: '`a.mean(axis=1)` returns shape `(n,)` — subtracting it from `a` of shape `(n,m)` fails because shapes `m` and `n` do not align. Use `keepdims=True` to get shape `(n,1)` which broadcasts correctly.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([[1, 2, 3],
+[4, 5, 6]])   # shape (2, 3)
+b = np.array([10, 20, 30]) # shape (3,) → broadcast to (2, 3)`,
+          concise: `a / a.std(axis=0)`
+        }
+      },
+      {
+        id: 'np-meshgrid',
+        fn: 'np.meshgrid()',
+        desc: 'Create coordinate matrices from coordinate vectors.',
+        category: 'Operations',
+        subtitle: 'Generate (X, Y) grids for 2D function evaluation and plotting',
+        signature: 'X, Y = np.meshgrid(x, y)',
+        descLong: 'np.meshgrid() takes N 1D arrays and returns N coordinate matrices. Used for evaluating 2D functions over a grid, creating contour plots, and generating all combinations of two arrays. indexing="ij" uses matrix indexing (row, col); indexing="xy" (default) uses Cartesian (x, y).',
+        code: `import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(-3, 3, 100)
+y = np.linspace(-3, 3, 100)
+# Create coordinate grids:
+X, Y = np.meshgrid(x, y)
+# X.shape == Y.shape == (100, 100)
+# Evaluate a 2D function over the grid:
+Z = np.sin(X) * np.cos(Y)
+# Plot a contour:
+plt.contourf(X, Y, Z, levels=20, cmap='RdBu')
+plt.colorbar()
+# Gaussian:
+Z_gauss = np.exp(-(X**2 + Y**2) / 2)
+plt.contourf(X, Y, Z_gauss)
+# Generate all (x, y) combinations:
+x_pts = np.array([1, 2, 3])
+y_pts = np.array([10, 20])
+X, Y  = np.meshgrid(x_pts, y_pts)
+# X: [[1,2,3],[1,2,3]]
+# Y: [[10,10,10],[20,20,20]]
+# Flatten to list of pairs:
+pairs = np.column_stack([X.ravel(), Y.ravel()])
+# [[1,10],[2,10],[3,10],[1,20],[2,20],[3,20]]
+# Memory-efficient alternative (no copy):
+X, Y = np.meshgrid(x, y, sparse=True)
+# X.shape = (1, 100), Y.shape = (100, 1) — broadcasts`,
+        tips: [
+          '`sparse=True` returns shape (1,n) and (m,1) arrays that broadcast — saves memory for large grids',
+          'Z.shape is (len(y), len(x)) — rows correspond to y values, columns to x values',
+          'For 3D grids: `X, Y, Z = np.meshgrid(x, y, z)` — each output is 3D',
+          'np.mgrid is an alternative: `X, Y = np.mgrid[-3:3:100j, -3:3:100j]`',
+        ],
+        mistake: 'Forgetting that Z has shape (len(y), len(x)) not (len(x), len(y)). Passing X and Z with swapped axes to a plotting function produces a transposed plot.',
+        shorthand: {
+          verbose: `import numpy as np
+import matplotlib.pyplot as plt
+x = np.linspace(-3, 3, 100)
+y = np.linspace(-3, 3, 100)`,
+          concise: `X, Y = np.meshgrid(x, y, sparse=True)`
+        }
+      },
+
+      {
+        id: 'np-nan',
+        fn: 'np.nan handling',
+        desc: 'Detect, replace, and compute safely with NaN values.',
+        subtitle: 'np.isnan() to detect, np.nan_to_num() to replace, nan* functions to ignore',
+        signature: 'np.isnan(a) | np.nanmean(a) | np.nan_to_num(a, nan=0)',
+        descLong: 'NaN (Not a Number) is the floating-point sentinel for missing values. NaN propagates through arithmetic — any operation with NaN returns NaN. Use np.isnan() to detect, np.nan_to_num() to replace, and nan-prefixed aggregation functions (nanmean, nansum, etc.) to ignore NaN.',
+        code: `import numpy as np
+a = np.array([1.0, 2.0, np.nan, 4.0, np.nan])
+# Detect NaN:
+np.isnan(a)             # [F, F, T, F, T]
+np.isnan(a).sum()       # 2 — count of NaN
+np.isnan(a).any()       # True — any NaN?
+np.isnan(a).all()       # False — all NaN?
+# NaN propagates:
+a.sum()                 # nan
+a.mean()                # nan
+# nan-safe aggregations (ignore NaN):
+np.nansum(a)            # 7.0
+np.nanmean(a)           # 2.333...
+np.nanstd(a)
+np.nanmax(a)            # 4.0
+np.nanmin(a)
+np.nanpercentile(a, 75)
+# Replace NaN:
+np.nan_to_num(a, nan=0.0)          # [1., 2., 0., 4., 0.]
+np.nan_to_num(a, nan=0.0,
+    posinf=1e10, neginf=-1e10)     # also handles inf
+# Boolean mask to filter:
+a[~np.isnan(a)]         # [1., 2., 4.] — drop NaN
+a[np.isfinite(a)]       # same — also removes inf
+# np.isfinite vs np.isnan:
+b = np.array([1, np.nan, np.inf, -np.inf])
+np.isnan(b)             # [F, T, F, F]
+np.isinf(b)             # [F, F, T, T]
+np.isfinite(b)          # [T, F, F, F]`,
+        tips: [
+          'NaN comparisons always return False — `np.nan == np.nan` is False. Use `np.isnan()` to check',
+          '`np.nanmean()` etc. silently ignore NaN — always check with `np.isnan().sum()` first to know how many were dropped',
+          '`np.isfinite(a)` is stricter than `~np.isnan(a)` — it also excludes `inf` and `-inf`',
+          '`np.nan_to_num(a)` replaces NaN with 0, inf with a large number — useful before feeding to ML models',
+        ],
+        mistake: 'Checking `a == np.nan` to find NaN values. This always returns False because NaN is not equal to anything, including itself. Use `np.isnan(a)` instead.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([1.0, 2.0, np.nan, 4.0, np.nan])
+np.isnan(a)             # [F, F, T, F, T]
+np.isnan(a).sum()       # 2 — count of NaN`,
+          concise: `np.isfinite(b)          # [T, F, F, F]`
+        }
+      },
+
+      {
+        id: 'aggregations',
+        fn: 'Aggregations',
+        desc: 'Reduce arrays along an axis — sum, mean, std, min, max.',
+        category: 'Operations',
+        subtitle: 'axis=0 collapses rows (per column), axis=1 collapses columns (per row)',
+        signature: 'a.sum(axis=0) | a.mean() | np.percentile(a, 75)',
+        descLong: 'Aggregation functions reduce an array along a specified axis. axis=0 collapses rows — the result has the shape of a single row. axis=1 collapses columns — the result has the shape of a single column. No axis argument aggregates everything.',
+        code: `import numpy as np
+a = np.array([[1,2,3],[4,5,6],[7,8,9]], dtype=float)
+# Global:
+a.sum()      # 45
+a.mean()     # 5.0
+a.std()      # 2.58
+a.var()
+a.min();  a.max()
+# axis=0 — collapse rows → per-column result:
+a.sum(axis=0)    # [12, 15, 18]
+a.mean(axis=0)   # [4., 5., 6.]  — column means
+# axis=1 — collapse columns → per-row result:
+a.sum(axis=1)    # [6, 15, 24]
+a.mean(axis=1)   # [2., 5., 8.]  — row means
+# Keep dimensions for broadcasting:
+a - a.mean(axis=1, keepdims=True)  # center each row
+# Cumulative:
+a.cumsum()               # flatten then cumsum
+a.cumsum(axis=1)         # running sum along rows
+np.cumprod(a, axis=0)
+# Index of min/max:
+a.argmin()               # index in flattened array
+a.argmin(axis=0)         # index of min per column
+a.argmax(axis=1)         # index of max per row
+# Percentiles:
+np.percentile(a, 75)
+np.percentile(a, [25, 50, 75])
+np.median(a)`,
+        tips: [
+          '`axis=0` reduces rows → result shape is the column shape; `axis=1` reduces columns → result shape is the row shape',
+          '`keepdims=True` preserves the reduced axis as size-1 — essential for broadcasting results back',
+          '`argmax()` returns indices, `max()` returns values — they are distinct functions',
+          '`np.nanmean()`, `np.nansum()` etc. ignore NaN — always prefer these over `mean()` when NaN may exist',
+        ],
+        mistake: '`a.mean(axis=1)` gives shape `(n,)`. Subtracting from `a` of shape `(n,m)` raises a broadcast error. Use `a.mean(axis=1, keepdims=True)` to get shape `(n,1)` which broadcasts correctly.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([[1,2,3],[4,5,6],[7,8,9]], dtype=float)
+a.sum()      # 45
+a.mean()     # 5.0`,
+          concise: `np.median(a)`
+        }
+      },
+      {
+        id: 'np-diff',
+        fn: 'np.diff()',
+        desc: 'Compute differences between consecutive elements.',
+        subtitle: 'First difference, nth order, along any axis',
+        signature: 'np.diff(a, n=1, axis=-1)',
+        descLong: 'np.diff() computes the discrete difference between consecutive elements: out[i] = a[i+1] - a[i]. The result has one fewer element than the input. n= controls the order (apply diff n times). Useful for detecting changes, derivatives, and checking if an array is sorted.',
+        code: `import numpy as np
+
+a = np.array([1, 3, 6, 10, 15])
+# First difference (consecutive):
+np.diff(a)            # [2, 3, 4, 5] — one fewer element
+# Second difference (diff of diff):
+np.diff(a, n=2)       # [1, 1, 1] — constant acceleration
+# 2D — along rows (axis=0):
+A = np.array([[1, 3, 6],
+              [2, 5, 9]])
+np.diff(A, axis=0)    # [[1, 2, 3]] — row differences
+np.diff(A, axis=1)    # [[2,3],[3,4]] — column differences
+# Check if sorted:
+np.all(np.diff(a) > 0)    # True — strictly increasing
+np.all(np.diff(a) >= 0)   # True — non-decreasing
+# Prepend/append to keep same length:
+np.diff(a, prepend=0)     # [1, 2, 3, 4, 5] — same length as a
+np.diff(a, append=20)     # [2, 3, 4, 5, 5]
+# Percentage change:
+pct = np.diff(a) / a[:-1] * 100
+# [200., 100., 66.7, 50.] — percent change
+# Detect where values change (for categorical):
+x = np.array([1, 1, 2, 2, 3, 1])
+np.where(np.diff(x) != 0)[0] + 1   # [2, 4, 5] — change indices`,
+        tips: [
+          'Result has `len(a) - 1` elements — use `prepend=` or `append=` to preserve length',
+          '`np.all(np.diff(a) >= 0)` is the fastest way to check if an array is non-decreasing',
+          '`np.diff(a, n=2)` is the discrete second derivative — useful in signal processing',
+          'For pandas, `.diff()` is the equivalent and handles NaN correctly',
+        ],
+        mistake: 'Expecting np.diff() to return the same length array. It always returns n fewer elements. Use `prepend=a[0]` to get the same length with 0 as the first difference.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+
+      {
+        id: 'np-argmax',
+        fn: 'np.argmax() / np.argmin()',
+        desc: 'Return the index of the maximum or minimum value.',
+        category: 'Operations',
+        subtitle: 'Index not value — use along axis= for per-row or per-column',
+        signature: 'np.argmax(a, axis=None) | np.argmin(a, axis=None)',
+        descLong: 'argmax() returns the index of the maximum value, argmin() the minimum. Without axis= they operate on the flattened array. With axis= they return the index along that axis — one index per row or column. Use with fancy indexing to extract the max/min values themselves.',
+        code: `import numpy as np
+a = np.array([3, 1, 4, 1, 5, 9, 2, 6])
+np.argmax(a)      # 5 — index of 9
+np.argmin(a)      # 1 — index of first 1
+# Get the value using the index:
+a[np.argmax(a)]   # 9
+# 2D — along an axis:
+A = np.array([[3, 1, 4],
+              [1, 5, 9],
+              [2, 6, 2]])
+np.argmax(A, axis=0)   # [0, 2, 1] — index of max per COLUMN
+np.argmax(A, axis=1)   # [2, 2, 1] — index of max per ROW
+# Get the max values:
+A[np.arange(3), np.argmax(A, axis=1)]   # [4, 9, 6] — max per row
+# Flat index on 2D:
+idx = np.argmax(A)      # flat index (e.g. 5)
+np.unravel_index(idx, A.shape)   # (1, 2) — row, col
+# argsort — indices that would sort the array:
+np.argsort(a)            # [1, 3, 6, 0, 2, 4, 7, 5]
+a[np.argsort(a)]         # sorted array
+np.argsort(a)[::-1]      # descending sort indices`,
+        tips: [
+          '`np.unravel_index(np.argmax(A), A.shape)` converts a flat index to (row, col)',
+          '`a[np.argmax(a)]` is equivalent to `np.max(a)` — but argmax gives you the position',
+          '`np.argsort(a)` returns indices that would sort the array — use for indirect sorting',
+          'For multiple max values (ties), argmax returns only the first — use `np.where(a == a.max())` for all',
+        ],
+        mistake: 'Using `np.argmax(A)` on a 2D array expecting row-wise results. Without axis=, it returns the flat index. Use `np.argmax(A, axis=1)` for per-row max index.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([3, 1, 4, 1, 5, 9, 2, 6])
+np.argmax(a)      # 5 — index of 9
+np.argmin(a)      # 1 — index of first 1`,
+          concise: `np.argsort(a)[::-1]      # descending sort indices`
+        }
+      },
+      {
+        id: 'np-sort',
+        fn: 'np.sort() / np.argsort()',
+        desc: 'Sort array values or get the sorting indices.',
+        subtitle: 'np.sort returns a copy; a.sort() sorts in-place; argsort for indirect sort',
+        signature: 'np.sort(a, axis=-1) | a.sort() | np.argsort(a)',
+        descLong: 'np.sort() returns a sorted copy; the .sort() method sorts in-place. argsort() returns the indices that would sort the array — useful for sorting multiple arrays by the same order or getting rank. axis= controls which dimension is sorted.',
+        code: `import numpy as np
+
+# Returns a sorted copy:
+np.sort(a)            # [1, 1, 2, 3, 4, 5, 6, 9]
+a                     # unchanged
+
+# Sort in-place:
+a.sort()
+a                     # [1, 1, 2, 3, 4, 5, 6, 9]
+# Descending — reverse the result:
+np.sort(a)[::-1]      # [9, 6, 5, 4, 3, 2, 1, 1]
+# 2D — sort along axis:
+A = np.array([[3, 1, 4], [1, 5, 9]])
+np.sort(A, axis=1)    # sort each row: [[1,3,4],[1,5,9]]
+np.sort(A, axis=0)    # sort each column: [[1,1,4],[3,5,9]]
+# argsort — indices that sort the array:
+a = np.array([3, 1, 4, 1, 5])
+idx = np.argsort(a)   # [1, 3, 0, 2, 4]
+a[idx]                # [1, 1, 3, 4, 5] — sorted
+# Indirect sort — sort multiple arrays together:
+names  = np.array(['Bob', 'Alice', 'Carol'])
+scores = np.array([85, 92, 78])
+order  = np.argsort(scores)[::-1]   # descending by score
+names[order]    # ['Alice', 'Bob', 'Carol']
+scores[order]   # [92, 85, 78]
+# Rank (1-based):
+np.argsort(np.argsort(scores))   # [1, 2, 0] (0-based rank)`,
+        tips: [
+          '`np.sort(a)` returns a copy; `a.sort()` is in-place — be explicit about which you want',
+          '`np.sort(a)[::-1]` for descending — there is no ascending=False argument in NumPy',
+          '`argsort` is the key to sorting multiple arrays by the same criterion',
+          '`np.argsort(np.argsort(a))` gives the rank of each element (0-based)',
+        ],
+        mistake: 'Using `sorted(a.tolist())` to sort a NumPy array. This converts to Python list, loses dtype, and is much slower. Use `np.sort(a)` directly.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([3, 1, 4, 1, 5, 9, 2, 6])
+np.sort(a)            # [1, 1, 2, 3, 4, 5, 6, 9]
+a                     # unchanged`,
+          concise: `np.argsort(np.argsort(scores))   # [1, 2, 0] (0-based rank)`
+        }
+      },
+
+
+      {
+        id: 'np-linalg',
+        fn: 'np.linalg',
+        desc: 'Linear algebra — solve systems, invert matrices, eigenvalues, SVD.',
+        category: 'Operations',
+        subtitle: 'solve() for linear systems, eig() for eigenvalues, svd() for decomposition',
+        signature: 'np.linalg.solve(A, b) | np.linalg.eig(A) | np.linalg.svd(A)',
+        descLong: 'np.linalg provides standard linear algebra routines. solve() solves Ax=b more stably than computing the inverse. eig() returns eigenvalues and eigenvectors. svd() decomposes a matrix for PCA and dimensionality reduction.',
+        code: `import numpy as np
+A = np.array([[2, 1], [-1, 3]], dtype=float)
+b = np.array([5, 10], dtype=float)
+# Solve Ax = b (better than inv(A) @ b):
+x = np.linalg.solve(A, b)
+np.allclose(A @ x, b)      # True — verify
+# Matrix properties:
+np.linalg.det(A)            # determinant
+np.linalg.inv(A)            # inverse (avoid — use solve instead)
+np.linalg.matrix_rank(A)    # rank
+np.linalg.norm(b)           # vector L2 norm
+np.linalg.norm(A, 'fro')    # Frobenius norm
+# Eigendecomposition:
+eigenvalues, eigenvectors = np.linalg.eig(A)
+# A @ v = lambda * v for each (lambda, v) pair
+# SVD (PCA, dimensionality reduction):
+U, s, Vt = np.linalg.svd(A)
+# A = U @ np.diag(s) @ Vt
+# Least squares (overdetermined system):
+A_tall = np.random.randn(100, 3)
+b_vec  = np.random.randn(100)
+x_ls, residuals, rank, sv = np.linalg.lstsq(A_tall, b_vec, rcond=None)
+# Condition number (measure of numerical stability):
+np.linalg.cond(A)   # large number → near-singular`,
+        tips: [
+          '`np.linalg.solve(A, b)` is more numerically stable than `np.linalg.inv(A) @ b` — always prefer solve',
+          'Check `np.linalg.cond(A)` before solving — a large condition number means the system is ill-conditioned',
+          'SVD is the foundation of PCA — the columns of U are the principal components',
+          'For batch matrix operations, numpy broadcasts along the first axes: `np.linalg.solve(batch_A, batch_b)`',
+        ],
+        mistake: 'Using `np.linalg.inv(A) @ b` to solve a linear system. This is less numerically stable and slower than `np.linalg.solve(A, b)`. Always use solve().',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+    
+      {
+        id: 'np-einsum',
+        fn: 'np.einsum()',
+        desc: 'Express complex tensor operations with Einstein summation notation.',
+        category: 'Performance',
+        subtitle: 'Concise, fast tensor contractions — beats explicit loops',
+        signature: 'np.einsum("ij,jk->ik", A, B)',
+        descLong: 'np.einsum() expresses tensor operations using Einstein summation notation. Repeated indices are summed over. It can express matrix multiply, dot products, outer products, traces, and batch operations concisely and efficiently.',
+        code: `import numpy as np
+
+A = np.random.randn(100, 50)
+B = np.random.randn(50, 30)
+v = np.random.randn(100)
+w = np.random.randn(100)
+# Matrix multiply: A @ B
+np.einsum('ij,jk->ik', A, B)
+# Dot product: np.dot(v, w)
+np.einsum('i,i->', v, w)
+# Outer product:
+np.einsum('i,j->ij', v[:5], w[:5])
+# Element-wise multiply and sum:
+np.einsum('i,i->i', v, w)    # element-wise product
+np.einsum('ij->j', A)        # column sums (same as A.sum(axis=0))
+np.einsum('ij->i', A)        # row sums
+# Trace:
+np.einsum('ii->', A[:50,:50])   # same as np.trace()
+# Batch matrix multiply:
+batch_A = np.random.randn(10, 4, 3)
+batch_B = np.random.randn(10, 3, 5)
+np.einsum('bij,bjk->bik', batch_A, batch_B)  # (10, 4, 5)
+# Transpose:
+np.einsum('ij->ji', A)    # same as A.T`,
+        tips: [
+          'Subscripts: `ij,jk->ik` means contract over `j` — the shared index',
+          'Any omitted output index is summed over: `ij->i` sums along j (row sums)',
+          'einsum with `optimize=True` finds the most efficient contraction order',
+          'For simple matrix ops, `@` and `np.dot` are often faster — use einsum for complex contractions',
+        ],
+        mistake: 'Writing einsum without the output subscript for operations that should not sum. `np.einsum("ij,ij", A, B)` sums everything; `np.einsum("ij,ij->ij", A, B)` is element-wise multiply.',
+        shorthand: {
+          verbose: `import numpy as np
+A = np.random.randn(100, 50)
+B = np.random.randn(50, 30)
+v = np.random.randn(100)`,
+          concise: `np.einsum('ij->ji', A)    # same as A.T`
+        }
+      },
+      {
+        id: 'np-dtype-perf',
+        fn: 'dtype optimization',
+        desc: 'Choose numeric types to reduce memory and increase speed.',
+        subtitle: 'float32 halves memory; C-contiguous layout is fastest',
+        signature: 'a.astype(np.float32) | np.ascontiguousarray(a)',
+        descLong: 'NumPy performance depends heavily on dtype and memory layout. float32 uses half the memory of float64. C-contiguous arrays (row-major) are fastest for row operations; Fortran-contiguous (column-major) for column operations.',
+        code: `import numpy as np
+# dtype sizes:
+# float64 (default) = 8 bytes
+# float32           = 4 bytes (half memory, less precision)
+# int64             = 8 bytes
+# int32             = 4 bytes
+# int16             = 2 bytes
+# bool              = 1 byte
+
+a = np.arange(1e6, dtype=np.float32)   # 4MB vs 8MB
+a.itemsize   # 4
+a.nbytes     # 4000000
+# Convert dtype:
+a.astype(np.float32)    # always returns a copy
+a.astype(np.int32)
+# Check memory layout:
+a.flags['C_CONTIGUOUS']     # True = row-major (fastest for C)
+a.flags['F_CONTIGUOUS']     # True = column-major
+# Ensure C-contiguous:
+a = np.ascontiguousarray(a)
+# In-place operations avoid allocation:
+a += 1          # in-place (no copy)
+a *= 2
+np.add(a, b, out=a)    # explicit output array
+# Use .values for faster pandas operations:
+# df["col"].values returns numpy array — skips pandas overhead`,
+        tips: [
+          'float32 is acceptable for most ML tasks and halves memory vs float64',
+          'In-place operations (`+=`, `*=`) avoid allocating a new array — critical in memory-bound loops',
+          '`np.add(a, b, out=a)` is the most explicit in-place operation',
+          'Avoid repeated concatenation in a loop — allocate the result array first with `np.empty(final_shape)` and fill it',
+        ],
+        mistake: 'Using `np.vectorize()` thinking it speeds things up. It is a convenience wrapper that loops in Python — same speed as a for loop. Use actual ufuncs or Numba for real speedup.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.arange(1e6, dtype=np.float32)   # 4MB vs 8MB
+a.itemsize   # 4
+a.nbytes     # 4000000`,
+          concise: `np.add(a, b, out=a)    # explicit output array`
+        }
+      }
+],
+  },
+  {
+    id: 'shape',
+    title: 'Shape & Structure',
+    entries: [
+      {
+        id: 'reshape',
+        fn: 'np.reshape()',
+        desc: 'Change the shape of an array without changing its data.',
+        category: 'Shape',
+        subtitle: 'Use -1 to infer one dimension — returns a view when possible',
+        signature: 'a.reshape(3, 4) | a.reshape(-1, 4) | a.ravel()',
+        descLong: 'reshape() changes the dimensions of an array. The total number of elements must remain the same. Use -1 for one dimension and NumPy infers it. reshape() returns a view when possible — modifying it modifies the original.',
+        code: `import numpy as np
+a = np.arange(12)
+# Explicit shape:
+a.reshape(3, 4)          # shape (12,) → (3, 4)
+a.reshape(2, 2, 3)       # → (2, 2, 3)
+# -1 means "infer this dimension":
+a.reshape(3, -1)         # → (3, 4)
+a.reshape(-1, 4)         # → (3, 4)
+a.reshape(-1)            # → (12,) flatten to 1D
+
+# Flatten — always returns a copy:
+a.reshape(3,4).flatten()
+# Ravel — returns a view when possible:
+a.reshape(3,4).ravel()
+# Transpose:
+A = a.reshape(3, 4)
+A.T                      # shape (4, 3) — view
+np.transpose(A)          # same
+np.transpose(A, axes=(1, 0))  # same for 2D
+# Add / remove dimensions:
+a[np.newaxis, :]         # (1, 12) — add axis
+a[:, np.newaxis]         # (12, 1) — add axis
+np.expand_dims(a, 0)     # same as a[np.newaxis]
+np.squeeze(a)            # remove all size-1 dimensions
+# Common pattern — column vector for broadcasting:
+v = np.array([1, 2, 3])
+v.reshape(-1, 1)         # (3,1) column vector`,
+        tips: [
+          '`-1` in reshape means "infer this dimension" — `a.reshape(-1, 4)` always gives 4 columns',
+          '`a.T` is a free O(1) transposition — it is a view, not a copy',
+          '`a.ravel()` returns a view when the array is contiguous; `a.flatten()` always copies',
+          '`np.newaxis` is just `None` — `a[None, :]` works too, but `np.newaxis` is more readable',
+        ],
+        mistake: 'Confusing `reshape(-1)` with `flatten()`. `reshape(-1)` returns a view (when possible); `flatten()` always returns a copy.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.arange(12)
+a.reshape(3, 4)          # shape (12,) → (3, 4)
+a.reshape(2, 2, 3)       # → (2, 2, 3)`,
+          concise: `v.reshape(-1, 1)         # (3,1) column vector`
+        }
+      },
+      {
+        id: 'np-stack',
+        fn: 'np.stack()',
+        desc: 'Join arrays along a NEW axis.',
+        category: 'Shape',
+        subtitle: 'All arrays must have identical shapes — creates one new dimension',
+        signature: 'np.stack([a, b, c], axis=0)',
+        descLong: 'np.stack() joins a sequence of arrays along a new axis. All input arrays must have exactly the same shape. The result has one more dimension than the inputs. axis= controls where the new dimension is inserted.',
+        code: `import pandas as pd
+import numpy as np
+a = np.array([1, 2, 3])   # shape (3,)
+b = np.array([4, 5, 6])   # shape (3,)
+# stack creates a NEW axis:
+np.stack([a, b], axis=0)   # [[1,2,3],[4,5,6]] → shape (2, 3)
+np.stack([a, b], axis=1)   # [[1,4],[2,5],[3,6]] → shape (3, 2)
+
+# Three arrays:
+c = np.array([7, 8, 9])
+np.stack([a, b, c])        # shape (3, 3) — axis=0 default
+# 2D arrays:
+A = np.ones((3, 4))
+B = np.ones((3, 4))
+np.stack([A, B], axis=0)   # shape (2, 3, 4) — new batch dimension
+np.stack([A, B], axis=2)   # shape (3, 4, 2) — new last dimension
+# Common use — build a batch from samples:
+samples = [np.random.randn(64, 64) for _ in range(32)]
+batch   = np.stack(samples, axis=0)   # (32, 64, 64)
+# np.vstack and np.hstack are shorthands:
+np.vstack([a, b])           # same as np.stack([a,b], axis=0) for 1D
+np.hstack([a, b])           # concatenate along axis 1 (not stack)`,
+        tips: [
+          '`np.stack()` requires all arrays to have the **exact same shape** — use `np.concatenate()` for different sizes',
+          '`axis=0` (default) adds the new axis at the front — `axis=-1` adds it at the back',
+          'Stack is conceptually "adding a new dimension" — concatenate is "extending an existing one"',
+          '`np.vstack` is `stack(axis=0)` for 1D, but `concatenate(axis=0)` for 2D+ — be careful',
+        ],
+        mistake: 'Confusing `np.stack` and `np.concatenate`. stack([shape(3,)], [shape(3,)]) → shape (2,3) — new axis. concatenate([shape(3,)], [shape(3,)]) → shape (6,) — extended axis.',
+        shorthand: {
+          verbose: `import pandas as pd
+import numpy as np
+a = np.array([1, 2, 3])   # shape (3,)
+b = np.array([4, 5, 6])   # shape (3,)`,
+          concise: `np.hstack([a, b])           # concatenate along axis 1 (not stack)`
+        }
+      },
+      {
+        id: 'np-concatenate',
+        fn: 'np.concatenate()',
+        desc: 'Join arrays along an EXISTING axis.',
+        subtitle: 'Shapes must match on all axes except the concatenation axis',
+        signature: 'np.concatenate([a, b], axis=0)',
+        descLong: 'np.concatenate() joins arrays along an existing axis. Input shapes must match on every axis except the one being concatenated. No new dimensions are created. np.vstack, hstack, dstack, and column_stack are convenience wrappers.',
+        code: `import numpy as np
+
+a = np.array([1, 2, 3])
+b = np.array([4, 5, 6])
+# 1D — extend along axis 0:
+np.concatenate([a, b])           # [1,2,3,4,5,6] — shape (6,)
+np.concatenate([a, b, a])        # [1,2,3,4,5,6,1,2,3]
+# 2D — stack rows (axis=0):
+A = np.array([[1,2],[3,4]])      # (2,2)
+B = np.array([[5,6],[7,8]])      # (2,2)
+np.concatenate([A, B], axis=0)   # [[1,2],[3,4],[5,6],[7,8]] (4,2)
+# 2D — stack columns (axis=1):
+np.concatenate([A, B], axis=1)   # [[1,2,5,6],[3,4,7,8]] (2,4)
+# Convenience wrappers:
+np.vstack([A, B])       # vertical   — axis=0 for 2D+
+np.hstack([A, B])       # horizontal — axis=1 for 2D+
+np.column_stack([a, b]) # 1D → columns: [[1,4],[2,5],[3,6]] (3,2)
+np.dstack([A, B])       # depth      — axis=2
+
+# Split (inverse of concatenate):
+np.split(np.arange(12), 3)       # 3 equal parts
+np.split(np.arange(12), [3, 7])  # split at indices 3 and 7
+np.array_split(a, 5)             # allow unequal splits`,
+        tips: [
+          'All shapes must match **except** on the concatenation axis',
+          '`np.column_stack([a, b])` treats 1D arrays as columns — handy for building feature matrices',
+          'Avoid repeated concatenation in a loop — it is O(n²). Collect in a list then concatenate once',
+          '`axis=None` first flattens all arrays then concatenates — same as `np.concatenate([a.ravel(), b.ravel()])`',
+        ],
+        mistake: 'Concatenating in a loop: `result = np.concatenate([result, new_row])` on each iteration is O(n²). Append to a Python list, then call `np.concatenate(list)` once at the end.',
+        shorthand: {
+          verbose: `import pandas as pd
+import numpy as np
+a = np.array([1, 2, 3])
+b = np.array([4, 5, 6])`,
+          concise: `np.array_split(a, 5)             # allow unequal splits`
+        }
+      },
+      {
+        id: 'np-tile',
+        fn: 'np.tile()',
+        desc: 'Repeat an entire array a specified number of times.',
+        category: 'Shape',
+        subtitle: 'Copies the whole array along new axes — useful for broadcasting',
+        signature: 'np.tile(a, reps)',
+        descLong: 'np.tile() repeats the entire array a specified number of times. Unlike repeat, which duplicates individual elements, tile copies the whole array structure. Use for broadcasting setup, creating test data, and expanding arrays for element-wise operations.',
+        code: `import numpy as np
+a = np.array([1, 2, 3])
+# 1D tiling — repeat the array:
+np.tile(a, 3)         # [1,2,3,1,2,3,1,2,3]
+# 2D tiling — specify (rows, cols):
+np.tile(a, (2, 3))    # [[1,2,3,1,2,3,1,2,3],
+                      #  [1,2,3,1,2,3,1,2,3]]
+# Expand 1D weights to 2D for broadcasting:
+weights = np.array([0.5, 0.3, 0.2])
+np.tile(weights, (100, 1))   # (100, 3) — same weights for 100 rows
+# 3D tiling:
+np.tile(a, (2, 3, 4))  # 2x3x4 repetitions
+
+# Mental model:
+# tile([1,2,3], 2) = "copy the tape twice" → [1,2,3,1,2,3]`,
+        tips: [
+          '`np.tile(a, (rows, cols))` is the standard way to expand a 1D array to 2D for broadcasting',
+          'tile repeats the entire array structure — use repeat() to duplicate individual elements',
+          'For memory efficiency, use broadcasting instead of tile when possible — tile creates a copy',
+          'Mnemonic: tile = "copy the whole tape"; repeat = "stutter each element"',
+        ],
+        mistake: 'Confusing tile and repeat. `np.tile([1,2,3], 2)` gives [1,2,3,1,2,3]. `np.repeat([1,2,3], 2)` gives [1,1,2,2,3,3]. They are opposite operations.',
+        shorthand: {
+          verbose: `result = []
+for x in items:
+    if x > 0:
+        result.append(x)`,
+          concise: `result = [x for x in items if x > 0]`
+        }
+      },
+      {
+        id: 'np-repeat',
+        fn: 'np.repeat()',
+        desc: 'Repeat each individual element of an array.',
+        subtitle: 'Duplicates each element — not the whole array',
+        signature: 'np.repeat(a, repeats, axis=None)',
+        descLong: 'np.repeat() repeats each individual element of an array a specified number of times. Unlike tile, which copies the whole array, repeat duplicates individual elements. You can specify different repeat counts for each element or apply repetition along a specific axis.',
+        code: `import numpy as np
+
+# Repeat each element the same number of times:
+np.repeat(a, 3)       # [1,1,1,2,2,2,3,3,3]
+np.repeat(a, 2)       # [1,1,2,2,3,3]
+# Repeat each element a different number of times:
+np.repeat(a, [1,2,3]) # [1,2,2,3,3,3]
+# 2D repeat along axis 0 (rows):
+A = np.array([[1,2],[3,4]])
+np.repeat(A, 2, axis=0)  # repeat each row twice
+# [[1,2],[1,2],[3,4],[3,4]]
+# 2D repeat along axis 1 (columns):
+np.repeat(A, 2, axis=1)  # repeat each col twice
+# [[1,1,2,2],[3,3,4,4]]
+# Flatten and repeat (axis=None is default):
+np.repeat(A, 2)  # [1,1,2,2,3,3,4,4]`,
+        tips: [
+          '`np.repeat(a, counts)` with a list repeats each element a different number of times',
+          'repeat() with axis duplicates along that axis; axis=None flattens first',
+          'Use repeat() to upsample data or expand labels for broadcasting',
+          'Mnemonic: repeat = "stutter each element"; tile = "copy the whole tape"',
+        ],
+        mistake: 'Confusing repeat and tile. `np.repeat([1,2,3], 2)` gives [1,1,2,2,3,3]. `np.tile([1,2,3], 2)` gives [1,2,3,1,2,3]. They duplicate different things.',
+        shorthand: {
+          verbose: `import numpy as np
+a = np.array([1, 2, 3])
+np.repeat(a, 3)       # [1,1,1,2,2,2,3,3,3]
+np.repeat(a, 2)       # [1,1,2,2,3,3]`,
+          concise: `np.repeat(A, 2)  # [1,1,2,2,3,3,4,4]`
+        }
+      },
+
+    ],
+  },
+]
+
+export default { meta, sections }
