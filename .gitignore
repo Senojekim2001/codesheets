@@ -43,3 +43,6 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+# Generated sheet JSON (built by prebuild script)
+/public/data/

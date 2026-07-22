@@ -12,7 +12,7 @@ const FORMATS = [
   { id: 'excel',    icon: '\u{1F4CA}', label: 'Excel',     title: 'Download interactive workbook (.xlsx)' },
 ]
 
-export default function ExportBar({ domain, sheetId, sheetData, domainLabel, sheetLabel }) {
+export default function ExportBar({ domain, sheetId, domainLabel, sheetLabel }) {
   const [active, setActive] = useState(null)   // which format is generating
   const [error, setError]   = useState(null)
 
@@ -22,6 +22,10 @@ export default function ExportBar({ domain, sheetId, sheetData, domainLabel, she
     setError(null)
 
     try {
+      // Fetch full sheet data on-demand (not baked into pageProps)
+      const res = await fetch(`/data/${domain}/${sheetId}.json`)
+      const sheetData = await res.json()
+
       // Lazy-import the specific exporter + helper
       const { downloadBlob } = await import('../lib/exporters/fileHelper')
 

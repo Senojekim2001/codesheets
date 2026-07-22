@@ -1,12 +1,15 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import EntryModal from './EntryModal'
 
-export default function SheetGrid({ sections, domain }) {
+export default function SheetGrid({ sections, domain, sheetId }) {
   const [modalIndex, setModalIndex] = useState(null)
   const [query, setQuery] = useState('')
   const [tocOpen, setTocOpen] = useState(false)
   const [collapsed, setCollapsed] = useState({})
   const [showTop, setShowTop] = useState(false)
+  const [fullEntry, setFullEntry] = useState(null)
+  const [entryLoading, setEntryLoading] = useState(false)
+  const fullSheetRef = useRef(null)
   const searchRef = useRef(null)
   const tocRef = useRef(null)
 
@@ -38,12 +41,55 @@ export default function SheetGrid({ sections, domain }) {
     [sections]
   )
 
-  const openEntry = useCallback((entry) => {
+  const openEntry = useCallback(async (entry) => {
     const idx = allEntries.findIndex(e => e.id === entry.id)
     setModalIndex(idx)
-  }, [allEntries])
+    setFullEntry(null)
+    setEntryLoading(true)
 
-  const activeEntry = modalIndex !== null ? allEntries[modalIndex] : null
+    try {
+      // Fetch the full sheet JSON once and cache it
+      if (!fullSheetRef.current) {
+        const res = await fetch(`/data/${domain}/${sheetId}.json`)
+        fullSheetRef.current = await res.json()
+      }
+      const sheet = fullSheetRef.current
+      const found = (sheet.sections || []).flatMap(s => s.entries || []).find(e => e.id === entry.id)
+      setFullEntry(found || entry)
+    } catch (err) {
+      console.error('Failed to fetch entry details:', err)
+      setFullEntry(entry)
+    } finally {
+      setEntryLoading(false)
+    }
+  }, [allEntries, domain, sheetId])
+
+  // Fetch full entry data when navigating between entries in the modal
+  useEffect(() => {
+    if (modalIndex === null) return
+    const entry = allEntries[modalIndex]
+    if (!entry) return
+
+    setFullEntry(null)
+    setEntryLoading(true)
+
+    ;(async () => {
+      try {
+        if (!fullSheetRef.current) {
+          const res = await fetch(`/data/${domain}/${sheetId}.json`)
+          fullSheetRef.current = await res.json()
+        }
+        const sheet = fullSheetRef.current
+        const found = (sheet.sections || []).flatMap(s => s.entries || []).find(e => e.id === entry.id)
+        setFullEntry(found || entry)
+      } catch (err) {
+        console.error('Failed to fetch entry details:', err)
+        setFullEntry(entry)
+      } finally {
+        setEntryLoading(false)
+      }
+    })()
+  }, [modalIndex, allEntries, domain, sheetId])
 
   const scrollToSection = useCallback((sectionId) => {
     const el = document.getElementById(`section-${sectionId}`)
@@ -202,12 +248,13 @@ export default function SheetGrid({ sections, domain }) {
       </button>
 
       <EntryModal
-        entry={activeEntry}
+        entry={fullEntry || allEntries[modalIndex]}
         entries={allEntries}
         index={modalIndex ?? 0}
-        onClose={() => setModalIndex(null)}
+        onClose={() => { setModalIndex(null); setFullEntry(null) }}
         onNav={setModalIndex}
         domain={domain}
+        loading={entryLoading}
       />
     </>
   )

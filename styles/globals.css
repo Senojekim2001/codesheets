@@ -554,6 +554,16 @@ button { cursor: pointer; font-family: inherit; }
 .modal-body::-webkit-scrollbar { width: 5px; }
 .modal-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
+.modal-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-dim, #888);
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
+}
+
 .modal-label {
   font-family: var(--font-cond);
   font-weight: 700;

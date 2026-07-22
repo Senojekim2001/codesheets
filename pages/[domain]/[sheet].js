@@ -3,6 +3,7 @@ import SEOHead from '../../components/SEOHead'
 import SheetGrid from '../../components/SheetGrid'
 import ExportBar from '../../components/ExportBar'
 import { catalog, getAllSheetPaths, getSheet } from '../../data/catalog'
+import { stripSnippetDataForIndex } from '../../lib/stripSheetData'
 
 /**
  * Pre-renders every sheet at build time.
@@ -54,7 +55,7 @@ export async function getStaticProps({ params }) {
         id: sheet.id,
         label: sheet.label,
       },
-      sheetData,
+      sheetData: stripSnippetDataForIndex(sheetData),
       seo: {
         title: `${sheet.label} — ${domain.label} Cheat Sheet`,
         description,
@@ -95,7 +96,6 @@ export default function SheetPage({ domainData, sheetMeta, sheetData, seo }) {
           <ExportBar
             domain={domainData.id}
             sheetId={sheetMeta.id}
-            sheetData={sheetData}
             domainLabel={domainData.label}
             sheetLabel={sheetMeta.label}
           />
@@ -104,7 +104,7 @@ export default function SheetPage({ domainData, sheetMeta, sheetData, seo }) {
         {isEmpty ? (
           <ComingSoon domain={domainData} sheet={sheetMeta} />
         ) : (
-          <SheetGrid sections={sections} domain={domainData.id} />
+          <SheetGrid sections={sections} domain={domainData.id} sheetId={sheetMeta.id} />
         )}
       </div>
     </>

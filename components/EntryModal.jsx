@@ -109,7 +109,7 @@ function buildPlaceholder(ytId, ytTitle) {
   `
 }
 
-export default function EntryModal({ entry, entries, index, onClose, onNav, domain }) {
+export default function EntryModal({ entry, entries, index, onClose, onNav, domain, loading }) {
   const isOpen = !!entry
 
   const handleNav = useCallback((dir) => {
@@ -133,6 +133,28 @@ export default function EntryModal({ entry, entries, index, onClose, onNav, doma
   }, [isOpen, handleNav, onClose])
 
   if (!entry) return null
+
+  if (loading) {
+    return (
+      <div
+        className={`modal-overlay ${isOpen ? 'open' : ''}`}
+        onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      >
+        <div className="modal" data-domain={domain}>
+          <div className="modal-header">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="modal-title">{entry.fn}</div>
+              {entry.category && <div className="modal-cat">{entry.category}</div>}
+            </div>
+            <button className="modal-close" onClick={onClose} title="Close (Esc)">✕</button>
+          </div>
+          <div className="modal-body">
+            <div className="modal-loading">Loading details…</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
